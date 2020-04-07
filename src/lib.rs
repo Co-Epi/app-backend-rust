@@ -1,39 +1,39 @@
-#![allow(warnings)]
-
 use cen::*;
-use once_cell::sync::{Lazy, OnceCell};
-use persy::{Config, PRes, Persy, ValueMode};
-use std::{
-    collections::{HashMap, HashSet},
-    path::{Path, PathBuf},
-};
+use once_cell::sync::OnceCell;
+use persy::{Config, Persy, ValueMode};
+use std::{collections::HashMap, path::Path};
 
 pub type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 pub type Res<T> = Result<T, Error>;
 
-const CENS_BY_TS: &'static str = "cens by ts";
+const CENS_BY_TS: &str = "cens by ts";
 
-pub fn init<P: AsRef<Path>>(p: P) -> PRes<()> {
+pub fn init<P: AsRef<Path>>(p: P) -> Res<()> {
     let db = Persy::open_or_create_with(p, Config::new(), |db| {
         let mut tx = db.begin()?;
         tx.create_index::<i64, u128>(CENS_BY_TS, ValueMode::CLUSTER)?;
         tx.prepare_commit()?.commit()?;
         Ok(())
     })?;
-    DB.set(db);
+    DB.set(db).map_err(|_| DB_ALREADY_INIT)?;
     Ok(())
 }
 
+const DB_ALREADY_INIT: &str = "DB failed to initalize";
+
 static DB: OnceCell<Persy> = OnceCell::new();
-const DB_UNINIT: &'static str = "DB not initialized";
+const DB_UNINIT: &str = "DB not initialized";
 
 fn u128_of_cen(cen: ContactEventNumber) -> u128 {
     u128::from_le_bytes(cen.0)
 }
 
-fn cen_of_u128(u: u128) -> ContactEventNumber {
-    ContactEventNumber(u.to_le_bytes())
-}
+// maybe we don't care about this one?
+// leaving it here in case I need it as the library evolves
+// TODO: consider deleting
+// fn cen_of_u128(u: u128) -> ContactEventNumber {
+//     ContactEventNumber(u.to_le_bytes())
+// }
 
 fn cens_in_interval(start: i64, end: i64) -> Res<HashMap<u128, i64>> {
     let mut out = HashMap::new();
@@ -41,7 +41,7 @@ fn cens_in_interval(start: i64, end: i64) -> Res<HashMap<u128, i64>> {
     let items = DB
         .get()
         .ok_or(DB_UNINIT)?
-        .range::<i64, u128, _>(CENS_BY_TS, (start..end))?;
+        .range::<i64, u128, _>(CENS_BY_TS, start..end)?;
 
     for (ts, cens) in items {
         match cens {
