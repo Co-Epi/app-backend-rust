@@ -1,0 +1,15 @@
+[package]
+name = "cen_client"
+version = "0.1.0"
+authors = ["theseriousadult <jack@gallabytes.com>"]
+edition = "2018"
+
+[dependencies]
+persy = "0.9"
+once_cell = "1.3.1"
+
+[dependencies.cen]
+git = "https://github.com/Co-Epi/CEN.git"
+branch = "main"
+
+
