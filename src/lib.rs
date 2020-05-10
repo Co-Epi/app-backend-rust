@@ -1,7 +1,9 @@
-use cen::*;
 use once_cell::sync::OnceCell;
 use persy::{Config, Persy, ValueMode};
-use std::{collections::HashMap, path::Path};
+use std::{path::Path};
+use tcn::TemporaryContactNumber;
+use tcn::Report;
+use std::collections::HashSet;
 
 pub type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 pub type Res<T> = Result<T, Error>;
@@ -11,6 +13,7 @@ const CENS_BY_TS: &str = "cens by ts";
 pub fn init<P: AsRef<Path>>(p: P) -> Res<()> {
     let db = Persy::open_or_create_with(p, Config::new(), |db| {
         let mut tx = db.begin()?;
+        tx.create_segment("tcn")?;
         tx.create_index::<i64, u128>(CENS_BY_TS, ValueMode::CLUSTER)?;
         tx.prepare_commit()?.commit()?;
         Ok(())
@@ -24,8 +27,8 @@ const DB_ALREADY_INIT: &str = "DB failed to initalize";
 static DB: OnceCell<Persy> = OnceCell::new();
 const DB_UNINIT: &str = "DB not initialized";
 
-fn u128_of_cen(cen: ContactEventNumber) -> u128 {
-    u128::from_le_bytes(cen.0)
+fn u128_of_tcn(tcn: TemporaryContactNumber) -> u128 {
+    u128::from_le_bytes(tcn.0)
 }
 
 // maybe we don't care about this one?
@@ -35,72 +38,73 @@ fn u128_of_cen(cen: ContactEventNumber) -> u128 {
 //     ContactEventNumber(u.to_le_bytes())
 // }
 
-fn cens_in_interval(start: i64, end: i64) -> Res<HashMap<u128, i64>> {
-    let mut out = HashMap::new();
+
+fn byte_vec_to_16_byte_array(bytes: Vec<u8>) -> [u8; 16] {
+  let mut array = [0; 16];
+  let bytes = &bytes[..array.len()]; // panics if not enough data
+  array.copy_from_slice(bytes); 
+  array
+}
+
+fn all_stored_tcns() -> Res<Vec<u128>> {
+    let mut out: Vec<u128> = Vec::new();
 
     let items = DB
         .get()
         .ok_or(DB_UNINIT)?
-        .range::<i64, u128, _>(CENS_BY_TS, start..end)?;
+        .scan("tcn")?;
 
-    for (ts, cens) in items {
-        match cens {
-            persy::Value::SINGLE(cen) => {
-                out.insert(cen, ts);
-            }
-            persy::Value::CLUSTER(cens) => {
-                for cen in cens {
-                    out.insert(cen, ts);
-                }
-            }
-        }
+    for (_id,content) in items {
+      let byte_array: [u8; 16] = byte_vec_to_16_byte_array(content);
+      let tcn_bits: u128 = u128::from_le_bytes(byte_array);
+      out.push(tcn_bits);
     }
-
     Ok(out)
 }
 
-pub fn record_cen(ts: i64, cen: ContactEventNumber) -> Res<()> {
+pub fn record_tcn(tcn: TemporaryContactNumber) -> Res<()> {
     let db = DB.get().ok_or(DB_UNINIT)?;
     let mut tx = db.begin()?;
-    tx.put(CENS_BY_TS, ts, u128_of_cen(cen))?;
+    tx.insert_record("tcn", &tcn.0)?; // [u8; 16]
+    // tx.put(CENS_BY_TS, ts, u128_of_tcn(tcn))?;
     tx.prepare_commit()?.commit()?;
     Ok(())
 }
 
-pub fn delete_cens_between(start: i64, end: i64) -> Res<()> {
-    let db = DB.get().ok_or(DB_UNINIT)?;
-    let mut tx = db.begin()?;
+// TODO (deleting of TCNs not critical for now)
+// pub fn delete_cens_between(start: i64, end: i64) -> Res<()> {
+//     let db = DB.get().ok_or(DB_UNINIT)?;
+//     let mut tx = db.begin()?;
 
-    let tsv = tx
-        .range::<i64, u128, _>(CENS_BY_TS, start..end)?
-        .map(|(ts, _)| ts)
-        .collect::<Vec<_>>();
+//     let tsv = tx
+//         .range::<i64, u128, _>(CENS_BY_TS, start..end)?
+//         .map(|(ts, _)| ts)
+//         .collect::<Vec<_>>();
 
-    for ts in tsv {
-        tx.remove::<i64, u128>(CENS_BY_TS, ts, None)?;
-    }
+//     for ts in tsv {
+//         tx.remove::<i64, u128>(CENS_BY_TS, ts, None)?;
+//     }
 
-    tx.prepare_commit()?.commit()?;
-    Ok(())
-}
+//     tx.prepare_commit()?.commit()?;
+//     Ok(())
+// }
 
-pub fn match_cens_interval<'a, I: Iterator<Item = &'a Report>>(
-    start: i64,
-    end: i64,
-    reports: I,
-    // TODO: consider an output type that gives more info re severity - how many different times did we interact with this report?
-) -> Res<Vec<(MemoType, Vec<u8>)>> {
-    let in_interval = cens_in_interval(start, end)?;
-    let mut out = Vec::new();
-
+// TODO use TCN repo's match_btreeset test code? Compare performance.
+fn match_reports<'a, I: Iterator<Item = &'a Report>>(reports: I) -> Res<Vec<&'a Report>> {
+    let stored_tcns: HashSet<u128> = all_stored_tcns()?.into_iter().collect();
+    // TODO is there a more functional way to write this without losing performance?
+    let mut out: Vec<&Report> = Vec::new();
     for report in reports {
-        for cen in report.contact_event_numbers() {
-            if in_interval.contains_key(&u128_of_cen(cen)) {
-                out.push((report.memo_type(), report.memo_data().to_vec()));
-                break;
-            }
+      for tcn in report.temporary_contact_numbers() {
+        if stored_tcns.contains(&u128::from_le_bytes(tcn.0)) {
+          out.push(report);
+          break;
         }
+      }
     }
 
     Ok(out)
 }
+
+#[cfg(test)]
+mod is_it_working;
