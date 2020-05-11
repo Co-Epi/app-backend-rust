@@ -9,10 +9,6 @@ use tcn::TemporaryContactNumber;
 use super::*;
 use std::fs;
 
-fn inits_db() {
-let _ = fs::remove_file("./my-file");
-let res = init(&Path::new("./my-file"));
-}
 #[test]
 fn inits_db() {
   let _ = fs::remove_file("./tcn-db");
