@@ -29,7 +29,7 @@ fn post_report(report: &'static str) -> Result<Response, Error> {
 
 fn create_client() -> Result<Client, Error> {
   reqwest::blocking::Client::builder()
-    .proxy(reqwest::Proxy::https("http://localhost:8888")?) // Charles
+    // .proxy(reqwest::Proxy::https("http://localhost:8888")?) // Charles proxy
     .build()
 }
 
