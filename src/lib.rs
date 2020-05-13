@@ -6,6 +6,7 @@ use tcn::Report;
 use std::collections::HashSet;
 
 mod networking;
+mod ios_interface;
 
 pub type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 pub type Res<T> = Result<T, Error>;
