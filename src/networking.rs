@@ -1,6 +1,6 @@
 use reqwest::{blocking::{Client, Response}, Error};
 
-static BASE_URL: &str = "https://18ye1iivg6.execute-api.us-west-1.amazonaws.com/v4";
+static BASE_URL: &str = "https://zmqh8rwdx4.execute-api.us-west-2.amazonaws.com/v4/0.4.0";
 
 pub fn get_reports(interval_number: u32, interval_length: u32) -> Result<Vec<String>, Error> {
   let url: &str = &format!("{}/tcnreport", BASE_URL);
