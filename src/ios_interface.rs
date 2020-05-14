@@ -2,9 +2,17 @@
 use std::os::raw::{c_char};
 use core_foundation::string::{CFString, CFStringRef};
 use core_foundation::base::TCFType;
-use serde_json::Value;
+use serde::Serialize;
 
 use crate::networking;
+
+// Generic struct to return results to app
+#[derive(Serialize)]
+struct LibResult<T> {
+  status: i32,
+  data: Option<T>,
+  error_message: Option<String>
+}
 
 #[no_mangle]
 pub unsafe extern "C" fn get_reports(interval_number: u32, interval_length: u32) -> CFStringRef {
@@ -14,18 +22,14 @@ pub unsafe extern "C" fn get_reports(interval_number: u32, interval_length: u32)
 
     println!("RUST: Api returned: {:?}", result);
 
-    let result_string = match result {
-      Ok(reports) => {
-        println!("Get reports success: {:?}", reports);
-        // TODO types / protocol to communicate with app. For now we could use strings (JSON).
-        let json_value: Value = reports.into();
-        // TODO (reqwest::Error { kind: Decode, source: Error("invalid type: integer `1`, expected a sequence", line: 1, column: 1) })
-        format!("{}", json_value)
-      },
-      Err(e) => format!("ERROR posting report: {}", e)
+    let lib_result = match result {
+      Ok(success) => LibResult { status: 1, data: Some(success), error_message: None },
+      Err(e) => LibResult { status: 2, data: None, error_message: Some(e.to_string()) }
     };
 
-    let cf_string = CFString::new(&result_string);
+    let lib_result_string = serde_json::to_string(&lib_result).unwrap();
+
+    let cf_string = CFString::new(&lib_result_string);
     let cf_string_ref = cf_string.as_concrete_TypeRef();
 
     ::std::mem::forget(cf_string);
@@ -42,15 +46,15 @@ pub unsafe extern "C" fn post_report(c_report: *const c_char) -> CFStringRef {
 
   let result = networking::post_report(report.to_owned());
 
-  let result_string = match result {
-    Ok(response) => {
-      println!("Post report success: {:?}", response);
-      "ok".to_owned()
-    },
-    Err(e) => format!("ERROR posting report: {}", e)
+  let lib_result: LibResult<()> = match result {
+    // TODO handle non 20x HTTP status
+    Ok(success) => LibResult { status: 1, data: None, error_message: None },
+    Err(e) => LibResult { status: 2, data: None, error_message: Some(e.to_string()) }
   };
 
-  let cf_string = CFString::new(&result_string);
+  let lib_result_string = serde_json::to_string(&lib_result).unwrap();
+
+  let cf_string = CFString::new(&lib_result_string);
   let cf_string_ref = cf_string.as_concrete_TypeRef();
 
   ::std::mem::forget(cf_string);
