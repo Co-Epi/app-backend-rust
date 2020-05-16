@@ -1,31 +1,32 @@
 use reqwest::{blocking::{Client, Response}, Error};
+use core::fmt;
+use std::error;
 
 // static BASE_URL: &str = "https://zmqh8rwdx4.execute-api.us-west-2.amazonaws.com/v4/0.4.0";
 static BASE_URL: &str = "https://v1.api.coepi.org/tcnreport/v0.4.0";
 
-pub fn get_reports(interval_number: u32, interval_length: u32) -> Result<Vec<String>, Error> {
-  let url: &str = &format!("{}/tcnreport", BASE_URL);
+static UNKNOWN_HTTP_STATUS: u16 = 520;
 
-  create_client().and_then(|client| 
-      client.get(url)
-          .header("Content-Type", "application/json")
-          .query(&[("intervalNumber", interval_number)])
-          .query(&[("intervalLength", interval_length)])
-          .send()
-          .and_then (|response| response.json::<Vec<String>>())
-  )
+pub fn get_reports(interval_number: u32, interval_length: u32) -> Result<Vec<String>, NetworkingError> {
+  let url: &str = &format!("{}/tcnreport", BASE_URL);
+  let client = create_client()?;
+  let response = client.get(url)
+    .header("Content-Type", "application/json")
+    .query(&[("intervalNumber", interval_number)])
+    .query(&[("intervalLength", interval_length)]) 
+    .send()?;
+  let reports = response.json::<Vec<String>>()?;
+  Ok(reports)
 }
 
-pub fn post_report(report: String) -> Result<Response, Error> {
+pub fn post_report(report: String) -> Result<(), NetworkingError> {
   let url: &str = &format!("{}/tcnreport", BASE_URL);
-
-  create_client().and_then(|client| 
-      client.post(url)
-          .header("Content-Type", "application/json")
-          .body(report)
-          .send()
-          // TODO: Map to Error if status isn't 20x
-  )
+  let client = create_client()?;
+  let response = client.post(url)
+    .header("Content-Type", "application/json")
+    .body(report)
+    .send()?;
+  Ok(response).map(|_| ())
 }
 
 fn create_client() -> Result<Client, Error> {
@@ -34,14 +35,55 @@ fn create_client() -> Result<Client, Error> {
     .build()
 }
 
+#[derive(Debug)]
+pub struct NetworkingError {
+  pub http_status: u16,
+  pub message: String
+}
+
+impl fmt::Display for NetworkingError {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+      write!(f, "{:?}", self)
+  }
+}
+
+impl From<Error> for NetworkingError {
+  fn from(error: Error) -> Self {
+    NetworkingError { 
+      http_status: error
+        .status()
+        .map(|s| s.as_u16())
+        .unwrap_or(UNKNOWN_HTTP_STATUS), 
+      message: error.to_string()
+    }
+  }
+}
+
+impl error::Error for NetworkingError { }
+
+// Convenience to map non-success HTTP status to errors
+trait AsResult {
+  fn as_result(self) -> Result<Response, NetworkingError>;
+}
+
+impl AsResult for Response {
+  fn as_result(self) -> Result<Response, NetworkingError> {
+    let status = self.status();
+    if status.is_success() {
+      Ok(self)
+    } else {
+      Err(NetworkingError { http_status: status.as_u16(), message: format!("{:?}", self.text()) })
+    } 
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
-  use reqwest::StatusCode;
 
   #[test]
   fn get_reports_is_ok() {
-    let res = get_reports(1, 21600000);
+    let res = get_reports(1, 21600);
     assert!(res.is_ok());
     assert_eq!(res.unwrap(),  Vec::<String>::new());
   }
@@ -50,6 +92,5 @@ mod tests {
   fn post_report_is_ok() {
     let res = post_report("rSqWpM3ZQm7hfQ3q2x2llnFHiNhyRrUQPKEtJ33VKQcwT7Ly6e4KGaj5ZzjWt0m4c0v5n/VH5HO9UXbPXvsQTgEAQQAALFVtMVdNbHBZU1hOSlJYaDJZek5OWjJJeVdXZFpXRUozV2xoU2NHUkhWVDA9jn0pZAeME6ZBRHJOlfIikyfS0Pjg6l0txhhz6hz4exTxv8ryA3/Z26OebSRwzRfRgLdWBfohaOwOcSaynKqVCg==".to_owned());
     assert!(res.is_ok());
-    assert_eq!(res.unwrap().status(), StatusCode::from_u16(200).unwrap());
   }
 }

@@ -7,9 +7,10 @@ use serde::Serialize;
 use crate::networking;
 
 // Generic struct to return results to app
+// For convenience, status will be HTTP status codes 
 #[derive(Serialize)]
 struct LibResult<T> {
-  status: i32,
+  status: u16,
   data: Option<T>,
   error_message: Option<String>
 }
@@ -23,8 +24,8 @@ pub unsafe extern "C" fn get_reports(interval_number: u32, interval_length: u32)
     println!("RUST: Api returned: {:?}", result);
 
     let lib_result = match result {
-      Ok(success) => LibResult { status: 1, data: Some(success), error_message: None },
-      Err(e) => LibResult { status: 2, data: None, error_message: Some(e.to_string()) }
+      Ok(success) => LibResult { status: 200, data: Some(success), error_message: None },
+      Err(e) => LibResult { status: e.http_status, data: None, error_message: Some(e.to_string()) }
     };
 
     let lib_result_string = serde_json::to_string(&lib_result).unwrap();
@@ -47,9 +48,8 @@ pub unsafe extern "C" fn post_report(c_report: *const c_char) -> CFStringRef {
   let result = networking::post_report(report.to_owned());
 
   let lib_result: LibResult<()> = match result {
-    // TODO handle non 20x HTTP status
-    Ok(success) => LibResult { status: 1, data: None, error_message: None },
-    Err(e) => LibResult { status: 2, data: None, error_message: Some(e.to_string()) }
+    Ok(_) => LibResult { status: 200, data: None, error_message: None },
+    Err(e) => LibResult { status: e.http_status, data: None, error_message: Some(e.to_string()) }
   };
 
   let lib_result_string = serde_json::to_string(&lib_result).unwrap();
@@ -72,5 +72,19 @@ unsafe fn cstring_to_str<'a>(cstring: &'a *const c_char) -> Option<&str> {
   match raw.to_str() {
       Ok(s) => Some(s),
       Err(_) => None
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn test_get_reports() {
+    unsafe {
+      let res = get_reports(1, 21600);
+      println!("reports: {:?}", res);
+      assert!(true);
+    }
   }
 }
