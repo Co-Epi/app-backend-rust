@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Requirements: 
 # 1. https://github.com/getditto/rust-bitcode
 # 2. libtool
