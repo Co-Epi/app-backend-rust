@@ -4,10 +4,12 @@
 // TODO better tests. Don't use file.
 
 // use tcn_client::*;
-use std::{path::Path};
+use std::path::Path;
 use tcn::TemporaryContactNumber;
 use super::*;
 use std::fs;
+use tcn::SignedReport;
+use base64::DecodeError;
 
 #[test]
 fn inits_db() {
@@ -50,7 +52,7 @@ fn stores_tcn() {
       assert_eq!(stored_tcns.len(), 1);
 
       let stored_tcn = stored_tcns[0];
-      assert_eq!(stored_tcn, u128_of_tcn(tcn));
+      assert_eq!(stored_tcn, u128_of_tcn(&tcn));
     },
     Err(error) => println!("Stored TCNs error: {:?}", error)
   }; 
@@ -85,11 +87,27 @@ fn stores_multiple_tcns() {
       assert_eq!(stored_tcns.len(), 2);
 
       let stored_tcn1 = stored_tcns[0];
-      assert_eq!(stored_tcn1, u128_of_tcn(tcn1));
+      assert_eq!(stored_tcn1, u128_of_tcn(&tcn1));
       let stored_tcn2 = stored_tcns[1];
-      assert_eq!(stored_tcn2, u128_of_tcn(tcn2));
+      assert_eq!(stored_tcn2, u128_of_tcn(&tcn2));
     },
     Err(error) => println!("Stored TCNs error: {:?}", error)
   }; 
 }
 
+#[test]
+fn matches_tcn() {
+
+  // Generate a TCN from report
+  let report_str = "rSqWpM3ZQm7hfQ3q2x2llnFHiNhyRrUQPKEtJ33VKQcwT7Ly6e4KGaj5ZzjWt0m4c0v5n/VH5HO9UXbPXvsQTgEAQQAALFVtMVdNbHBZU1hOSlJYaDJZek5OWjJJeVdXZFpXRUozV2xoU2NHUkhWVDA9jn0pZAeME6ZBRHJOlfIikyfS0Pjg6l0txhhz6hz4exTxv8ryA3/Z26OebSRwzRfRgLdWBfohaOwOcSaynKqVCg==";
+  let decoded: Result<Vec<u8>, DecodeError> = base64::decode(report_str);
+  let signed_report = SignedReport::read( decoded.unwrap().as_slice()).unwrap();
+  let report = signed_report.verify().unwrap();
+  let tcn: TemporaryContactNumber = report.temporary_contact_numbers().next().unwrap();
+
+  // Check that report matches with generated tcn
+  let tcns: HashSet<u128> = [tcn].into_iter().map(|t| u128_of_tcn(t)).collect();
+  let res = match_reports_with(tcns, vec![&report].into_iter());
+
+  assert!(res.is_ok());
+ }
