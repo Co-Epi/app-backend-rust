@@ -30,7 +30,7 @@ const DB_ALREADY_INIT: &str = "DB failed to initalize";
 static DB: OnceCell<Persy> = OnceCell::new();
 const DB_UNINIT: &str = "DB not initialized";
 
-fn u128_of_tcn(tcn: TemporaryContactNumber) -> u128 {
+fn u128_of_tcn(tcn: &TemporaryContactNumber) -> u128 {
     u128::from_le_bytes(tcn.0)
 }
 
@@ -95,19 +95,24 @@ pub fn record_tcn(tcn: TemporaryContactNumber) -> Res<()> {
 // TODO use TCN repo's match_btreeset test code? Compare performance.
 fn match_reports<'a, I: Iterator<Item = &'a Report>>(reports: I) -> Res<Vec<&'a Report>> {
     let stored_tcns: HashSet<u128> = all_stored_tcns()?.into_iter().collect();
-    // TODO is there a more functional way to write this without losing performance?
-    let mut out: Vec<&Report> = Vec::new();
-    for report in reports {
-      for tcn in report.temporary_contact_numbers() {
-        if stored_tcns.contains(&u128::from_le_bytes(tcn.0)) {
-          out.push(report);
-          break;
-        }
+    match_reports_with(stored_tcns, reports)
+}
+
+fn match_reports_with<'a, I: Iterator<Item = &'a Report>>(tcns: HashSet<u128>, reports: I) -> Res<Vec<&'a Report>> {
+  // TODO is there a more functional way to write this without losing performance?
+  let mut out: Vec<&Report> = Vec::new();
+  for report in reports {
+    for tcn in report.temporary_contact_numbers() {
+      if tcns.contains(&u128::from_le_bytes(tcn.0)) {
+        out.push(report);
+        break;
       }
     }
+  }
 
-    Ok(out)
+  Ok(out)
 }
+
 
 #[cfg(test)]
 mod is_it_working;

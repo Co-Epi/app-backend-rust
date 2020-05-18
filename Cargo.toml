@@ -18,6 +18,7 @@ serde = "1.0"
 # ios
 libc = "0.2"
 core-foundation = "0.6.2"
+base64 = "0.12.1"
 
 [dependencies.tcn]
 git = "https://github.com/TCNCoalition/TCN.git"
