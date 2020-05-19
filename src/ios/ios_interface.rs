@@ -4,7 +4,8 @@ use core_foundation::string::{CFString, CFStringRef};
 use core_foundation::base::TCFType;
 use serde::Serialize;
 
-use crate::networking;
+use crate::{composition_root::COMP_ROOT, networking};
+use networking::TcnApi;
 
 // Generic struct to return results to app
 // For convenience, status will be HTTP status codes 
@@ -19,7 +20,7 @@ struct LibResult<T> {
 pub unsafe extern "C" fn get_reports(interval_number: u32, interval_length: u32) -> CFStringRef {
     println!("RUST: fetching reports for interval_number: {}, interval_length {}", interval_number, interval_length);
 
-    let result = networking::get_reports(interval_number, interval_length);
+    let result = COMP_ROOT.api.get_reports(interval_number as u64, interval_length as u64);
 
     println!("RUST: Api returned: {:?}", result);
 
@@ -45,7 +46,7 @@ pub unsafe extern "C" fn post_report(c_report: *const c_char) -> CFStringRef {
   // TODO don't unwrap, use and handle result, handle
   let report = cstring_to_str(&c_report).unwrap();
 
-  let result = networking::post_report(report.to_owned());
+  let result = COMP_ROOT.api.post_report(report.to_owned());
 
   let lib_result: LibResult<()> = match result {
     Ok(_) => LibResult { status: 200, data: None, error_message: None },

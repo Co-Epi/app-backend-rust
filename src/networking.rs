@@ -7,32 +7,44 @@ static BASE_URL: &str = "https://v1.api.coepi.org/tcnreport/v0.4.0";
 
 static UNKNOWN_HTTP_STATUS: u16 = 520;
 
-pub fn get_reports(interval_number: u32, interval_length: u32) -> Result<Vec<String>, NetworkingError> {
-  let url: &str = &format!("{}/tcnreport", BASE_URL);
-  let client = create_client()?;
-  let response = client.get(url)
-    .header("Content-Type", "application/json")
-    .query(&[("intervalNumber", interval_number)])
-    .query(&[("intervalLength", interval_length)]) 
-    .send()?;
-  let reports = response.json::<Vec<String>>()?;
-  Ok(reports)
+pub trait TcnApi {
+  fn get_reports(&self, interval_number: u64, interval_length: u64) -> Result<Vec<String>, NetworkingError>;
+  fn post_report(&self, report: String) -> Result<(), NetworkingError>;
 }
 
-pub fn post_report(report: String) -> Result<(), NetworkingError> {
-  let url: &str = &format!("{}/tcnreport", BASE_URL);
-  let client = create_client()?;
-  let response = client.post(url)
-    .header("Content-Type", "application/json")
-    .body(report)
-    .send()?;
-  Ok(response).map(|_| ())
+pub struct TcnApiImpl {}
+
+impl TcnApiImpl {
+  fn create_client() -> Result<Client, Error> {
+    reqwest::blocking::Client::builder()
+      // .proxy(reqwest::Proxy::https("http://localhost:8888")?) // Charles proxy
+      .build()
+  }
 }
 
-fn create_client() -> Result<Client, Error> {
-  reqwest::blocking::Client::builder()
-    // .proxy(reqwest::Proxy::https("http://localhost:8888")?) // Charles proxy
-    .build()
+impl TcnApi for TcnApiImpl {
+
+  fn get_reports(&self, interval_number: u64, interval_length: u64) -> Result<Vec<String>, NetworkingError> {
+    let url: &str = &format!("{}/tcnreport", BASE_URL);
+    let client = Self::create_client()?;
+    let response = client.get(url)
+      .header("Content-Type", "application/json")
+      .query(&[("intervalNumber", interval_number)])
+      .query(&[("intervalLength", interval_length)]) 
+      .send()?;
+    let reports = response.json::<Vec<String>>()?;
+    Ok(reports)
+  }
+
+  fn post_report(&self, report: String) -> Result<(), NetworkingError> {
+    let url: &str = &format!("{}/tcnreport", BASE_URL);
+    let client = Self::create_client()?;
+    let response = client.post(url)
+      .header("Content-Type", "application/json")
+      .body(report)
+      .send()?;
+    Ok(response).map(|_| ())
+  }
 }
 
 #[derive(Debug)]
