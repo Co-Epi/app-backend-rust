@@ -9,7 +9,6 @@ PreferencesType: Preferences, TcnDaoType: TcnDao, TcnMatcherType: TcnMatcher, Ap
   pub reports_updater: ReportsUpdater<PreferencesType, TcnDaoType, TcnMatcherType, ApiType>
 }
 
-// TODO make thread safe
 pub static COMP_ROOT: Lazy<CompositionRoot<PreferencesImpl, TcnDaoImpl, TcnMatcherImpl, TcnApiImpl>> = 
   Lazy::new(|| create_comp_root());
 
