@@ -16,4 +16,4 @@ PATH_TO_IOS_REPO="<insert path>"
 
 PATH_TO_CARTHAGE_FRAMEWORK=$PATH_TO_IOS_REPO/Carthage/Build/iOS/CoEpiCore.framework
 cp ./target/CoEpiCore $PATH_TO_CARTHAGE_FRAMEWORK/Versions/A/
-cp ./src/ios/coepicore.h $PATH_TO_CARTHAGE_FRAMEWORK/Versions/A/Headers/
+cp ./src/ios/c_headers/coepicore.h $PATH_TO_CARTHAGE_FRAMEWORK/Versions/A/Headers/
