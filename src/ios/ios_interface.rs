@@ -17,6 +17,30 @@ struct LibResult<T> {
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn fetch_new_reports() -> CFStringRef {
+  println!("RUST: updating reports");
+
+  let result = COMP_ROOT.reports_updater.fetch_new_reports();
+
+  println!("RUST: new reports: {:?}", result);
+
+  let lib_result = match result {
+    Ok(success) => LibResult { status: 200, data: Some(success), error_message: None },
+    // TODO better error identification, using HTTP status for everything is weird.
+    Err(e) => LibResult { status: 500, data: None, error_message: Some(e.to_string()) }
+  };
+
+  let lib_result_string = serde_json::to_string(&lib_result).unwrap();
+
+  let cf_string = CFString::new(&lib_result_string);
+  let cf_string_ref = cf_string.as_concrete_TypeRef();
+
+  ::std::mem::forget(cf_string);
+
+  return cf_string_ref;
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn get_reports(interval_number: u32, interval_length: u32) -> CFStringRef {
     println!("RUST: fetching reports for interval_number: {}, interval_length {}", interval_number, interval_length);
 

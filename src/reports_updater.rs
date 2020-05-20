@@ -1,10 +1,11 @@
 use crate::{networking::{TcnApi, NetworkingError}, reports_interval, Error, DB_UNINIT, DB, byte_vec_to_16_byte_array};
 use reports_interval::{ ReportsInterval, UnixTime };
-use tcn::{SignedReport};
-use std::{collections::HashSet, time::Instant, error, fmt};
+use tcn::{SignedReport, Error as TcnError};
+use std::{collections::HashSet, time::Instant, error, fmt, io::ErrorKind, io::Error as StdError};
 use serde::Serialize;
 use serde::Deserialize;
 use parking_lot::RwLock;
+use uuid::Uuid;
 
 pub trait TcnMatcher {
   fn match_reports(&self, tcns: Vec<u128>, reports: Vec<SignedReport>) -> Result<Vec<SignedReport>, ServicesError>;
@@ -106,6 +107,13 @@ impl Preferences for PreferencesImpl {
   }
 }
 
+#[derive(Debug, Serialize)]
+pub struct Alert {
+  id: String,
+  memo: String,
+  // TODO date: Note: Contact date (port from Android)
+}
+
 pub struct ReportsUpdater<
   PreferencesType: Preferences, TcnDaoType: TcnDao, TcnMatcherType: TcnMatcher, ApiType: TcnApi
 > {
@@ -118,6 +126,27 @@ pub struct ReportsUpdater<
 impl<
   PreferencesType: Preferences, TcnDaoType: TcnDao, TcnMatcherType: TcnMatcher, ApiType: TcnApi
 > ReportsUpdater<PreferencesType, TcnDaoType, TcnMatcherType, ApiType> {
+
+  pub fn fetch_new_reports(&self) -> Result<Vec<Alert>, ServicesError> {
+    self.retrieve_and_match_new_reports().map(|signed_reports|
+
+      signed_reports.into_iter().filter_map(|signed_report| {
+        match signed_report.verify() {
+          Ok(report) => Some(Alert {
+            // TODO(important) id should be derived from report.
+            // TODO random UUIDs allow duplicate alerts in the DB, which is what we're trying to prevent.
+            // TODO Maybe add id field in TCN library. Everything is currently private.
+            id: format!("{:?}", Uuid::new_v4()),
+            memo: format!("{:?}", report.memo_data()),
+          }),
+          Err(error) =>  {
+            println!("Couldn't get report from signed, error: {:?}", error);
+            None
+          }
+        }
+      }).collect()
+    )
+  }
 
   fn retrieve_and_match_new_reports(&self) -> Result<Vec<SignedReport>, ServicesError> {
     let now: UnixTime = UnixTime::now();
@@ -305,6 +334,13 @@ impl From<Error> for ServicesError {
 impl From<NetworkingError> for ServicesError {
   fn from(error: NetworkingError) -> Self {
     ServicesError::Networking(error)
+  }
+}
+
+
+impl From<TcnError> for ServicesError {
+  fn from(error: TcnError) -> Self {
+    ServicesError::Error(Box::new(StdError::new(ErrorKind::Other, format!("{}", error))))
   }
 }
 

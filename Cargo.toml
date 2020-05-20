@@ -22,6 +22,7 @@ base64 = "0.12.1"
 chrono = "0.4"
 confy = "0.4.0"
 parking_lot = "0.10.2"
+uuid = { version = "0.8.1", features = ["v4"] }
 
 [dependencies.tcn]
 git = "https://github.com/TCNCoalition/TCN.git"
