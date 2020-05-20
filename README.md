@@ -35,8 +35,8 @@ Add targets
 
 Update script with your PATH_TO_ANDROID_REPO value and run:
 
-> ./scripts/ios/create_android_targets.sh
+> ./scripts/android/create_android_targets.sh
 
 Update script with your OUTPUT_DIR value and run:
 
-> ./scripts/ios/make_framework.sh
+> ./scripts/android/make_framework.sh
