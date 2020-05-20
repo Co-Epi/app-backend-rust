@@ -6,7 +6,7 @@ Helpers wanted - if you have Rust experience for iOS/Android app integration, pl
 
 ## iOS Targets
  - [Build Instructions](https://github.com/Co-Epi/app-backend-rust/wiki/Building-library-for-iOS)
- - [Exposed Functions](/Users/john/Code/Co-Ep/app-backend-rust/src/ios/c_headers/coepicore.h)
+ - [Exposed Functions](src/ios/c_headers/coepicore.h)
 
  ## Android Targets
  - [Build Instructions](https://github.com/Co-Epi/app-backend-rust/wiki/Editing-Building-library-for-Android)
