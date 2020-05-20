@@ -1,9 +1,10 @@
 use crate::{networking::{TcnApi, NetworkingError}, reports_interval, Error, DB_UNINIT, DB, byte_vec_to_16_byte_array};
 use reports_interval::{ ReportsInterval, UnixTime };
 use tcn::{SignedReport};
-use std::{collections::HashSet, time::Instant, error, fmt, cell::RefCell};
+use std::{collections::HashSet, time::Instant, error, fmt};
 use serde::Serialize;
 use serde::Deserialize;
+use parking_lot::RwLock;
 
 pub trait TcnMatcher {
   fn match_reports(&self, tcns: Vec<u128>, reports: Vec<SignedReport>) -> Result<Vec<SignedReport>, ServicesError>;
@@ -83,22 +84,22 @@ pub trait Preferences {
 }
 
 pub struct PreferencesImpl {
-  config: RefCell<MyConfig>
+  pub config: RwLock<MyConfig>
 }
 
 impl Preferences for PreferencesImpl {
 
   fn last_completed_reports_interval(&self, key: PreferencesKey) -> Option<ReportsInterval> {
     match key {
-      LastCompletedReportsInterval => self.config.borrow().last_completed_reports_interval
+      LastCompletedReportsInterval => self.config.read().last_completed_reports_interval
     }
   }
 
   fn set_last_completed_reports_interval(&self, key: PreferencesKey, value: ReportsInterval) {
-    let mut my_config = self.config.borrow_mut();
-    my_config.last_completed_reports_interval = Some(value);
-  
-    let res = confy::store("myprefs", &self.config);
+    let mut config = self.config.write();
+    config.last_completed_reports_interval = Some(value);
+
+    let res = confy::store("myprefs", *config);
   
     if let Err(error) = res {
       println!("Error storing preferences: {:?}", error)

@@ -1,6 +1,7 @@
 use crate::networking::{TcnApiImpl, TcnApi};
 use crate::reports_updater::{TcnMatcher, ReportsUpdater, TcnDao, Preferences, PreferencesImpl, TcnDaoImpl, TcnMatcherImpl};
 use once_cell::sync::Lazy;
+use parking_lot::RwLock;
 
 pub struct CompositionRoot<
 PreferencesType: Preferences, TcnDaoType: TcnDao, TcnMatcherType: TcnMatcher, ApiType: TcnApi> {
@@ -14,7 +15,7 @@ pub static COMP_ROOT: Lazy<CompositionRoot<PreferencesImpl, TcnDaoImpl, TcnMatch
 
 fn create_comp_root() -> CompositionRoot<PreferencesImpl, TcnDaoImpl, TcnMatcherImpl, TcnApiImpl> {
   let api = TcnApiImpl {};
-  let preferences = PreferencesImpl { config: confy::load("coepi").unwrap() };
+  let preferences = PreferencesImpl { config: RwLock::new(confy::load("coepi").unwrap()) };
 
   CompositionRoot { 
     api: TcnApiImpl {},

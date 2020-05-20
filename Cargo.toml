@@ -21,6 +21,7 @@ core-foundation = "0.6.2"
 base64 = "0.12.1"
 chrono = "0.4"
 confy = "0.4.0"
+parking_lot = "0.10.2"
 
 [dependencies.tcn]
 git = "https://github.com/TCNCoalition/TCN.git"
