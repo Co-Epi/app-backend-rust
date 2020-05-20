@@ -95,14 +95,16 @@ mod tests {
 
   #[test]
   fn get_reports_is_ok() {
-    let res = get_reports(1, 21600);
+    let api = TcnApiImpl {};
+    let res = api.get_reports(1, 21600);
     assert!(res.is_ok());
     assert_eq!(res.unwrap(),  Vec::<String>::new());
   }
 
   #[test]
   fn post_report_is_ok() {
-    let res = post_report("rSqWpM3ZQm7hfQ3q2x2llnFHiNhyRrUQPKEtJ33VKQcwT7Ly6e4KGaj5ZzjWt0m4c0v5n/VH5HO9UXbPXvsQTgEAQQAALFVtMVdNbHBZU1hOSlJYaDJZek5OWjJJeVdXZFpXRUozV2xoU2NHUkhWVDA9jn0pZAeME6ZBRHJOlfIikyfS0Pjg6l0txhhz6hz4exTxv8ryA3/Z26OebSRwzRfRgLdWBfohaOwOcSaynKqVCg==".to_owned());
+    let api = TcnApiImpl {};
+    let res = api.post_report("rSqWpM3ZQm7hfQ3q2x2llnFHiNhyRrUQPKEtJ33VKQcwT7Ly6e4KGaj5ZzjWt0m4c0v5n/VH5HO9UXbPXvsQTgEAQQAALFVtMVdNbHBZU1hOSlJYaDJZek5OWjJJeVdXZFpXRUozV2xoU2NHUkhWVDA9jn0pZAeME6ZBRHJOlfIikyfS0Pjg6l0txhhz6hz4exTxv8ryA3/Z26OebSRwzRfRgLdWBfohaOwOcSaynKqVCg==".to_owned());
     assert!(res.is_ok());
   }
 }

@@ -29,9 +29,10 @@ pub fn init<P: AsRef<Path>>(p: P) -> Res<()> {
 }
 
 const DB_ALREADY_INIT: &str = "DB failed to initalize";
+pub const DB_UNINIT: &str = "DB not initialized";
 
-static DB: OnceCell<Persy> = OnceCell::new();
-const DB_UNINIT: &str = "DB not initialized";
+// TODO since we're using DI put this in a dependency, to be consistent
+pub static DB: OnceCell<Persy> = OnceCell::new();
 
 fn u128_of_tcn(tcn: &TemporaryContactNumber) -> u128 {
     u128::from_le_bytes(tcn.0)
@@ -45,7 +46,8 @@ fn u128_of_tcn(tcn: &TemporaryContactNumber) -> u128 {
 // }
 
 
-fn byte_vec_to_16_byte_array(bytes: Vec<u8>) -> [u8; 16] {
+// TODO move to utils file or similar
+pub fn byte_vec_to_16_byte_array(bytes: Vec<u8>) -> [u8; 16] {
   let mut array = [0; 16];
   let bytes = &bytes[..array.len()]; // panics if not enough data
   array.copy_from_slice(bytes); 
@@ -102,7 +104,6 @@ fn match_reports<'a, I: Iterator<Item = &'a Report>>(reports: I) -> Res<Vec<&'a 
 }
 
 fn match_reports_with<'a, I: Iterator<Item = &'a Report>>(tcns: HashSet<u128>, reports: I) -> Res<Vec<&'a Report>> {
-  // TODO is there a more functional way to write this without losing performance?
   let mut out: Vec<&Report> = Vec::new();
   for report in reports {
     for tcn in report.temporary_contact_numbers() {

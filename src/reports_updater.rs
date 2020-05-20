@@ -1,35 +1,31 @@
-use crate::{networking::{TcnApi, NetworkingError}, reports_interval, all_stored_tcns, Res};
+use crate::{networking::{TcnApi, NetworkingError}, reports_interval, Error, DB_UNINIT, DB, byte_vec_to_16_byte_array};
 use reports_interval::{ ReportsInterval, UnixTime };
-use tcn::{TemporaryContactNumber, SignedReport};
-use std::{collections::HashSet, time::Instant};
+use tcn::{SignedReport};
+use std::{collections::HashSet, time::Instant, error, fmt};
 
 trait TcnMatcher {
-  fn match_tcns(&self, tcns: &Vec<TemporaryContactNumber>, reports: &Vec<SignedReport>) -> Vec<SignedReport>;
+  fn match_reports(&self, tcns: Vec<u128>, reports: Vec<SignedReport>) -> Result<Vec<SignedReport>, ServicesError>;
 }
 
 struct TcnMatcherImpl {}
 impl TcnMatcher for TcnMatcherImpl {
-  fn match_tcns(&self, tcns: &Vec<TemporaryContactNumber>, reports: &Vec<SignedReport>) -> Vec<SignedReport> {
-    // TODO no unwrap
-    Self::match_reports(reports).unwrap()
+  fn match_reports(&self, tcns: Vec<u128>, reports: Vec<SignedReport>) -> Result<Vec<SignedReport>, ServicesError> {
+    Self::match_reports_with(tcns, reports)
   }
 }
 
 // TODO remove duplicate matcher functions from lib.rs
 impl TcnMatcherImpl {
-  // TODO use TCN repo's match_btreeset test code? Compare performance.
-  fn match_reports<'a, I: Iterator<Item = &'a SignedReport>>(reports: I) -> Res<Vec<&'a SignedReport>> {
-    let stored_tcns: HashSet<u128> = all_stored_tcns()?.into_iter().collect();
-    Self::match_reports_with(stored_tcns, reports)
-  }
 
-  fn match_reports_with<'a, I: Iterator<Item = &'a SignedReport>>(tcns: HashSet<u128>, reports: I) -> Res<Vec<&'a SignedReport>> {
-    let mut out: Vec<&SignedReport> = Vec::new();
+  // TODO use TCN repo's match_btreeset test code? Compare performance.
+  fn match_reports_with(tcns: Vec<u128>, reports: Vec<SignedReport>) -> Result<Vec<SignedReport>, ServicesError> {
+    let mut out: Vec<SignedReport> = Vec::new();
+    let tcns_set: HashSet<u128> = tcns.into_iter().collect();
     for report in reports {
       // TODO no unwrap
-      let rep = report.verify().unwrap();
+      let rep = report.clone().verify().unwrap();
       for tcn in rep.temporary_contact_numbers() {
-        if tcns.contains(&u128::from_le_bytes(tcn.0)) {
+        if tcns_set.contains(&u128::from_le_bytes(tcn.0)) {
           out.push(report);
           break;
         }
@@ -41,14 +37,25 @@ impl TcnMatcherImpl {
 }
 
 trait TcnDao {
-  fn all(&self) -> Vec<TemporaryContactNumber>;
+  fn all(&self) -> Result<Vec<u128>, ServicesError>;
 }
 
 struct TcnDaoImpl {}
 impl TcnDao for TcnDaoImpl {
-  fn all(&self) -> Vec<TemporaryContactNumber> {
-    // TODO integrate related functions from lib.rs 
-    unimplemented!();
+  fn all(&self) -> Result<Vec<u128>, ServicesError> {
+    let mut out: Vec<u128> = Vec::new();
+
+    let items = DB
+        .get()
+        .ok_or(DB_UNINIT).map_err(Error::from)?
+        .scan("tcn").map_err(Error::from)?;
+
+    for (_id,content) in items {
+      let byte_array: [u8; 16] = byte_vec_to_16_byte_array(content);
+      let tcn_bits: u128 = u128::from_le_bytes(byte_array);
+      out.push(tcn_bits);
+    }
+    Ok(out)
   }
 }
 
@@ -86,19 +93,22 @@ impl<
   PreferencesType: Preferences, TcnDaoType: TcnDao, TcnMatcherType: TcnMatcher, ApiType: TcnApi
 > ReportsUpdater<PreferencesType, TcnDaoType, TcnMatcherType, ApiType> {
 
-  fn retrieve_and_match_new_reports(&self) -> Result<Vec<SignedReport>, NetworkingError> {
+  fn retrieve_and_match_new_reports(&self) -> Result<Vec<SignedReport>, ServicesError> {
     let now: UnixTime = UnixTime::now();
-    self.matching_reports(
+
+    let matching_reports = self.matching_reports(
       self.determine_start_interval(&now),
       &now
-    )
-    .do_if_ok(|matched_reports| {
-      let intervals = matched_reports.into_iter().map(|c| c.interval).collect();
+    );
+
+    if let Ok(matching_reports) = &matching_reports {
+      let intervals = matching_reports.iter().map(|c| c.interval).collect();
       self.store_last_completed_interval(intervals, &now);
-    })
-    .map (|chunks| 
+    };
+
+    matching_reports.map (|chunks| 
       chunks.into_iter().flat_map(|chunk| chunk.matched).collect()
-    )
+    ).map_err(ServicesError::from)
   }
 
   fn retrieve_last_completed_interval(&self) -> Option<ReportsInterval> {
@@ -111,12 +121,15 @@ impl<
       .unwrap_or(ReportsInterval::create_for_with_default_length(time))
   }
 
-  fn matching_reports(&self, startInterval: ReportsInterval, until: &UnixTime) -> Result<Vec<MatchedReportsChunk>, NetworkingError> {
+  fn matching_reports(&self, startInterval: ReportsInterval, until: &UnixTime) -> Result<Vec<MatchedReportsChunk>, ServicesError> {
     let sequence = Self::generate_intervals_sequence(startInterval, until);
     let reports = sequence.map (|interval| self.retrieve_reports(interval));
-    let matched_result = reports
+    let matched_results = reports
       .map (|interval| self.match_retrieved_reports_result(interval));
-    matched_result.collect()
+    matched_results
+      .into_iter()
+      .collect::<Result<Vec<MatchedReportsChunk>, ServicesError>>()
+      .map_err(ServicesError::from)
   }
 
   fn generate_intervals_sequence(mut from: ReportsInterval, until: &UnixTime) -> impl Iterator<Item = ReportsInterval> + '_ {
@@ -145,22 +158,27 @@ impl<
     )
   }
 
-  fn match_retrieved_reports_result(&self, reports_result: Result<SignedReportsChunk, NetworkingError>) -> Result<MatchedReportsChunk, NetworkingError> {
-    reports_result.map (|chunk| self.to_matched_reports_chunk(&chunk))
+  fn match_retrieved_reports_result(&self, reports_result: Result<SignedReportsChunk, NetworkingError>) -> Result<MatchedReportsChunk, ServicesError> {
+    reports_result
+      .map_err(ServicesError::from)
+      .and_then (|chunk| self.to_matched_reports_chunk(&chunk))
   }
 
   /**
   * Maps reports chunk to a new chunk containing possible matches.
   */
-  fn to_matched_reports_chunk(&self, chunk: &SignedReportsChunk) -> MatchedReportsChunk {
-    MatchedReportsChunk { 
-      reports: chunk.reports.clone(), 
-      matched: self.find_matches(&chunk.reports), 
-      interval: chunk.interval.clone()
-    }
+  fn to_matched_reports_chunk(&self, chunk: &SignedReportsChunk) -> Result<MatchedReportsChunk, ServicesError> {
+    self.find_matches(chunk.reports.clone()).map(|matches|
+      MatchedReportsChunk {
+        reports: chunk.reports.clone(), 
+        matched: matches, 
+        interval: chunk.interval.clone()
+      }
+    )
+    .map_err(ServicesError::from)
   }
 
-  fn find_matches(&self, reports: &Vec<SignedReport>) -> Vec<SignedReport> {
+  fn find_matches(&self, reports: Vec<SignedReport>) -> Result<Vec<SignedReport>, ServicesError> {
     let matching_start_time = Instant::now();
 
     println!("R Start matching...");
@@ -168,15 +186,22 @@ impl<
     let tcns = self.tcn_dao.all();
     println!("R DB TCNs count: {:?}", tcns);
 
-    let matched_reports: Vec<SignedReport> = self.tcn_matcher.match_tcns(&tcns, reports);
+    let matched_reports: Result<Vec<SignedReport>, ServicesError> = tcns
+      .and_then(|tcns| self.tcn_matcher.match_reports(tcns, reports));
 
     let time = matching_start_time.elapsed().as_secs();
     println!("Took ${:?}s to match reports", time);
 
-    if !matched_reports.is_empty() {
-        println!("Matches found ({:?}): {:?}", matched_reports.len(), matched_reports);
-    } else {
+    if let Ok(reports) = &matched_reports {
+      if !reports.is_empty() {
+        println!("Matches found ({:?}): {:?}", reports.len(), matched_reports);
+      } else {
         println!("No matches found");
+      }
+    };
+
+    if let Err(error) = &matched_reports {
+      println!("Matching error: ({:?})", error)
     }
 
     matched_reports
@@ -219,26 +244,6 @@ trait Also: Sized {
 
 impl<T> Also for T {}
 
-trait ResultExtensions {
-  type Ok;
-  type Error;
-
-  fn do_if_ok<F: FnOnce(&Self::Ok) -> ()>(self, f: F) -> Self;
-}
-
-impl <T, E> ResultExtensions for Result<T, E> {
-  type Ok = T;
-  type Error = E;
-
-  fn do_if_ok<F: FnOnce(&T) -> ()>(self, f: F) -> Self {
-    match &self {
-      Ok(value) => f(&value),
-      Err(_) => {}
-    }
-    self
-  }
-}
-
 #[derive(Debug, Clone)]
 struct MatchedReportsChunk { 
   reports: Vec<SignedReport>,
@@ -251,3 +256,30 @@ struct SignedReportsChunk {
   reports: Vec<SignedReport>,
   interval: ReportsInterval 
 }
+
+
+#[derive(Debug)]
+pub enum ServicesError {
+  Networking(NetworkingError),
+  Error(Error)
+}
+
+impl fmt::Display for ServicesError {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+      write!(f, "{:?}", self)
+  }
+}
+
+impl From<Error> for ServicesError {
+  fn from(error: Error) -> Self {
+    ServicesError::Error(error)
+  }
+}
+
+impl From<NetworkingError> for ServicesError {
+  fn from(error: NetworkingError) -> Self {
+    ServicesError::Networking(error)
+  }
+}
+
+impl error::Error for ServicesError { }
