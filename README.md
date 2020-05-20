@@ -4,10 +4,10 @@ WIP - iOS/Android shared Rust library
 
 Helpers wanted - if you have Rust experience for iOS/Android app integration, please reach out!
 
-## Currently exposed functions:
-- get_reports
-- post_report
+## iOS Targets
+ - [Build Instructions](https://github.com/Co-Epi/app-backend-rust/wiki/Building-library-for-iOS)
+ - [Exposed Functions](/Users/john/Code/Co-Ep/app-backend-rust/src/ios/c_headers/coepicore.h)
 
-## Build Instructions
-
- - [iOS](https://github.com/Co-Epi/app-backend-rust/wiki/Building-library-for-iOS)
+ ## Android Targets
+ - [Build Instructions](https://github.com/Co-Epi/app-backend-rust/wiki/Editing-Building-library-for-Android)
+ - Exposed Functions (TBD)
