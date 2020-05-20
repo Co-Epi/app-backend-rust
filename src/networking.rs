@@ -7,32 +7,44 @@ static BASE_URL: &str = "https://v1.api.coepi.org/tcnreport/v0.4.0";
 
 static UNKNOWN_HTTP_STATUS: u16 = 520;
 
-pub fn get_reports(interval_number: u32, interval_length: u32) -> Result<Vec<String>, NetworkingError> {
-  let url: &str = &format!("{}/tcnreport", BASE_URL);
-  let client = create_client()?;
-  let response = client.get(url)
-    .header("Content-Type", "application/json")
-    .query(&[("intervalNumber", interval_number)])
-    .query(&[("intervalLength", interval_length)]) 
-    .send()?;
-  let reports = response.json::<Vec<String>>()?;
-  Ok(reports)
+pub trait TcnApi {
+  fn get_reports(&self, interval_number: u64, interval_length: u64) -> Result<Vec<String>, NetworkingError>;
+  fn post_report(&self, report: String) -> Result<(), NetworkingError>;
 }
 
-pub fn post_report(report: String) -> Result<(), NetworkingError> {
-  let url: &str = &format!("{}/tcnreport", BASE_URL);
-  let client = create_client()?;
-  let response = client.post(url)
-    .header("Content-Type", "application/json")
-    .body(report)
-    .send()?;
-  Ok(response).map(|_| ())
+pub struct TcnApiImpl {}
+
+impl TcnApiImpl {
+  fn create_client() -> Result<Client, Error> {
+    reqwest::blocking::Client::builder()
+      // .proxy(reqwest::Proxy::https("http://localhost:8888")?) // Charles proxy
+      .build()
+  }
 }
 
-fn create_client() -> Result<Client, Error> {
-  reqwest::blocking::Client::builder()
-    // .proxy(reqwest::Proxy::https("http://localhost:8888")?) // Charles proxy
-    .build()
+impl TcnApi for TcnApiImpl {
+
+  fn get_reports(&self, interval_number: u64, interval_length: u64) -> Result<Vec<String>, NetworkingError> {
+    let url: &str = &format!("{}/tcnreport", BASE_URL);
+    let client = Self::create_client()?;
+    let response = client.get(url)
+      .header("Content-Type", "application/json")
+      .query(&[("intervalNumber", interval_number)])
+      .query(&[("intervalLength", interval_length)]) 
+      .send()?;
+    let reports = response.json::<Vec<String>>()?;
+    Ok(reports)
+  }
+
+  fn post_report(&self, report: String) -> Result<(), NetworkingError> {
+    let url: &str = &format!("{}/tcnreport", BASE_URL);
+    let client = Self::create_client()?;
+    let response = client.post(url)
+      .header("Content-Type", "application/json")
+      .body(report)
+      .send()?;
+    Ok(response).map(|_| ())
+  }
 }
 
 #[derive(Debug)]
@@ -83,14 +95,16 @@ mod tests {
 
   #[test]
   fn get_reports_is_ok() {
-    let res = get_reports(1, 21600);
+    let api = TcnApiImpl {};
+    let res = api.get_reports(1, 21600);
     assert!(res.is_ok());
     assert_eq!(res.unwrap(),  Vec::<String>::new());
   }
 
   #[test]
   fn post_report_is_ok() {
-    let res = post_report("rSqWpM3ZQm7hfQ3q2x2llnFHiNhyRrUQPKEtJ33VKQcwT7Ly6e4KGaj5ZzjWt0m4c0v5n/VH5HO9UXbPXvsQTgEAQQAALFVtMVdNbHBZU1hOSlJYaDJZek5OWjJJeVdXZFpXRUozV2xoU2NHUkhWVDA9jn0pZAeME6ZBRHJOlfIikyfS0Pjg6l0txhhz6hz4exTxv8ryA3/Z26OebSRwzRfRgLdWBfohaOwOcSaynKqVCg==".to_owned());
+    let api = TcnApiImpl {};
+    let res = api.post_report("rSqWpM3ZQm7hfQ3q2x2llnFHiNhyRrUQPKEtJ33VKQcwT7Ly6e4KGaj5ZzjWt0m4c0v5n/VH5HO9UXbPXvsQTgEAQQAALFVtMVdNbHBZU1hOSlJYaDJZek5OWjJJeVdXZFpXRUozV2xoU2NHUkhWVDA9jn0pZAeME6ZBRHJOlfIikyfS0Pjg6l0txhhz6hz4exTxv8ryA3/Z26OebSRwzRfRgLdWBfohaOwOcSaynKqVCg==".to_owned());
     assert!(res.is_ok());
   }
 }
