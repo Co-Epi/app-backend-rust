@@ -2,8 +2,6 @@ use once_cell::sync::OnceCell;
 use persy::{Config, Persy, ValueMode};
 use std::{path::Path};
 use tcn::TemporaryContactNumber;
-use tcn::Report;
-use std::collections::HashSet;
 
 mod networking;
 mod ios;
@@ -96,26 +94,6 @@ pub fn record_tcn(tcn: TemporaryContactNumber) -> Res<()> {
 //     tx.prepare_commit()?.commit()?;
 //     Ok(())
 // }
-
-// TODO use TCN repo's match_btreeset test code? Compare performance.
-fn match_reports<'a, I: Iterator<Item = &'a Report>>(reports: I) -> Res<Vec<&'a Report>> {
-    let stored_tcns: HashSet<u128> = all_stored_tcns()?.into_iter().collect();
-    match_reports_with(stored_tcns, reports)
-}
-
-fn match_reports_with<'a, I: Iterator<Item = &'a Report>>(tcns: HashSet<u128>, reports: I) -> Res<Vec<&'a Report>> {
-  let mut out: Vec<&Report> = Vec::new();
-  for report in reports {
-    for tcn in report.temporary_contact_numbers() {
-      if tcns.contains(&u128::from_le_bytes(tcn.0)) {
-        out.push(report);
-        break;
-      }
-    }
-  }
-
-  Ok(out)
-}
 
 
 #[cfg(test)]

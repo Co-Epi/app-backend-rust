@@ -20,6 +20,7 @@ libc = "0.2"
 core-foundation = "0.6.2"
 base64 = "0.12.1"
 chrono = "0.4"
+confy = "0.4.0"
 
 [dependencies.tcn]
 git = "https://github.com/TCNCoalition/TCN.git"

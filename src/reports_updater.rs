@@ -1,13 +1,15 @@
 use crate::{networking::{TcnApi, NetworkingError}, reports_interval, Error, DB_UNINIT, DB, byte_vec_to_16_byte_array};
 use reports_interval::{ ReportsInterval, UnixTime };
 use tcn::{SignedReport};
-use std::{collections::HashSet, time::Instant, error, fmt};
+use std::{collections::HashSet, time::Instant, error, fmt, cell::RefCell};
+use serde::Serialize;
+use serde::Deserialize;
 
-trait TcnMatcher {
+pub trait TcnMatcher {
   fn match_reports(&self, tcns: Vec<u128>, reports: Vec<SignedReport>) -> Result<Vec<SignedReport>, ServicesError>;
 }
 
-struct TcnMatcherImpl {}
+pub struct TcnMatcherImpl {}
 impl TcnMatcher for TcnMatcherImpl {
   fn match_reports(&self, tcns: Vec<u128>, reports: Vec<SignedReport>) -> Result<Vec<SignedReport>, ServicesError> {
     Self::match_reports_with(tcns, reports)
@@ -18,7 +20,7 @@ impl TcnMatcher for TcnMatcherImpl {
 impl TcnMatcherImpl {
 
   // TODO use TCN repo's match_btreeset test code? Compare performance.
-  fn match_reports_with(tcns: Vec<u128>, reports: Vec<SignedReport>) -> Result<Vec<SignedReport>, ServicesError> {
+  pub fn match_reports_with(tcns: Vec<u128>, reports: Vec<SignedReport>) -> Result<Vec<SignedReport>, ServicesError> {
     let mut out: Vec<SignedReport> = Vec::new();
     let tcns_set: HashSet<u128> = tcns.into_iter().collect();
     for report in reports {
@@ -36,11 +38,11 @@ impl TcnMatcherImpl {
   }
 }
 
-trait TcnDao {
+pub trait TcnDao {
   fn all(&self) -> Result<Vec<u128>, ServicesError>;
 }
 
-struct TcnDaoImpl {}
+pub struct TcnDaoImpl {}
 impl TcnDao for TcnDaoImpl {
   fn all(&self) -> Result<Vec<u128>, ServicesError> {
     let mut out: Vec<u128> = Vec::new();
@@ -60,30 +62,51 @@ impl TcnDao for TcnDaoImpl {
 }
 
 enum PreferencesKey {
-  SeenOnboarding,
   LastCompletedReportsInterval
 }
 
-trait Preferences {
-  fn get_object<T>(&self, key: PreferencesKey) -> Option<T>;
-  fn put_object<T>(&self, key: PreferencesKey, value: T);
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct MyConfig {
+  last_completed_reports_interval: Option<ReportsInterval>
 }
 
-struct PreferencesImpl {}
+impl Default for MyConfig {
+  fn default() -> Self { Self { last_completed_reports_interval: None } }
+}
+
+// TODO either change storage (confy) and use api more similar to Android/iOS (using generic functions with keys)
+// TODO or remove PreferencesKey
+pub trait Preferences {
+  fn last_completed_reports_interval(&self, key: PreferencesKey) -> Option<ReportsInterval>;
+  fn set_last_completed_reports_interval(&self, key: PreferencesKey, value: ReportsInterval);
+}
+
+pub struct PreferencesImpl {
+  config: RefCell<MyConfig>
+}
+
 impl Preferences for PreferencesImpl {
 
-  fn get_object<T>(&self, key: PreferencesKey) -> Option<T> {
-    // TODO key value store (prob third party? And manage object as JSON, probably)
-    unimplemented!();
+  fn last_completed_reports_interval(&self, key: PreferencesKey) -> Option<ReportsInterval> {
+    match key {
+      LastCompletedReportsInterval => self.config.borrow().last_completed_reports_interval
+    }
   }
 
-  fn put_object<T>(&self, key: PreferencesKey, value: T) {
-    // TODO key value store (prob third party? And manage object as JSON, probably)
-    unimplemented!();
+  fn set_last_completed_reports_interval(&self, key: PreferencesKey, value: ReportsInterval) {
+    let mut my_config = self.config.borrow_mut();
+    my_config.last_completed_reports_interval = Some(value);
+  
+    let res = confy::store("myprefs", &self.config);
+  
+    if let Err(error) = res {
+      println!("Error storing preferences: {:?}", error)
+    }
   }
 }
 
-struct ReportsUpdater<
+pub struct ReportsUpdater<
   PreferencesType: Preferences, TcnDaoType: TcnDao, TcnMatcherType: TcnMatcher, ApiType: TcnApi
 > {
   preferences: PreferencesType, tcn_dao: TcnDaoType, tcn_matcher: TcnMatcherType, api: ApiType
@@ -112,7 +135,7 @@ impl<
   }
 
   fn retrieve_last_completed_interval(&self) -> Option<ReportsInterval> {
-    self.preferences.get_object(PreferencesKey::LastCompletedReportsInterval)
+    self.preferences.last_completed_reports_interval(PreferencesKey::LastCompletedReportsInterval)
   }
 
   fn determine_start_interval(&self, time: &UnixTime) -> ReportsInterval {
@@ -132,7 +155,7 @@ impl<
       .map_err(ServicesError::from)
   }
 
-  fn generate_intervals_sequence(mut from: ReportsInterval, until: &UnixTime) -> impl Iterator<Item = ReportsInterval> + '_ {
+  fn generate_intervals_sequence(from: ReportsInterval, until: &UnixTime) -> impl Iterator<Item = ReportsInterval> + '_ {
     std::iter::successors(Some(from), |item| Some(item.next()))
     .take_while(move |item| item.starts_before(until))
   }
@@ -228,7 +251,7 @@ impl<
     let interval = Self::interval_ending_before(intervals, now);
 
     if let Some(interval) = interval {
-      self.preferences.put_object(PreferencesKey::LastCompletedReportsInterval, interval);
+      self.preferences.set_last_completed_reports_interval(PreferencesKey::LastCompletedReportsInterval, interval);
     }
   }
 }

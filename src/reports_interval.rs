@@ -1,4 +1,6 @@
 use chrono::prelude::*;
+use serde::Serialize;
+use serde::Deserialize;
 
 pub struct UnixTime {
   value: u64
@@ -14,7 +16,7 @@ impl UnixTime {
   }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct ReportsInterval {
   pub number: u64,
   pub length: u64
