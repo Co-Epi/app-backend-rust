@@ -66,7 +66,6 @@ enum PreferencesKey {
   LastCompletedReportsInterval
 }
 
-
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct MyConfig {
   last_completed_reports_interval: Option<ReportsInterval>
@@ -110,7 +109,10 @@ impl Preferences for PreferencesImpl {
 pub struct ReportsUpdater<
   PreferencesType: Preferences, TcnDaoType: TcnDao, TcnMatcherType: TcnMatcher, ApiType: TcnApi
 > {
-  preferences: PreferencesType, tcn_dao: TcnDaoType, tcn_matcher: TcnMatcherType, api: ApiType
+  pub preferences: PreferencesType, 
+  pub tcn_dao: TcnDaoType, 
+  pub tcn_matcher: TcnMatcherType, 
+  pub api: ApiType
 }
 
 impl<
