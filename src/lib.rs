@@ -8,10 +8,14 @@ mod ios;
 mod reports_interval;
 mod reports_updater;
 mod composition_root;
+<<<<<<< HEAD
 mod reporting;
 mod errors;
 mod preferences;
 mod tcn_ext;
+=======
+mod memo;
+>>>>>>> Implement public report <-> memo
 
 pub type Res<T> = Result<T, Error>;
 
