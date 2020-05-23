@@ -1,16 +1,12 @@
 use chrono::prelude::*;
 use serde::Serialize;
 use serde::Deserialize;
-
+#[derive(Debug, PartialEq, Clone)]
 pub struct UnixTime {
-  value: u64
+  pub value: u64
 }
 
 impl UnixTime {
-  pub fn from_value(value: u64) -> UnixTime {
-    UnixTime { value }
-  }
-
   pub fn now() -> UnixTime {
     UnixTime { value: Utc::now().timestamp() as u64 }
   }
