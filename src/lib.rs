@@ -8,7 +8,7 @@ mod ios;
 mod reports_interval;
 mod reports_updater;
 mod composition_root;
-mod memo;
+mod reporting;
 
 pub type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 pub type Res<T> = Result<T, Error>;
