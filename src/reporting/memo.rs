@@ -2,15 +2,15 @@ use crate::reports_interval::UnixTime;
 use std::convert::TryInto;
 use super::{mappers::{TimeMapper, VersionMapper, TimeUserInputMapper, CoughSeverityMapper, FeverSeverityMapper, BoolMapper, BitMapper, BitListMappable}, public_report::PublicReport, bit_list::BitList};
 
-struct Memo {
-  bytes: Vec<u8>
+pub struct Memo {
+  pub bytes: Vec<u8>
 }
-trait MemoMapper {
-  fn to_memo(report: PublicReport, time: UnixTime) -> Memo;
-  fn to_report(memo: Memo) -> PublicReport;
+pub trait MemoMapper {
+  fn to_memo(&self, report: PublicReport, time: UnixTime) -> Memo;
+  fn to_report(&self, memo: Memo) -> PublicReport;
 }
 
-struct MemoMapperImpl {}
+pub struct MemoMapperImpl {}
 
 impl MemoMapperImpl {
   const VERSION_MAPPER: VersionMapper = VersionMapper {};
@@ -23,7 +23,7 @@ impl MemoMapperImpl {
 
 impl MemoMapper for MemoMapperImpl {
 
-    fn to_memo(report: PublicReport, time: UnixTime) -> Memo {
+    fn to_memo(&self, report: PublicReport, time: UnixTime) -> Memo {
 
       let memo_version: u16 = 1;
 
@@ -41,7 +41,7 @@ impl MemoMapper for MemoMapperImpl {
       ).as_u8_array() }
     }
 
-    fn to_report(memo: Memo) -> PublicReport {
+    fn to_report(&self, memo: Memo) -> PublicReport {
       let bits: Vec<bool> = memo.bytes.into_iter().flat_map(|byte|
         byte.to_bits().bits
       ).collect();
@@ -99,10 +99,13 @@ fn extract<T>(bits: &Vec<bool>, mapper: &dyn BitMapper<T>, start: usize) -> Extr
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::reporting::public_report::{FeverSeverity, UserInput, CoughSeverity};
+  use crate::reporting::public_report::{FeverSeverity, CoughSeverity};
+  use crate::reporting::symptom_inputs::UserInput;
 
   #[test]
   fn maps_no_symptoms() {
+    let memo_mapper = MemoMapperImpl {};
+
     let report = PublicReport {
         earliest_symptom_time: UserInput::None,
         fever_severity: FeverSeverity::None,
@@ -110,14 +113,16 @@ mod tests {
         cough_severity: CoughSeverity::None
     };
 
-    let memo: Memo = MemoMapperImpl::to_memo(report.clone(), UnixTime { value: 1589209754 });
-    let mapped_report: PublicReport = MemoMapperImpl::to_report(memo);
+    let memo: Memo = memo_mapper.to_memo(report.clone(), UnixTime { value: 1589209754 });
+    let mapped_report: PublicReport = memo_mapper.to_report(memo);
 
     assert_eq!(mapped_report, report.clone());
   }
 
   #[test]
   fn maps_all_symptoms_set_arbitrary() {
+    let memo_mapper = MemoMapperImpl {};
+    
     let report = PublicReport {
         earliest_symptom_time: UserInput::Some(UnixTime { value: 1589209754 }),
         fever_severity: FeverSeverity::Serious,
@@ -125,8 +130,8 @@ mod tests {
         cough_severity: CoughSeverity::Existing
     };
 
-    let memo: Memo = MemoMapperImpl::to_memo(report.clone(), UnixTime { value: 0 });
-    let mapped_report: PublicReport = MemoMapperImpl::to_report(memo);
+    let memo: Memo = memo_mapper.to_memo(report.clone(), UnixTime { value: 0 });
+    let mapped_report: PublicReport = memo_mapper.to_report(memo);
 
     assert_eq!(mapped_report, report.clone());
   }

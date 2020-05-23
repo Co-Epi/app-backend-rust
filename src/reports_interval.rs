@@ -1,7 +1,7 @@
 use chrono::prelude::*;
 use serde::Serialize;
 use serde::Deserialize;
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Deserialize)]
 pub struct UnixTime {
   pub value: u64
 }

@@ -1,4 +1,4 @@
-use super::{public_report::{CoughSeverity, UserInput, FeverSeverity}, bit_list::BitList};
+use super::{public_report::{CoughSeverity, FeverSeverity}, bit_list::BitList, symptom_inputs::UserInput};
 use crate::reports_interval::UnixTime;
 
 pub trait BitMapper<T> {
