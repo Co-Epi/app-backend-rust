@@ -23,7 +23,7 @@ impl MemoMapperImpl {
 
 impl MemoMapper for MemoMapperImpl {
 
-    fn to_memo(report: PublicReport, time: UnixTime) -> Memo {
+    fn to_memo(&self, report: PublicReport, time: UnixTime) -> Memo {
 
       let memo_version: u16 = 1;
 
@@ -41,7 +41,7 @@ impl MemoMapper for MemoMapperImpl {
       ).as_u8_array() }
     }
 
-    fn to_report(memo: Memo) -> PublicReport {
+    fn to_report(&self, memo: Memo) -> PublicReport {
       let bits: Vec<bool> = memo.bytes.into_iter().flat_map(|byte|
         byte.to_bits().bits
       ).collect();
