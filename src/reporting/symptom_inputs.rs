@@ -86,19 +86,19 @@ pub trait SymptomInputsSubmitter<
   fn submit_inputs(&self, inputs: SymptomInputs) -> Result<(), ServicesError>;
 }
 
-pub struct SymptomInputsSubmitterImpl<
+pub struct SymptomInputsSubmitterImpl<'a,
   MemoMapperType: MemoMapper, TcnKeysType: TcnKeys, TcnApiType: TcnApi
 > {
   pub memo_mapper: MemoMapperType,
   pub tcn_keys: TcnKeysType,
-  pub api: TcnApiType,
+  pub api: &'a TcnApiType,
 }
 
-impl <
+impl <'a,
   MemoMapperType: MemoMapper, TcnKeysType: TcnKeys, TcnApiType: TcnApi
 > SymptomInputsSubmitter<
   MemoMapperType, TcnKeysType, TcnApiType
-> for SymptomInputsSubmitterImpl<
+> for SymptomInputsSubmitterImpl<'a,
   MemoMapperType, TcnKeysType, TcnApiType
 > {
 

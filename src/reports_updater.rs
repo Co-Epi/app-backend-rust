@@ -69,18 +69,18 @@ pub struct Alert {
   // TODO date: Note: Contact date (port from Android)
 }
 
-pub struct ReportsUpdater<
+pub struct ReportsUpdater<'a, 
   PreferencesType: Preferences, TcnDaoType: TcnDao, TcnMatcherType: TcnMatcher, ApiType: TcnApi
 > {
   pub preferences: PreferencesType, 
   pub tcn_dao: TcnDaoType, 
   pub tcn_matcher: TcnMatcherType, 
-  pub api: ApiType
+  pub api: &'a ApiType
 }
 
-impl<
+impl<'a, 
   PreferencesType: Preferences, TcnDaoType: TcnDao, TcnMatcherType: TcnMatcher, ApiType: TcnApi
-> ReportsUpdater<PreferencesType, TcnDaoType, TcnMatcherType, ApiType> {
+> ReportsUpdater<'a, PreferencesType, TcnDaoType, TcnMatcherType, ApiType> {
 
   pub fn fetch_new_reports(&self) -> Result<Vec<Alert>, ServicesError> {
     self.retrieve_and_match_new_reports().map(|signed_reports|
