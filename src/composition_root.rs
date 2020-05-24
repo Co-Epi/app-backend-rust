@@ -3,6 +3,7 @@ use crate::reports_updater::{TcnMatcher, ReportsUpdater, TcnDao, TcnDaoImpl, Tcn
 use crate::{reporting::{memo::{MemoMapperImpl}, symptom_inputs::{SymptomInputsSubmitterImpl, SymptomInputsSubmitter}}, preferences::{Preferences, PreferencesImpl}, tcn_ext::tcn_keys::{TcnKeysImpl, TcnKeys}};
 use once_cell::sync::Lazy;
 use parking_lot::RwLock;
+use std::sync::Arc;
 
 pub struct CompositionRoot<'a,
   PreferencesType: Preferences, TcnDaoType: TcnDao, TcnMatcherType: TcnMatcher, ApiType: TcnApi, 
@@ -26,14 +27,13 @@ fn create_comp_root() -> CompositionRoot<'static,
   PreferencesImpl, TcnDaoImpl, TcnMatcherImpl, TcnApiImpl, 
   SymptomInputsSubmitterImpl<'static, MemoMapperImpl, TcnKeysImpl<PreferencesImpl>, TcnApiImpl>
 > {
-  // FIXME pass the same instances / references
   let api = &TcnApiImpl {};
-  // let preferences = PreferencesImpl { config: RwLock::new(confy::load("coepi").unwrap()) };
+  let preferences = Arc::new(PreferencesImpl { config: RwLock::new(confy::load("coepi").unwrap()) });
 
   CompositionRoot { 
     api: TcnApiImpl {},
     reports_updater: ReportsUpdater { 
-      preferences: PreferencesImpl { config: RwLock::new(confy::load("coepi").unwrap()) },
+      preferences: preferences.clone(),
       tcn_dao: TcnDaoImpl {},
       tcn_matcher: TcnMatcherImpl {},
       api
@@ -41,7 +41,7 @@ fn create_comp_root() -> CompositionRoot<'static,
     symptom_inputs_submitter: SymptomInputsSubmitterImpl { 
       memo_mapper: MemoMapperImpl {},  
       tcn_keys: TcnKeysImpl { 
-        preferences: PreferencesImpl { config: RwLock::new(confy::load("coepi").unwrap()) }
+        preferences: preferences.clone()
       },
       api
     }

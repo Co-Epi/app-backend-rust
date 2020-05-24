@@ -1,6 +1,6 @@
 use crate::preferences::Preferences;
 use tcn::{TemporaryContactKey, ReportAuthorizationKey, MemoType, SignedReport, Error};
-use std::{cmp, io::Cursor};
+use std::{cmp, io::Cursor, sync::Arc};
 use cmp::max;
 
 pub trait TcnKeys {
@@ -8,7 +8,7 @@ pub trait TcnKeys {
 }
 
 pub struct TcnKeysImpl<PreferencesType: Preferences> {
-  pub preferences: PreferencesType,
+  pub preferences: Arc<PreferencesType>,
 }
 
 impl <PreferencesType: Preferences> TcnKeys for TcnKeysImpl<PreferencesType> {

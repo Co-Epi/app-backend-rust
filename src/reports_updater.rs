@@ -1,7 +1,7 @@
 use crate::{networking::{TcnApi, NetworkingError}, reports_interval, DB_UNINIT, DB, byte_vec_to_16_byte_array, errors::{Error, ServicesError}, preferences::{PreferencesKey, Preferences}};
 use reports_interval::{ReportsInterval, UnixTime};
 use tcn::SignedReport;
-use std::{collections::HashSet, time::Instant};
+use std::{collections::HashSet, time::Instant, rc::Rc, sync::Arc};
 use serde::Serialize;
 use uuid::Uuid;
 
@@ -72,7 +72,7 @@ pub struct Alert {
 pub struct ReportsUpdater<'a, 
   PreferencesType: Preferences, TcnDaoType: TcnDao, TcnMatcherType: TcnMatcher, ApiType: TcnApi
 > {
-  pub preferences: PreferencesType, 
+  pub preferences: Arc<PreferencesType>, 
   pub tcn_dao: TcnDaoType, 
   pub tcn_matcher: TcnMatcherType, 
   pub api: &'a ApiType
