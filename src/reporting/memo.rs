@@ -1,6 +1,6 @@
 use crate::reports_interval::UnixTime;
 use std::convert::TryInto;
-use super::{mappers::{TimeMapper, VersionMapper, TimeUserInputMapper, CoughSeverityMapper, FeverSeverityMapper, BoolMapper, BitMapper, BitListMappable}, public_report::PublicReport, bit_list::BitList};
+use super::{mappers::{TimeMapper, VersionMapper, TimeUserInputMapper, CoughSeverityMapper, FeverSeverityMapper, BoolMapper, BitMapper, BitVectorMappable}, public_report::PublicReport, bit_vector::BitVector};
 
 pub struct Memo {
   pub bytes: Vec<u8>
@@ -36,7 +36,7 @@ impl MemoMapper for MemoMapperImpl {
         Self::BOOLEAN_MAPPER.to_bits(report.breathlessness),
       ];
 
-      Memo { bytes: bits.into_iter().fold(BitList { bits: vec![] }, |acc, e|
+      Memo { bytes: bits.into_iter().fold(BitVector { bits: vec![] }, |acc, e|
         acc.concat(e)
       ).as_u8_array() }
     }
@@ -91,7 +91,7 @@ fn extract<T>(bits: &Vec<bool>, mapper: &dyn BitMapper<T>, start: usize) -> Extr
     .expect("Couldn't convert bits into vector");
 
   ExtractResult { 
-    value: mapper.from_bits(BitList { bits: sub_bits }), 
+    value: mapper.from_bits(BitVector { bits: sub_bits }), 
     count: mapper.bit_count() 
   }
 }

@@ -1,13 +1,13 @@
 use std::{u64, convert::TryInto};
 
-pub struct BitList {
+pub struct BitVector {
   pub bits: Vec<bool>
 }
 
-impl BitList {
+impl BitVector {
 
-  pub fn concat(&self, bit_list: BitList) -> BitList {
-    BitList { bits: self.bits.clone().into_iter().chain(bit_list.bits.into_iter()).collect() }
+  pub fn concat(&self, bit_vector: BitVector) -> BitVector {
+    BitVector { bits: self.bits.clone().into_iter().chain(bit_vector.bits.into_iter()).collect() }
   }
 
   pub fn as_u8_array(&self) -> Vec<u8> {
@@ -42,8 +42,8 @@ impl BitList {
     unsafe { std::mem::transmute::<[u8; 8], u64>(arr) }
   }
 
-  pub fn as_unibble_bit_list(&self) -> BitList {
-    BitList { bits: Self::fill_until_size(self.bits.clone(), 4, false).into_iter().take(4).collect() }
+  pub fn as_unibble_bit_vector(&self) -> BitVector {
+    BitVector { bits: Self::fill_until_size(self.bits.clone(), 4, false).into_iter().take(4).collect() }
   }
 
   fn to_bit_string(bits: [bool; 8]) -> String {

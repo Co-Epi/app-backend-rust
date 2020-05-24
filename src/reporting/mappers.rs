@@ -1,11 +1,11 @@
-use super::{public_report::{CoughSeverity, FeverSeverity}, bit_list::BitList, symptom_inputs::UserInput};
+use super::{public_report::{CoughSeverity, FeverSeverity}, bit_vector::BitVector, symptom_inputs::UserInput};
 use crate::reports_interval::UnixTime;
 
 pub trait BitMapper<T> {
 
   fn bit_count(&self) -> usize;
 
-  fn to_bits(&self, value: T) -> BitList {
+  fn to_bits(&self, value: T) -> BitVector {
     let bits = self.to_bits_unchecked(value);
     if bits.len() != self.bit_count() {
       panic!("Incorrect bit count: {}. Required: {}", bits.len(), self.bit_count())
@@ -14,16 +14,16 @@ pub trait BitMapper<T> {
     }
   }
 
-  fn from_bits(&self, bit_list: BitList) -> T {
-    if bit_list.len() != self.bit_count() {
-      panic!("Incorrect bit count: {}. Required: {}", bit_list.len(), self.bit_count())
+  fn from_bits(&self, bit_vector: BitVector) -> T {
+    if bit_vector.len() != self.bit_count() {
+      panic!("Incorrect bit count: {}. Required: {}", bit_vector.len(), self.bit_count())
     }
-    self.from_bits_unchecked(bit_list)
+    self.from_bits_unchecked(bit_vector)
   }
 
-  fn to_bits_unchecked(&self, value: T) -> BitList;
+  fn to_bits_unchecked(&self, value: T) -> BitVector;
 
-  fn from_bits_unchecked(&self, bit_list: BitList) -> T;
+  fn from_bits_unchecked(&self, bit_vector: BitVector) -> T;
 }
 
 pub struct VersionMapper {}
@@ -31,12 +31,12 @@ impl BitMapper<u16> for VersionMapper {
 
   fn bit_count(&self) -> usize { 16 }
 
-  fn to_bits_unchecked(&self, value: u16) -> BitList {
+  fn to_bits_unchecked(&self, value: u16) -> BitVector {
     value.to_bits()
   }
 
-  fn from_bits_unchecked(&self, bit_list: BitList) -> u16 {
-    bit_list.as_u16()
+  fn from_bits_unchecked(&self, bit_vector: BitVector) -> u16 {
+    bit_vector.as_u16()
   }
 }
 
@@ -45,12 +45,12 @@ impl BitMapper<UnixTime> for TimeMapper {
 
   fn bit_count(&self) -> usize { 64 }
 
-  fn to_bits_unchecked(&self, value: UnixTime) -> BitList {
+  fn to_bits_unchecked(&self, value: UnixTime) -> BitVector {
     value.value.to_bits()
   }
 
-  fn from_bits_unchecked(&self, bit_list: BitList) -> UnixTime {
-    UnixTime { value: bit_list.as_u64() }
+  fn from_bits_unchecked(&self, bit_vector: BitVector) -> UnixTime {
+    UnixTime { value: bit_vector.as_u64() }
   }
 }
 
@@ -59,15 +59,15 @@ impl BitMapper<UserInput<UnixTime>> for TimeUserInputMapper {
 
   fn bit_count(&self) -> usize { 64 }
 
-  fn to_bits_unchecked(&self, value: UserInput<UnixTime>) -> BitList {
+  fn to_bits_unchecked(&self, value: UserInput<UnixTime>) -> BitVector {
     match value {
       UserInput::None => u64::MAX,
       UserInput::Some(input) => input.value
     }.to_bits()
   }
 
-  fn from_bits_unchecked(&self, bit_list: BitList) -> UserInput<UnixTime> {
-    let value = bit_list.as_u64();
+  fn from_bits_unchecked(&self, bit_vector: BitVector) -> UserInput<UnixTime> {
+    let value = bit_vector.as_u64();
     match value {
       u64::MAX => UserInput::None,
       _ => UserInput::Some(UnixTime { value })
@@ -80,12 +80,12 @@ impl BitMapper<bool> for BoolMapper {
 
   fn bit_count(&self) -> usize { 1 }
 
-  fn to_bits_unchecked(&self, value: bool) -> BitList {
-    BitList { bits: vec![value] }
+  fn to_bits_unchecked(&self, value: bool) -> BitVector {
+    BitVector { bits: vec![value] }
   }
 
-  fn from_bits_unchecked(&self, bit_list: BitList) -> bool {
-    bit_list.bits.first().unwrap().to_owned()
+  fn from_bits_unchecked(&self, bit_vector: BitVector) -> bool {
+    bit_vector.bits.first().unwrap().to_owned()
   }
 }
 
@@ -94,17 +94,17 @@ impl BitMapper<CoughSeverity> for CoughSeverityMapper {
 
   fn bit_count(&self) -> usize { 4 }
 
-  fn to_bits_unchecked(&self, value: CoughSeverity) -> BitList {
+  fn to_bits_unchecked(&self, value: CoughSeverity) -> BitVector {
     (match value {
       CoughSeverity::None => 0,
       CoughSeverity::Existing => 1,
       CoughSeverity::Dry => 2,
       CoughSeverity::Wet => 3,
-    } as u8).to_bits().as_unibble_bit_list()
+    } as u8).to_bits().as_unibble_bit_vector()
   }
 
-  fn from_bits_unchecked(&self, bit_list: BitList) -> CoughSeverity {
-    let value = bit_list.as_u8();
+  fn from_bits_unchecked(&self, bit_vector: BitVector) -> CoughSeverity {
+    let value = bit_vector.as_u8();
     match value {
       0 => CoughSeverity::None,
       1 => CoughSeverity::Existing,
@@ -120,16 +120,16 @@ impl BitMapper<FeverSeverity> for FeverSeverityMapper {
 
   fn bit_count(&self) -> usize { 4 }
 
-  fn to_bits_unchecked(&self, value: FeverSeverity) -> BitList {
+  fn to_bits_unchecked(&self, value: FeverSeverity) -> BitVector {
     (match value {
       FeverSeverity::None => 0,
       FeverSeverity::Mild => 1,
       FeverSeverity::Serious => 2,
-    } as u8).to_bits().as_unibble_bit_list()
+    } as u8).to_bits().as_unibble_bit_vector()
   }
 
-  fn from_bits_unchecked(&self, bit_list: BitList) -> FeverSeverity {
-    let value = bit_list.as_u8();
+  fn from_bits_unchecked(&self, bit_vector: BitVector) -> FeverSeverity {
+    let value = bit_vector.as_u8();
     match value {
       0 => FeverSeverity::None,
       1 => FeverSeverity::Mild,
@@ -139,37 +139,37 @@ impl BitMapper<FeverSeverity> for FeverSeverityMapper {
   }
 }
 
-pub trait BitListMappable {
-  fn to_bits(&self) -> BitList;
+pub trait BitVectorMappable {
+  fn to_bits(&self) -> BitVector;
 }
 
-impl BitListMappable for u64 {
-  fn to_bits(&self) -> BitList {
+impl BitVectorMappable for u64 {
+  fn to_bits(&self) -> BitVector {
     let bits: Vec<bool> = (0..64).map(|index| {
       let value: Self = (self >> index) & 0x01;
       value == 1
     }).collect();
-    BitList { bits }
+    BitVector { bits }
   }
 }
 
-impl BitListMappable for u16 {
-  fn to_bits(&self) -> BitList {
+impl BitVectorMappable for u16 {
+  fn to_bits(&self) -> BitVector {
     let bits: Vec<bool> = (0..16).map(|index| {
       let value: Self = (self >> index) & 0x01;
       value == 1
     }).collect();
-    BitList { bits }
+    BitVector { bits }
   }
 }
 
-impl BitListMappable for u8 {
-  fn to_bits(&self) -> BitList {
+impl BitVectorMappable for u8 {
+  fn to_bits(&self) -> BitVector {
     let bits: Vec<bool> = (0..8).map(|index| {
       let value: Self = (self >> index) & 0x01;
       value == 1
     }).collect();
-    BitList { bits }
+    BitVector { bits }
   }
 }
 
@@ -180,13 +180,13 @@ mod tests {
   #[test]
   fn version_mapper_maps_10_to_bits() {
     let version_mapper = VersionMapper {};
-    let bit_list = version_mapper.to_bits(10);
+    let bit_vector = version_mapper.to_bits(10);
 
     let mut bits = vec![false; 16];
     bits[1] = true;
     bits[3] = true;
 
-    assert_eq!(bits, bit_list.bits);
+    assert_eq!(bits, bit_vector.bits);
   }
 
   #[test]
@@ -197,7 +197,7 @@ mod tests {
     bits[1] = true;
     bits[3] = true;
 
-    let number = version_mapper.from_bits(BitList { bits: bits} );
+    let number = version_mapper.from_bits(BitVector { bits });
 
     assert_eq!(number, 10);
   }
