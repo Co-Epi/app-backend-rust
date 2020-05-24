@@ -125,3 +125,47 @@ fn signed_report_to_bytes(signed_report: SignedReport) -> Vec<u8> {
   signed_report.write(Cursor::new(&mut buf)).expect("Couldn't write signed report bytes");
   buf
 }
+
+#[test]
+fn test_inputs_to_report(){
+  assert_eq!(1,1);
+
+  let breathlessness = Breathlessness {
+    cause: UserInput::Some(BreathlessnessCause::HurryOrHill)
+  };
+
+  let cough = Cough {
+    cough_type: UserInput::Some(CoughType::Wet),
+    days: UserInput::Some(Days {value: 3}),
+    status: UserInput::Some(CoughStatus::SameOrSteadilyWorse),
+  };
+
+  let fever = Fever {
+    days: UserInput::Some(Days { value: 2}),
+    highest_temperature: UserInput::Some(FarenheitTemperature {value: 112.0}),
+    taken_temperature_today: UserInput::Some(true),
+    temperature_spot: UserInput::Some(TemperatureSpot::Armpit),
+  };
+
+  let earliest_symptom = EarliestSymptom {
+    time: UserInput::Some(UnixTime{value: 1590356601})
+  };
+
+  let mut symptom_ids_set: HashSet<SymptomId> = HashSet::new();
+
+  symptom_ids_set.insert(SymptomId::Cough);
+  symptom_ids_set.insert(SymptomId::Fever);
+  symptom_ids_set.insert(SymptomId::Diarrhea);
+
+
+
+  let inputs : SymptomInputs = SymptomInputs {
+    ids: symptom_ids_set,
+    cough: cough,
+    breathlessness: breathlessness,
+    fever: fever,
+    earliest_symptom: earliest_symptom,
+  };
+
+
+}
