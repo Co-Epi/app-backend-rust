@@ -1,10 +1,8 @@
-use crate::{networking::{TcnApi, NetworkingError}, reports_interval, Error, DB_UNINIT, DB, byte_vec_to_16_byte_array};
-use reports_interval::{ ReportsInterval, UnixTime };
-use tcn::{SignedReport, Error as TcnError};
-use std::{collections::HashSet, time::Instant, error, fmt, io::ErrorKind, io::Error as StdError};
+use crate::{networking::{TcnApi, NetworkingError}, reports_interval, DB_UNINIT, DB, byte_vec_to_16_byte_array, errors::{Error, ServicesError}, preferences::{PreferencesKey, Preferences}};
+use reports_interval::{ReportsInterval, UnixTime};
+use tcn::SignedReport;
+use std::{collections::HashSet, time::Instant};
 use serde::Serialize;
-use serde::Deserialize;
-use parking_lot::RwLock;
 use uuid::Uuid;
 
 pub trait TcnMatcher {
@@ -63,49 +61,6 @@ impl TcnDao for TcnDaoImpl {
   }
 }
 
-enum PreferencesKey {
-  LastCompletedReportsInterval
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct MyConfig {
-  last_completed_reports_interval: Option<ReportsInterval>
-}
-
-impl Default for MyConfig {
-  fn default() -> Self { Self { last_completed_reports_interval: None } }
-}
-
-// TODO either change storage (confy) and use api more similar to Android/iOS (using generic functions with keys)
-// TODO or remove PreferencesKey
-pub trait Preferences {
-  fn last_completed_reports_interval(&self, key: PreferencesKey) -> Option<ReportsInterval>;
-  fn set_last_completed_reports_interval(&self, key: PreferencesKey, value: ReportsInterval);
-}
-
-pub struct PreferencesImpl {
-  pub config: RwLock<MyConfig>
-}
-
-impl Preferences for PreferencesImpl {
-
-  fn last_completed_reports_interval(&self, key: PreferencesKey) -> Option<ReportsInterval> {
-    match key {
-      LastCompletedReportsInterval => self.config.read().last_completed_reports_interval
-    }
-  }
-
-  fn set_last_completed_reports_interval(&self, key: PreferencesKey, value: ReportsInterval) {
-    let mut config = self.config.write();
-    config.last_completed_reports_interval = Some(value);
-
-    let res = confy::store("myprefs", *config);
-  
-    if let Err(error) = res {
-      println!("Error storing preferences: {:?}", error)
-    }
-  }
-}
 
 #[derive(Debug, Serialize)]
 pub struct Alert {
@@ -288,7 +243,6 @@ impl<
   }
 }
 
-
 // To insert easily side effects in flows anywhere (from Kotlin)
 trait Also: Sized {
   fn also<F: FnOnce(&Self) -> ()>(self, f: F) -> Self {
@@ -311,37 +265,3 @@ struct SignedReportsChunk {
   reports: Vec<SignedReport>,
   interval: ReportsInterval 
 }
-
-
-#[derive(Debug)]
-pub enum ServicesError {
-  Networking(NetworkingError),
-  Error(Error)
-}
-
-impl fmt::Display for ServicesError {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-      write!(f, "{:?}", self)
-  }
-}
-
-impl From<Error> for ServicesError {
-  fn from(error: Error) -> Self {
-    ServicesError::Error(error)
-  }
-}
-
-impl From<NetworkingError> for ServicesError {
-  fn from(error: NetworkingError) -> Self {
-    ServicesError::Networking(error)
-  }
-}
-
-
-impl From<TcnError> for ServicesError {
-  fn from(error: TcnError) -> Self {
-    ServicesError::Error(Box::new(StdError::new(ErrorKind::Other, format!("{}", error))))
-  }
-}
-
-impl error::Error for ServicesError { }

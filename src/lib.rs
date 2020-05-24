@@ -1,15 +1,18 @@
 use once_cell::sync::OnceCell;
 use persy::{Config, Persy, ValueMode};
-use std::{path::Path};
+use std::path::Path;
 use tcn::TemporaryContactNumber;
-
+use errors::Error;
 mod networking;
 mod ios;
 mod reports_interval;
 mod reports_updater;
 mod composition_root;
+mod reporting;
+mod errors;
+mod preferences;
+mod tcn_ext;
 
-pub type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 pub type Res<T> = Result<T, Error>;
 
 const CENS_BY_TS: &str = "cens by ts";
