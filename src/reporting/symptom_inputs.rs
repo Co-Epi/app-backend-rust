@@ -4,7 +4,7 @@ use serde::Deserialize;
 use super::{memo::MemoMapper, public_report::PublicReport};
 use tcn::SignedReport;
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct SymptomInputs {
   pub ids: HashSet<SymptomId>,
   pub cough: Cough,
@@ -13,39 +13,39 @@ pub struct SymptomInputs {
   pub earliest_symptom: EarliestSymptom
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct Cough {
   pub cough_type: UserInput<CoughType>,
   pub days: UserInput<Days>,
   pub status: UserInput<CoughStatus>
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub enum CoughType {
   Wet, Dry
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub enum CoughStatus {
   BetterAndWorseThroughDay, WorseWhenOutside, SameOrSteadilyWorse
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct Days {
   pub value: i32
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct Breathlessness {
   pub cause: UserInput<BreathlessnessCause>
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub enum BreathlessnessCause {
   LeavingHouseOrDressing, WalkingYardsOrMinsOnGround, GroundOwnPace, HurryOrHill, Exercise
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct Fever {
   pub days: UserInput<Days>,
   pub taken_temperature_today: UserInput<bool>,
@@ -53,18 +53,18 @@ pub struct Fever {
   pub highest_temperature: UserInput<FarenheitTemperature>
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub enum TemperatureSpot {
   Mouth, Ear, Armpit, Other(String)
 }
 
 // Temperature conversions are only for presentation, so in the apps
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct FarenheitTemperature {
   pub value: f32
 }
 
-#[derive(Eq, PartialEq, Hash, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Hash, Deserialize)]
 pub enum SymptomId {
   Cough, Breathlessness, Fever, MuscleAches, LossSmellOrTaste, Diarrhea, RunnyNose, Other, None
 }
@@ -75,7 +75,7 @@ pub enum UserInput<T> {
   None
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct EarliestSymptom {
   pub time: UserInput<UnixTime>
 }

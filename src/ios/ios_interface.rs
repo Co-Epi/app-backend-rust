@@ -65,12 +65,16 @@ pub unsafe extern "C" fn get_reports(interval_number: u32, interval_length: u32)
 
 #[no_mangle]
 pub unsafe extern "C" fn submit_symptoms(c_report: *const c_char) -> CFStringRef {
-  println!("RUST: posting report: {:?}", c_report);
+  println!("RUST: submitting symptoms: {:?}", c_report);
 
   // TODO don't unwrap, use and handle result, handle
-  let report = cstring_to_str(&c_report).unwrap();
+  let symptoms_str = cstring_to_str(&c_report).unwrap();
 
-  let inputs: Result<SymptomInputs, serde_json::Error> = serde_json::from_str(report);
+  println!("RUST: submitting symptoms, string: {:?}", symptoms_str);
+
+  let inputs: Result<SymptomInputs, serde_json::Error> = serde_json::from_str(symptoms_str);
+
+  println!("RUST: symptoms deserialization result: {:?}", inputs);
 
   let lib_result: LibResult<()> = match inputs {
     Ok(inputs) => {
