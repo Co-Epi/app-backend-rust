@@ -1,7 +1,7 @@
 use std::{io::Cursor, collections::HashSet};
 use crate::{errors::ServicesError, reports_interval::UnixTime, tcn_ext::tcn_keys::TcnKeys, networking::TcnApi};
 use serde::Deserialize;
-use super::{memo::MemoMapper, public_report::PublicReport};
+use super::{memo::MemoMapper, public_report::*};
 use tcn::SignedReport;
 
 #[derive(Deserialize)]
@@ -127,22 +127,21 @@ fn signed_report_to_bytes(signed_report: SignedReport) -> Vec<u8> {
 }
 
 #[test]
-fn test_inputs_to_report(){
-  assert_eq!(1,1);
-
+fn test_public_report_with_inputs(){
+  
   let breathlessness = Breathlessness {
     cause: UserInput::Some(BreathlessnessCause::HurryOrHill)
   };
 
   let cough = Cough {
-    cough_type: UserInput::Some(CoughType::Wet),
+    cough_type: UserInput::Some(CoughType::Dry),
     days: UserInput::Some(Days {value: 3}),
     status: UserInput::Some(CoughStatus::SameOrSteadilyWorse),
   };
 
   let fever = Fever {
     days: UserInput::Some(Days { value: 2}),
-    highest_temperature: UserInput::Some(FarenheitTemperature {value: 112.0}),
+    highest_temperature: UserInput::Some(FarenheitTemperature {value: 100.5}),
     taken_temperature_today: UserInput::Some(true),
     temperature_spot: UserInput::Some(TemperatureSpot::Armpit),
   };
@@ -156,16 +155,34 @@ fn test_inputs_to_report(){
   symptom_ids_set.insert(SymptomId::Cough);
   symptom_ids_set.insert(SymptomId::Fever);
   symptom_ids_set.insert(SymptomId::Diarrhea);
-
-
+  symptom_ids_set.insert(SymptomId::Breathlessness);
 
   let inputs : SymptomInputs = SymptomInputs {
     ids: symptom_ids_set,
-    cough: cough,
-    breathlessness: breathlessness,
-    fever: fever,
-    earliest_symptom: earliest_symptom,
+    cough,
+    breathlessness,
+    fever,
+    earliest_symptom,
   };
 
+  let public_report = PublicReport::with_inputs(inputs);
+
+  println!("{:#?}", public_report);
+  /*
+  PublicReport {
+    earliest_symptom_time: Some(
+        UnixTime {
+            value: 1590356601,
+        },
+    ),
+    fever_severity: Mild,
+    cough_severity: Dry,
+    breathlessness: true,
+}
+  */
+
+  assert_eq!(CoughSeverity::Dry, public_report.cough_severity);
+  assert_eq!(FeverSeverity::Mild, public_report.fever_severity);
+  assert_eq!(true, public_report.breathlessness);
 
 }
