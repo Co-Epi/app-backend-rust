@@ -1,7 +1,7 @@
 #!/bin/bash
 
-PATH_TO_LIB_REPO="/Users/john/Code/Co-Ep/app-backend-rust"
-PATH_TO_ANDROID_REPO="/Users/john/Code/Co-Ep/app-android"
+PATH_TO_LIB_REPO="<insert path>"
+PATH_TO_ANDROID_REPO="<insert path>"
 
 PATH_TO_ANDROID_MAIN=$PATH_TO_ANDROID_REPO/app/src/main
 
