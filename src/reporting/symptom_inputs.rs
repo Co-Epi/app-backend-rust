@@ -186,3 +186,27 @@ fn test_public_report_with_inputs(){
   assert_eq!(true, public_report.breathlessness);
 
 }
+
+#[test]
+fn test_public_report_should_be_sent(){
+  assert_eq!(1, 1);
+
+  let report_required_true = PublicReport {
+    earliest_symptom_time: UserInput::Some(UnixTime{value: 1590356601}),
+    fever_severity: FeverSeverity::Mild,
+    cough_severity: CoughSeverity::Dry,
+    breathlessness: true,
+  };
+
+  assert_eq!(true, report_required_true.should_be_sent());
+
+  let report_required_false = PublicReport {
+    earliest_symptom_time: UserInput::Some(UnixTime{value: 1590356601}),
+    fever_severity: FeverSeverity::None,
+    cough_severity: CoughSeverity::None,
+    breathlessness: false,
+  };
+
+  assert_eq!(false, report_required_false.should_be_sent());
+
+}
