@@ -34,14 +34,14 @@ impl <A> SymptomInputsProcessor for SymptomInputsProcessorImpl<A> where A: Sympt
       for str_id in inputs {
         let symptom_id = match str_id {
           "cough" => SymptomId::Cough,
-          "breathlessness" => SymptomId::Cough,
-          "fever" =>  SymptomId::Cough,
-          "muscle_aches" =>  SymptomId::Cough,
-          "loss_smell_or_taste" =>  SymptomId::Cough,
-          "diarrhea" =>  SymptomId::Cough,
-          "runny_nose" => SymptomId::Cough,
-          "other" =>  SymptomId::Cough,
-          "none" => SymptomId::Cough,
+          "breathlessness" => SymptomId::Breathlessness,
+          "fever" =>  SymptomId::Fever,
+          "muscle_aches" =>  SymptomId::MuscleAches,
+          "loss_smell_or_taste" => SymptomId::LossSmellOrTaste,
+          "diarrhea" =>  SymptomId::Diarrhea,
+          "runny_nose" => SymptomId::RunnyNose,
+          "other" =>  SymptomId::Other,
+          "none" => SymptomId::None,
           _ => Err(format!("RUST Not supported: {}", str_id))?
         };
         symptom_ids.insert(symptom_id);
