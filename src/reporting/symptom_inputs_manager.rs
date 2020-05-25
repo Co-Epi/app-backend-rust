@@ -185,8 +185,6 @@ impl <A> SymptomInputsProcessor for SymptomInputsProcessorImpl<A> where A: Sympt
 }
 
 pub trait SymptomInputsManager {
-    // val inputs: SymptomInputs
-
     fn select_symptom_ids(&self, ids: HashSet<SymptomId>);
     fn set_cough_type(&self, input: UserInput<CoughType>);
     fn set_cough_days(&self, input: UserInput<Days>);
