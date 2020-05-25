@@ -27,7 +27,6 @@ pub trait Preferences {
   fn last_completed_reports_interval(&self, key: PreferencesKey) -> Option<ReportsInterval>;
   fn set_last_completed_reports_interval(&self, key: PreferencesKey, value: ReportsInterval);
 
-
   // TODO encrypted
   fn authorization_key(&self) -> Option<[u8; 32]>;
   fn set_autorization_key(&self, value: [u8; 32]);

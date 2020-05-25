@@ -33,4 +33,17 @@ impl From<TcnError> for ServicesError {
   }
 }
 
+impl From<String> for ServicesError {
+  fn from(error: String) -> Self {
+    ServicesError::Error(Box::new(StdError::new(ErrorKind::Other, error)))
+  }
+}
+
+impl From<serde_json::Error> for ServicesError {
+  fn from(error: serde_json::Error) -> Self {
+    ServicesError::Error(Box::new(StdError::new(ErrorKind::Other, format!("{}", error))))
+  }
+}
+
+
 impl error::Error for ServicesError {}

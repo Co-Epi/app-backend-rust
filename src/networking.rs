@@ -37,12 +37,16 @@ impl TcnApi for TcnApiImpl {
   }
 
   fn post_report(&self, report: String) -> Result<(), NetworkingError> {
+    println!("RUST posting report: {}", report);
+
     let url: &str = &format!("{}/tcnreport", BASE_URL);
     let client = Self::create_client()?;
     let response = client.post(url)
       .header("Content-Type", "application/json")
       .body(report)
       .send()?;
+
+    println!("RUST post report success: {:?}", response);
     Ok(response).map(|_| ())
   }
 }

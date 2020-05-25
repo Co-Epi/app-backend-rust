@@ -4,7 +4,8 @@ use core_foundation::string::{CFString, CFStringRef};
 use core_foundation::base::TCFType;
 use serde::Serialize;
 
-use crate::{composition_root::COMP_ROOT, networking, reporting::symptom_inputs::{SymptomInputsSubmitter, SymptomInputs}, errors::ServicesError::{Networking, Error}};
+use crate::{composition_root::COMP_ROOT, networking, reporting::symptom_inputs::{SymptomInputsSubmitter, SymptomInputs}, errors::ServicesError::{Networking, Error, self}};
+use crate::reporting::symptom_inputs_manager::SymptomInputsProcessor;
 use networking::TcnApi;
 
 // Generic struct to return results to app
@@ -24,20 +25,7 @@ pub unsafe extern "C" fn fetch_new_reports() -> CFStringRef {
 
   println!("RUST: new reports: {:?}", result);
 
-  let lib_result = match result {
-    Ok(success) => LibResult { status: 200, data: Some(success), error_message: None },
-    // TODO better error identification, using HTTP status for everything is weird.
-    Err(e) => LibResult { status: 500, data: None, error_message: Some(e.to_string()) }
-  };
-
-  let lib_result_string = serde_json::to_string(&lib_result).unwrap();
-
-  let cf_string = CFString::new(&lib_result_string);
-  let cf_string_ref = cf_string.as_concrete_TypeRef();
-
-  ::std::mem::forget(cf_string);
-
-  return cf_string_ref;
+  return to_result_str(result);
 }
 
 #[no_mangle]
@@ -63,14 +51,35 @@ pub unsafe extern "C" fn get_reports(interval_number: u32, interval_length: u32)
     return cf_string_ref;
 }
 
+fn to_result_str<T: Serialize>(result: Result<T, ServicesError>) -> CFStringRef {
+  let lib_result = match result {
+    Ok(success) => LibResult { status: 200, data: Some(success), error_message: None },
+    // TODO better error identification, using HTTP status for everything is weird.
+    Err(e) => LibResult { status: 500, data: None, error_message: Some(e.to_string()) }
+  };
+
+  let lib_result_string = serde_json::to_string(&lib_result).unwrap();
+
+  let cf_string = CFString::new(&lib_result_string);
+  let cf_string_ref = cf_string.as_concrete_TypeRef();
+
+  ::std::mem::forget(cf_string);
+
+  return cf_string_ref;
+}
+
 #[no_mangle]
-pub unsafe extern "C" fn submit_symptoms(c_report: *const c_char) -> CFStringRef {
-  println!("RUST: posting report: {:?}", c_report);
+pub unsafe extern "C" fn submit_symptoms_complete(c_report: *const c_char) -> CFStringRef {
+  println!("RUST: submitting symptoms: {:?}", c_report);
 
   // TODO don't unwrap, use and handle result, handle
-  let report = cstring_to_str(&c_report).unwrap();
+  let symptoms_str = cstring_to_str(&c_report).unwrap();
 
-  let inputs: Result<SymptomInputs, serde_json::Error> = serde_json::from_str(report);
+  println!("RUST: submitting symptoms, string: {:?}", symptoms_str);
+
+  let inputs: Result<SymptomInputs, serde_json::Error> = serde_json::from_str(symptoms_str);
+
+  println!("RUST: symptoms deserialization result: {:?}", inputs);
 
   let lib_result: LibResult<()> = match inputs {
     Ok(inputs) => {
@@ -97,6 +106,84 @@ pub unsafe extern "C" fn submit_symptoms(c_report: *const c_char) -> CFStringRef
   ::std::mem::forget(cf_string);
 
   return cf_string_ref;
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn set_cough_type(c_cough_type: *const c_char) -> CFStringRef {
+  println!("RUST: setting cough type: {:?}", c_cough_type);
+  // TODO don't unwrap, use and handle result, handle
+  let cough_type_str = cstring_to_str(&c_cough_type).unwrap();
+  let result = COMP_ROOT.symptom_inputs_processor.set_cough_type(cough_type_str);
+  return to_result_str(result);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn set_cough_days(c_is_set: u8, c_days: u32) -> CFStringRef {
+  let result = COMP_ROOT.symptom_inputs_processor.set_cough_days(c_is_set == 1, c_days);
+  return to_result_str(result);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn set_cough_status(c_status: *const c_char) -> CFStringRef {
+  println!("RUST: setting cough status: {:?}", c_status);
+  // TODO don't unwrap, use and handle result, handle
+  let status_str = cstring_to_str(&c_status).unwrap();
+  let result = COMP_ROOT.symptom_inputs_processor.set_cough_status(status_str);
+  return to_result_str(result);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn set_breathlessness_cause(c_cause: *const c_char) -> CFStringRef {
+  println!("RUST: setting breathlessness cause: {:?}", c_cause);
+    // TODO don't unwrap, use and handle result, handle
+  let cause_str = cstring_to_str(&c_cause).unwrap();
+  let result = COMP_ROOT.symptom_inputs_processor.set_breathlessness_cause(cause_str);
+  return to_result_str(result);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn set_fever_days(c_is_set: u8, c_days: u32) -> CFStringRef {
+  let result = COMP_ROOT.symptom_inputs_processor.set_fever_days(c_is_set == 1, c_days);
+  return to_result_str(result);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn set_fever_taken_temperature_today(c_is_set: u8, c_taken: u8) -> CFStringRef {
+  let result = COMP_ROOT.symptom_inputs_processor.set_fever_taken_temperature_today(c_is_set == 1, c_taken== 1);
+  return to_result_str(result);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn set_fever_taken_temperature_spot(c_cause: *const c_char) -> CFStringRef {
+  println!("RUST: setting temperature spot cause: {:?}", c_cause);
+      // TODO don't unwrap, use and handle result, handle
+  let spot_str = cstring_to_str(&c_cause).unwrap();
+  let result = COMP_ROOT.symptom_inputs_processor.set_fever_taken_temperature_spot(spot_str);
+  return to_result_str(result);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn set_fever_highest_temperature_taken(c_is_set: u8, c_temp: f32) -> CFStringRef {
+  let result = COMP_ROOT.symptom_inputs_processor.set_fever_highest_temperature_taken(c_is_set == 1, c_temp);
+  return to_result_str(result);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn set_earliest_symptom_started_days_ago(c_is_set: u8, c_days: u32) -> CFStringRef {
+  let result = COMP_ROOT.symptom_inputs_processor.set_earliest_symptom_started_days_ago(c_is_set == 1, c_days);
+  return to_result_str(result);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn clear_symptom_inputs() -> CFStringRef {
+  let result = COMP_ROOT.symptom_inputs_processor.clear();
+  return to_result_str(result);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn submit_symptoms() -> CFStringRef {
+  let result = COMP_ROOT.symptom_inputs_processor.submit();
+  return to_result_str(result);
 }
 
 #[no_mangle]
