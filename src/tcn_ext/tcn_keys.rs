@@ -4,7 +4,7 @@ use std::{cmp, io::Cursor, sync::Arc};
 use cmp::max;
 
 pub trait TcnKeys {
-  fn crate_report(&self, report: Vec<u8>) -> Result<SignedReport, Error>;
+  fn create_report(&self, report: Vec<u8>) -> Result<SignedReport, Error>;
 }
 
 pub struct TcnKeysImpl<PreferencesType: Preferences> {
@@ -12,7 +12,7 @@ pub struct TcnKeysImpl<PreferencesType: Preferences> {
 }
 
 impl <PreferencesType: Preferences> TcnKeys for TcnKeysImpl<PreferencesType> {
-  fn crate_report(&self, report: Vec<u8>) -> Result<SignedReport, Error> {
+  fn create_report(&self, report: Vec<u8>) -> Result<SignedReport, Error> {
     let end_index = self.tck().index();
     let minutes_in_14_days: u32 = 14 * 24 * 60 * 60;
     let periods = minutes_in_14_days / 15;
