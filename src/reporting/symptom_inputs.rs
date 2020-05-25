@@ -112,7 +112,7 @@ impl <
 
     let memo = self.memo_mapper.to_memo(public_report, UnixTime::now());
 
-    let signed_report = self.tcn_keys.crate_report(memo.bytes)?;
+    let signed_report = self.tcn_keys.create_report(memo.bytes)?;
 
     let report_str = base64::encode(signed_report_to_bytes(signed_report));
     
