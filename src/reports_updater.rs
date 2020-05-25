@@ -1,7 +1,7 @@
 use crate::{networking::{TcnApi, NetworkingError}, reports_interval, DB_UNINIT, DB, byte_vec_to_16_byte_array, errors::{Error, ServicesError}, preferences::{PreferencesKey, Preferences}};
 use reports_interval::{ReportsInterval, UnixTime};
 use tcn::SignedReport;
-use std::{collections::HashSet, time::Instant, rc::Rc, sync::Arc};
+use std::{collections::HashSet, time::Instant, sync::Arc};
 use serde::Serialize;
 use uuid::Uuid;
 
@@ -15,6 +15,7 @@ impl TcnMatcher for TcnMatcherImpl {
     Self::match_reports_with(tcns, reports)
   }
 }
+
 
 // TODO remove duplicate matcher functions from lib.rs
 impl TcnMatcherImpl {

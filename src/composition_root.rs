@@ -1,34 +1,46 @@
 use crate::networking::{TcnApiImpl, TcnApi};
 use crate::reports_updater::{TcnMatcher, ReportsUpdater, TcnDao, TcnDaoImpl, TcnMatcherImpl};
-use crate::{reporting::{memo::{MemoMapperImpl}, symptom_inputs::{SymptomInputsSubmitterImpl, SymptomInputsSubmitter}}, preferences::{Preferences, PreferencesImpl}, tcn_ext::tcn_keys::{TcnKeysImpl, TcnKeys}};
+use crate::{reporting::{memo::MemoMapperImpl, symptom_inputs::{SymptomInputsSubmitterImpl, SymptomInputsSubmitter, SymptomInputs}, symptom_inputs_manager::{SymptomInputsManagerImpl, SymptomInputsProcessorImpl, SymptomInputsProcessor}}, preferences::{Preferences, PreferencesImpl}, tcn_ext::tcn_keys::TcnKeysImpl};
 use once_cell::sync::Lazy;
 use parking_lot::RwLock;
 use std::sync::Arc;
 
-pub struct CompositionRoot<'a,
-  PreferencesType: Preferences, TcnDaoType: TcnDao, TcnMatcherType: TcnMatcher, ApiType: TcnApi, 
-  // TODO don't pass concrete type for MemoMapper / TcnKeys here?
-  SymptomInputsSubmitterType: SymptomInputsSubmitter<MemoMapperImpl, TcnKeysImpl<PreferencesType>, ApiType>, 
-> {
-  pub api: ApiType,
-  pub reports_updater: ReportsUpdater<'a, PreferencesType, TcnDaoType, TcnMatcherType, ApiType>,
-  pub symptom_inputs_submitter: SymptomInputsSubmitterType
+pub struct CompositionRoot<'a, A, B, C, D, E, F> where 
+  A: Preferences,
+  B: TcnDao,
+  C: TcnMatcher,
+  D: TcnApi,
+  E: SymptomInputsSubmitter<MemoMapperImpl, TcnKeysImpl<A>, D>, // TODO no concrete types here?
+  F: SymptomInputsProcessor,
+{
+  pub api: D,
+  pub reports_updater: ReportsUpdater<'a, A, B, C, D>,
+  pub symptom_inputs_submitter: E,
+  pub symptom_inputs_processor: F
 }
 
 pub static COMP_ROOT: Lazy<
   CompositionRoot<
     PreferencesImpl, TcnDaoImpl, TcnMatcherImpl, TcnApiImpl, 
-    SymptomInputsSubmitterImpl<MemoMapperImpl, TcnKeysImpl<PreferencesImpl>, TcnApiImpl>
+    SymptomInputsSubmitterImpl<MemoMapperImpl, TcnKeysImpl<PreferencesImpl>, TcnApiImpl>,
+    SymptomInputsProcessorImpl<SymptomInputsManagerImpl<SymptomInputsSubmitterImpl<MemoMapperImpl, TcnKeysImpl<PreferencesImpl>, TcnApiImpl>>>
   >
 > = 
   Lazy::new(|| create_comp_root());
 
 fn create_comp_root() -> CompositionRoot<'static, 
   PreferencesImpl, TcnDaoImpl, TcnMatcherImpl, TcnApiImpl, 
-  SymptomInputsSubmitterImpl<'static, MemoMapperImpl, TcnKeysImpl<PreferencesImpl>, TcnApiImpl>
-> {
+  SymptomInputsSubmitterImpl<'static, MemoMapperImpl, TcnKeysImpl<PreferencesImpl>, TcnApiImpl>,
+  SymptomInputsProcessorImpl<SymptomInputsManagerImpl<SymptomInputsSubmitterImpl<'static, MemoMapperImpl, TcnKeysImpl<PreferencesImpl>, TcnApiImpl>>>> {
   let api = &TcnApiImpl {};
   let preferences = Arc::new(PreferencesImpl { config: RwLock::new(confy::load("coepi").unwrap()) });
+  let symptom_inputs_submitter = SymptomInputsSubmitterImpl { 
+    memo_mapper: MemoMapperImpl {},  
+    tcn_keys: TcnKeysImpl { 
+      preferences: preferences.clone()
+    },
+    api
+  };
 
   CompositionRoot { 
     api: TcnApiImpl {},
@@ -44,6 +56,12 @@ fn create_comp_root() -> CompositionRoot<'static,
         preferences: preferences.clone()
       },
       api
+    },
+    symptom_inputs_processor: SymptomInputsProcessorImpl {
+      inputs_manager: SymptomInputsManagerImpl {
+        inputs: Arc::new(RwLock::new(SymptomInputs::default())),
+        inputs_submitter: symptom_inputs_submitter
+      }
     }
   }
 }

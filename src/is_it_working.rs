@@ -7,10 +7,7 @@
 use std::path::Path;
 use tcn::TemporaryContactNumber;
 use super::*;
-use std::{collections::HashSet, fs};
-use tcn::SignedReport;
-use base64::DecodeError;
-use reports_updater::{TcnMatcherImpl, TcnMatcher};
+use std::fs;
 
 #[test]
 fn inits_db() {
