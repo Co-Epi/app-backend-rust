@@ -117,7 +117,7 @@ impl TcnDao for TcnDaoImpl {
     let db = DB.get().ok_or(DB_UNINIT)?;
     let mut tx = db.begin()?;
 
-    tx.insert_record("tcn", &observed_tcn.as_bytes())?; // [u8; 16]
+    tx.insert_record("tcn", &observed_tcn.as_bytes())?;
     // tx.put(CENS_BY_TS, ts, u128_of_tcn(tcn))?;
     tx.prepare_commit()?.commit()?;
     Ok(())
