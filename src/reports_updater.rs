@@ -1,7 +1,7 @@
 use crate::{networking::{TcnApi, NetworkingError}, reports_interval, DB_UNINIT, DB, byte_vec_to_16_byte_array, errors::{Error, ServicesError}, preferences::{PreferencesKey, Preferences}, byte_vec_to_24_byte_array, byte_vec_to_8_byte_array};
 use reports_interval::{ReportsInterval, UnixTime};
 use tcn::{TemporaryContactNumber, SignedReport};
-use std::{collections::HashSet, time::Instant, sync::Arc};
+use std::{time::Instant, sync::Arc};
 use serde::Serialize;
 use uuid::Uuid;
 use chrono::Utc;
@@ -47,8 +47,29 @@ impl TcnMatcherImpl {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct ObservedTcn { tcn: TemporaryContactNumber, time: UnixTime }
+
+impl ObservedTcn {
+
+  fn as_bytes(&self) -> [u8; 24] {
+    let tcn_bytes: [u8; 16] = self.tcn.0;
+    let time_bytes: [u8; 8] = self.time.value.as_bytes();
+    let total_bytes = [&tcn_bytes[..], &time_bytes[..]].concat();
+    byte_vec_to_24_byte_array(total_bytes)
+  }
+
+  fn from_bytes(bytes: [u8; 24]) -> ObservedTcn {
+    let tcn_bytes: [u8; 16] = byte_vec_to_16_byte_array(bytes[0..16].to_vec());
+    let time_bytes: [u8; 8] = byte_vec_to_8_byte_array(bytes[16..24].to_vec());
+    let time = u64::from_le_bytes(time_bytes);
+
+    ObservedTcn { 
+      tcn: TemporaryContactNumber(tcn_bytes), 
+      time: UnixTime{ value: time }
+    }
+  }
+} 
 
 pub trait ObservedTcnProcessor {
   fn save(&self, tcn_str: &str)  -> Result<(), ServicesError>;
@@ -86,15 +107,7 @@ impl TcnDao for TcnDaoImpl {
 
     for (_id,content) in items {
       let byte_array: [u8; 24] = byte_vec_to_24_byte_array(content);
-      let tcn_bytes: [u8; 16] = byte_vec_to_16_byte_array(byte_array[0..16].to_vec());
-      let time_bytes: [u8; 8] = byte_vec_to_8_byte_array(byte_array[16..24].to_vec());
-
-      let time = u64::from_le_bytes(time_bytes);
-
-      out.push(ObservedTcn { 
-        tcn: TemporaryContactNumber(tcn_bytes), 
-        time: UnixTime{ value: time }
-      });
+      out.push(ObservedTcn::from_bytes(byte_array));
     }
 
     Ok(out)
@@ -104,12 +117,7 @@ impl TcnDao for TcnDaoImpl {
     let db = DB.get().ok_or(DB_UNINIT)?;
     let mut tx = db.begin()?;
 
-    let tcn_bytes: [u8; 16] = observed_tcn.tcn.0;
-    let time_bytes: [u8; 8] = observed_tcn.time.value.as_bytes();
-
-    let total_bytes = [&tcn_bytes[..], &time_bytes[..]].concat(); // 24 bytes
-
-    tx.insert_record("tcn", &total_bytes)?; // [u8; 16]
+    tx.insert_record("tcn", &observed_tcn.as_bytes())?; // [u8; 16]
     // tx.put(CENS_BY_TS, ts, u128_of_tcn(tcn))?;
     tx.prepare_commit()?.commit()?;
     Ok(())
@@ -338,4 +346,23 @@ struct MatchedReportsChunk {
 struct SignedReportsChunk { 
   reports: Vec<SignedReport>,
   interval: ReportsInterval 
+}
+
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn tcn_saved_and_restored_from_bytes() {
+    let mut tcn_bytes: [u8; 16] = [0; 16];
+    tcn_bytes[1] = 1;
+    tcn_bytes[12] = 5;
+    tcn_bytes[15] = 250;
+    let time = UnixTime { value: 1590528300 };
+    let observed_tcn = ObservedTcn { tcn: TemporaryContactNumber(tcn_bytes), time };
+    let observed_tcn_as_bytes = observed_tcn.as_bytes();
+    let observed_tc_from_bytes = ObservedTcn::from_bytes(observed_tcn_as_bytes);
+    assert_eq!(observed_tc_from_bytes, observed_tcn);
+  }
 }
