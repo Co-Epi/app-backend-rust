@@ -5,7 +5,7 @@ use core_foundation::base::TCFType;
 use serde::Serialize;
 
 use crate::{composition_root::COMP_ROOT, networking, reporting::symptom_inputs::{SymptomInputsSubmitter, SymptomInputs}, errors::ServicesError::{Networking, Error, self}};
-use crate::reporting::symptom_inputs_manager::SymptomInputsProcessor;
+use crate::{init_db, reporting::symptom_inputs_manager::SymptomInputsProcessor};
 use networking::TcnApi;
 
 // Generic struct to return results to app
@@ -15,6 +15,18 @@ struct LibResult<T> {
   status: u16,
   data: Option<T>,
   error_message: Option<String>
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn bootstrap_core(db_path: *const c_char) -> CFStringRef {
+
+  let db_path_str = cstring_to_str(&db_path).unwrap();
+
+  println!("RUST: bootstrapping with db path: {:?}", db_path_str);
+
+  let result = init_db(db_path_str).map_err(ServicesError::from);
+  println!("RUST: bootstrapping result: {:?}", result);
+  return to_result_str(result);
 }
 
 #[no_mangle]

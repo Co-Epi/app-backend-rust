@@ -201,7 +201,7 @@ impl<'a,
       .and_then(|tcns| self.tcn_matcher.match_reports(tcns, reports));
 
     let time = matching_start_time.elapsed().as_secs();
-    println!("Took ${:?}s to match reports", time);
+    println!("Took {:?}s to match reports", time);
 
     if let Ok(reports) = &matched_reports {
       if !reports.is_empty() {
