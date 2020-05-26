@@ -109,6 +109,15 @@ pub unsafe extern "C" fn submit_symptoms_complete(c_report: *const c_char) -> CF
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn set_symptom_ids(c_ids: *const c_char) -> CFStringRef {
+  println!("RUST: setting symptom ids: {:?}", c_ids);
+  // TODO don't unwrap, use and handle result, handle
+  let ids_str = cstring_to_str(&c_ids).unwrap();
+  let result = COMP_ROOT.symptom_inputs_processor.set_symptom_ids(ids_str);
+  return to_result_str(result);
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn set_cough_type(c_cough_type: *const c_char) -> CFStringRef {
   println!("RUST: setting cough type: {:?}", c_cough_type);
   // TODO don't unwrap, use and handle result, handle
