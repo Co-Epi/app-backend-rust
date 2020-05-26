@@ -1,34 +1,43 @@
-use crate::{networking::{TcnApi, NetworkingError}, reports_interval, DB_UNINIT, DB, byte_vec_to_16_byte_array, errors::{Error, ServicesError}, preferences::{PreferencesKey, Preferences}};
+use crate::{networking::{TcnApi, NetworkingError}, reports_interval, DB_UNINIT, DB, byte_vec_to_16_byte_array, errors::{Error, ServicesError}, preferences::{PreferencesKey, Preferences}, byte_vec_to_24_byte_array, byte_vec_to_8_byte_array};
 use reports_interval::{ReportsInterval, UnixTime};
 use tcn::{TemporaryContactNumber, SignedReport};
 use std::{collections::HashSet, time::Instant, sync::Arc};
 use serde::Serialize;
 use uuid::Uuid;
+use chrono::Utc;
+use std::collections::HashMap;
 
 pub trait TcnMatcher {
-  fn match_reports(&self, tcns: Vec<u128>, reports: Vec<SignedReport>) -> Result<Vec<SignedReport>, ServicesError>;
+  fn match_reports(&self, tcns: Vec<ObservedTcn>, reports: Vec<SignedReport>) -> Result<Vec<MatchedReport>, ServicesError>;
 }
 
 pub struct TcnMatcherImpl {}
 impl TcnMatcher for TcnMatcherImpl {
-  fn match_reports(&self, tcns: Vec<u128>, reports: Vec<SignedReport>) -> Result<Vec<SignedReport>, ServicesError> {
+  fn match_reports(&self, tcns: Vec<ObservedTcn>, reports: Vec<SignedReport>) -> Result<Vec<MatchedReport>, ServicesError> {
     Self::match_reports_with(tcns, reports)
   }
 }
+ 
+#[derive(Debug, Clone)]
+pub struct MatchedReport{ report: SignedReport, contact_time: UnixTime }
 
 // TODO remove duplicate matcher functions from lib.rs
 impl TcnMatcherImpl {
 
   // TODO use TCN repo's match_btreeset test code? Compare performance.
-  pub fn match_reports_with(tcns: Vec<u128>, reports: Vec<SignedReport>) -> Result<Vec<SignedReport>, ServicesError> {
-    let mut out: Vec<SignedReport> = Vec::new();
-    let tcns_set: HashSet<u128> = tcns.into_iter().collect();
+  pub fn match_reports_with(tcns: Vec<ObservedTcn>, reports: Vec<SignedReport>) -> Result<Vec<MatchedReport>, ServicesError> {
+    let mut out: Vec<MatchedReport> = Vec::new();
+
+    let observed_tcns_map: HashMap<[u8; 16], ObservedTcn> = tcns.into_iter().map(|e|
+      (e.tcn.0, e)
+    ).collect();
+
     for report in reports {
       // TODO no unwrap
       let rep = report.clone().verify().unwrap();
       for tcn in rep.temporary_contact_numbers() {
-        if tcns_set.contains(&u128::from_le_bytes(tcn.0)) {
-          out.push(report);
+        if let Some(entry) = observed_tcns_map.get(&tcn.0) {
+          out.push(MatchedReport { report, contact_time: entry.time.clone() });
           break;
         }
       }
@@ -37,6 +46,9 @@ impl TcnMatcherImpl {
     Ok(out)
   }
 }
+
+#[derive(Debug)]
+pub struct ObservedTcn { tcn: TemporaryContactNumber, time: UnixTime }
 
 pub trait ObservedTcnProcessor {
   fn save(&self, tcn_str: &str)  -> Result<(), ServicesError>;
@@ -49,50 +61,85 @@ pub struct ObservedTcnProcessorImpl<'a, A: TcnDao> {
 impl <'a, A: TcnDao> ObservedTcnProcessor for ObservedTcnProcessorImpl<'a, A> {
   fn save(&self, tcn_str: &str) -> Result<(), ServicesError> {
     let bytes_vec: Vec<u8> = hex::decode(tcn_str)?;
-    let tcn: TemporaryContactNumber = TemporaryContactNumber(byte_vec_to_16_byte_array(bytes_vec));
-    self.tcn_dao.save(tcn)
+    let observed_tcn = ObservedTcn { 
+      tcn: TemporaryContactNumber(byte_vec_to_16_byte_array(bytes_vec)), 
+      time: UnixTime { value: Utc::now().timestamp() as u64 }
+    };
+    self.tcn_dao.save(observed_tcn)
   }
 }
 
 pub trait TcnDao {
-  fn all(&self) -> Result<Vec<u128>, ServicesError>;
-  fn save(&self, tcn: TemporaryContactNumber) -> Result<(), ServicesError>;
+  fn all(&self) -> Result<Vec<ObservedTcn>, ServicesError>;
+  fn save(&self, observed_tcn: ObservedTcn) -> Result<(), ServicesError>;
 }
 
 pub struct TcnDaoImpl {}
 impl TcnDao for TcnDaoImpl {
-  fn all(&self) -> Result<Vec<u128>, ServicesError> {
-    let mut out: Vec<u128> = Vec::new();
+  fn all(&self) -> Result<Vec<ObservedTcn>, ServicesError> {
+    let mut out: Vec<ObservedTcn> = Vec::new();
 
     let items = DB
-        .get()
-        .ok_or(DB_UNINIT).map_err(Error::from)?
-        .scan("tcn").map_err(Error::from)?;
+      .get()
+      .ok_or(DB_UNINIT).map_err(Error::from)?
+      .scan("tcn").map_err(Error::from)?;
 
     for (_id,content) in items {
-      let byte_array: [u8; 16] = byte_vec_to_16_byte_array(content);
-      let tcn_bits: u128 = u128::from_le_bytes(byte_array);
-      out.push(tcn_bits);
+      let byte_array: [u8; 24] = byte_vec_to_24_byte_array(content);
+      let tcn_bytes: [u8; 16] = byte_vec_to_16_byte_array(byte_array[0..16].to_vec());
+      let time_bytes: [u8; 8] = byte_vec_to_8_byte_array(byte_array[16..24].to_vec());
+
+      let time = u64::from_le_bytes(time_bytes);
+
+      out.push(ObservedTcn { 
+        tcn: TemporaryContactNumber(tcn_bytes), 
+        time: UnixTime{ value: time }
+      });
     }
+
     Ok(out)
   }
 
-  fn save(&self, tcn: TemporaryContactNumber) -> Result<(), ServicesError> {
+  fn save(&self, observed_tcn: ObservedTcn) -> Result<(), ServicesError> {
     let db = DB.get().ok_or(DB_UNINIT)?;
     let mut tx = db.begin()?;
-    tx.insert_record("tcn", &tcn.0)?; // [u8; 16]
+
+    let tcn_bytes: [u8; 16] = observed_tcn.tcn.0;
+    let time_bytes: [u8; 8] = observed_tcn.time.value.as_bytes();
+
+    let total_bytes = [&tcn_bytes[..], &time_bytes[..]].concat(); // 24 bytes
+
+    tx.insert_record("tcn", &total_bytes)?; // [u8; 16]
     // tx.put(CENS_BY_TS, ts, u128_of_tcn(tcn))?;
     tx.prepare_commit()?.commit()?;
     Ok(())
   }
 }
 
+pub trait ByteArrayMappable {
+  fn as_bytes(&self) -> [u8; 8];
+}
 
+impl ByteArrayMappable for u64 {
+
+  // Returns u64 as little endian byte array
+  fn as_bytes(&self) -> [u8; 8] {
+    (0..8).fold([0; 8], |mut acc, index| {
+      let value: u8 = ((self >> (index * 8)) & 0xFF) as u8;
+      acc[index] = value;
+      acc
+    })
+  }
+}
+
+
+// Note: this struct is meant only to send to the app, thus time directly as u64.
+// Ideally these types would be separated (e.g. in an own module)
 #[derive(Debug, Serialize)]
 pub struct Alert {
   id: String,
   memo: String,
-  // TODO date: Note: Contact date (port from Android)
+  contact_time: u64,
 }
 
 pub struct ReportsUpdater<'a, 
@@ -111,14 +158,15 @@ impl<'a,
   pub fn fetch_new_reports(&self) -> Result<Vec<Alert>, ServicesError> {
     self.retrieve_and_match_new_reports().map(|signed_reports|
 
-      signed_reports.into_iter().filter_map(|signed_report| {
-        match signed_report.verify() {
+      signed_reports.into_iter().filter_map(|matched_report| {
+        match matched_report.report.verify() {
           Ok(report) => Some(Alert {
             // TODO(important) id should be derived from report.
             // TODO random UUIDs allow duplicate alerts in the DB, which is what we're trying to prevent.
             // TODO Maybe add id field in TCN library. Everything is currently private.
             id: format!("{:?}", Uuid::new_v4()),
             memo: format!("{:?}", report.memo_data()),
+            contact_time: matched_report.contact_time.value
           }),
           Err(error) =>  {
             println!("Couldn't get report from signed, error: {:?}", error);
@@ -129,7 +177,7 @@ impl<'a,
     )
   }
 
-  fn retrieve_and_match_new_reports(&self) -> Result<Vec<SignedReport>, ServicesError> {
+  fn retrieve_and_match_new_reports(&self) -> Result<Vec<MatchedReport>, ServicesError> {
     let now: UnixTime = UnixTime::now();
 
     let matching_reports = self.matching_reports(
@@ -214,7 +262,7 @@ impl<'a,
     .map_err(ServicesError::from)
   }
 
-  fn find_matches(&self, reports: Vec<SignedReport>) -> Result<Vec<SignedReport>, ServicesError> {
+  fn find_matches(&self, reports: Vec<SignedReport>) -> Result<Vec<MatchedReport>, ServicesError> {
     let matching_start_time = Instant::now();
 
     println!("R Start matching...");
@@ -222,7 +270,7 @@ impl<'a,
     let tcns = self.tcn_dao.all();
     println!("R DB TCNs count: {:?}", tcns);
 
-    let matched_reports: Result<Vec<SignedReport>, ServicesError> = tcns
+    let matched_reports: Result<Vec<MatchedReport>, ServicesError> = tcns
       .and_then(|tcns| self.tcn_matcher.match_reports(tcns, reports));
 
     let time = matching_start_time.elapsed().as_secs();
@@ -282,7 +330,7 @@ impl<T> Also for T {}
 #[derive(Debug, Clone)]
 struct MatchedReportsChunk { 
   reports: Vec<SignedReport>,
-  matched: Vec<SignedReport>,
+  matched: Vec<MatchedReport>,
   interval: ReportsInterval 
 }
 
