@@ -17,7 +17,7 @@ pub type Res<T> = Result<T, Error>;
 
 const CENS_BY_TS: &str = "cens by ts";
 
-pub fn init<P: AsRef<Path>>(p: P) -> Res<()> {
+pub fn init_db<P: AsRef<Path>>(p: P) -> Res<()> {
     let db = Persy::open_or_create_with(p, Config::new(), |db| {
         let mut tx = db.begin()?;
         tx.create_segment("tcn")?;
