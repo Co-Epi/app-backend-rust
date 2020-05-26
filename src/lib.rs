@@ -47,7 +47,7 @@ fn u128_of_tcn(tcn: &TemporaryContactNumber) -> u128 {
 // }
 
 
-// TODO move to utils file or similar
+// TODO move to utils file or similar. Consider returning Result instead of panicking.
 pub fn byte_vec_to_16_byte_array(bytes: Vec<u8>) -> [u8; 16] {
   let mut array = [0; 16];
   let bytes = &bytes[..array.len()]; // panics if not enough data
@@ -69,15 +69,6 @@ fn all_stored_tcns() -> Res<Vec<u128>> {
       out.push(tcn_bits);
     }
     Ok(out)
-}
-
-pub fn record_tcn(tcn: TemporaryContactNumber) -> Res<()> {
-    let db = DB.get().ok_or(DB_UNINIT)?;
-    let mut tx = db.begin()?;
-    tx.insert_record("tcn", &tcn.0)?; // [u8; 16]
-    // tx.put(CENS_BY_TS, ts, u128_of_tcn(tcn))?;
-    tx.prepare_commit()?.commit()?;
-    Ok(())
 }
 
 // TODO (deleting of TCNs not critical for now)

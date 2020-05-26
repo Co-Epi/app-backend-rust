@@ -3,9 +3,9 @@ use std::os::raw::{c_char};
 use core_foundation::string::{CFString, CFStringRef};
 use core_foundation::base::TCFType;
 use serde::Serialize;
-
 use crate::{composition_root::COMP_ROOT, networking, reporting::symptom_inputs::{SymptomInputsSubmitter, SymptomInputs}, errors::ServicesError::{Networking, Error, self}};
 use crate::{init_db, reporting::symptom_inputs_manager::SymptomInputsProcessor};
+use crate::reports_updater::ObservedTcnProcessor;
 use networking::TcnApi;
 
 // Generic struct to return results to app
@@ -37,6 +37,16 @@ pub unsafe extern "C" fn fetch_new_reports() -> CFStringRef {
 
   println!("RUST: new reports: {:?}", result);
 
+  return to_result_str(result);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn record_tcn(c_tcn: *const c_char) -> CFStringRef {
+  // TODO don't unwrap, use and handle result, handle
+  let tcn_str = cstring_to_str(&c_tcn).unwrap();
+  println!("RUST: recording a TCN {:?}", c_tcn);
+  let result = COMP_ROOT.observed_tcn_processor.save(tcn_str);
+  println!("RUST: recording TCN result {:?}", result);
   return to_result_str(result);
 }
 

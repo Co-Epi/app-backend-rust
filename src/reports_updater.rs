@@ -1,6 +1,6 @@
 use crate::{networking::{TcnApi, NetworkingError}, reports_interval, DB_UNINIT, DB, byte_vec_to_16_byte_array, errors::{Error, ServicesError}, preferences::{PreferencesKey, Preferences}};
 use reports_interval::{ReportsInterval, UnixTime};
-use tcn::SignedReport;
+use tcn::{TemporaryContactNumber, SignedReport};
 use std::{collections::HashSet, time::Instant, sync::Arc};
 use serde::Serialize;
 use uuid::Uuid;
@@ -15,7 +15,6 @@ impl TcnMatcher for TcnMatcherImpl {
     Self::match_reports_with(tcns, reports)
   }
 }
-
 
 // TODO remove duplicate matcher functions from lib.rs
 impl TcnMatcherImpl {
@@ -39,8 +38,25 @@ impl TcnMatcherImpl {
   }
 }
 
+pub trait ObservedTcnProcessor {
+  fn save(&self, tcn_str: &str)  -> Result<(), ServicesError>;
+}
+
+pub struct ObservedTcnProcessorImpl<'a, A: TcnDao> {
+  pub tcn_dao: &'a A
+}
+
+impl <'a, A: TcnDao> ObservedTcnProcessor for ObservedTcnProcessorImpl<'a, A> {
+  fn save(&self, tcn_str: &str) -> Result<(), ServicesError> {
+    let bytes_vec: Vec<u8> = hex::decode(tcn_str)?;
+    let tcn: TemporaryContactNumber = TemporaryContactNumber(byte_vec_to_16_byte_array(bytes_vec));
+    self.tcn_dao.save(tcn)
+  }
+}
+
 pub trait TcnDao {
   fn all(&self) -> Result<Vec<u128>, ServicesError>;
+  fn save(&self, tcn: TemporaryContactNumber) -> Result<(), ServicesError>;
 }
 
 pub struct TcnDaoImpl {}
@@ -60,6 +76,15 @@ impl TcnDao for TcnDaoImpl {
     }
     Ok(out)
   }
+
+  fn save(&self, tcn: TemporaryContactNumber) -> Result<(), ServicesError> {
+    let db = DB.get().ok_or(DB_UNINIT)?;
+    let mut tx = db.begin()?;
+    tx.insert_record("tcn", &tcn.0)?; // [u8; 16]
+    // tx.put(CENS_BY_TS, ts, u128_of_tcn(tcn))?;
+    tx.prepare_commit()?.commit()?;
+    Ok(())
+  }
 }
 
 
@@ -74,7 +99,7 @@ pub struct ReportsUpdater<'a,
   PreferencesType: Preferences, TcnDaoType: TcnDao, TcnMatcherType: TcnMatcher, ApiType: TcnApi
 > {
   pub preferences: Arc<PreferencesType>, 
-  pub tcn_dao: TcnDaoType, 
+  pub tcn_dao: &'a TcnDaoType, 
   pub tcn_matcher: TcnMatcherType, 
   pub api: &'a ApiType
 }
