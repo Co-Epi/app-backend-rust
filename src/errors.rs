@@ -39,8 +39,28 @@ impl From<String> for ServicesError {
   }
 }
 
+impl From<&str> for ServicesError {
+  fn from(error: &str) -> Self {
+    ServicesError::Error(Box::new(StdError::new(ErrorKind::Other, error)))
+  }
+}
+
 impl From<serde_json::Error> for ServicesError {
   fn from(error: serde_json::Error) -> Self {
+    ServicesError::Error(Box::new(StdError::new(ErrorKind::Other, format!("{}", error))))
+  }
+}
+
+
+impl From<persy::PersyError> for ServicesError {
+  fn from(error: persy::PersyError) -> Self {
+    ServicesError::Error(Box::new(StdError::new(ErrorKind::Other, format!("{}", error))))
+  }
+}
+
+
+impl From<hex::FromHexError> for ServicesError {
+  fn from(error: hex::FromHexError) -> Self {
     ServicesError::Error(Box::new(StdError::new(ErrorKind::Other, format!("{}", error))))
   }
 }
