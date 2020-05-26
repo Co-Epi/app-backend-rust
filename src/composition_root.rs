@@ -14,7 +14,7 @@ pub struct CompositionRoot<'a, A, B, C, D, E, F, G> where
   F: SymptomInputsProcessor,
   G: ObservedTcnProcessor,
 {
-  pub api: D,
+  pub api: &'a D,
   pub reports_updater: ReportsUpdater<'a, A, B, C, D>,
   pub symptom_inputs_submitter: E,
   pub symptom_inputs_processor: F,
@@ -50,7 +50,7 @@ fn create_comp_root() -> CompositionRoot<'static,
   let tcn_dao = &TcnDaoImpl {};
 
   CompositionRoot { 
-    api: TcnApiImpl {},
+    api: api,
     reports_updater: ReportsUpdater { 
       preferences: preferences.clone(),
       tcn_dao,
