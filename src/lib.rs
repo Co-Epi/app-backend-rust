@@ -105,7 +105,3 @@ fn all_stored_tcns() -> Res<Vec<u128>> {
 //     tx.prepare_commit()?.commit()?;
 //     Ok(())
 // }
-
-
-#[cfg(test)]
-mod is_it_working;
