@@ -1,6 +1,6 @@
 use std::{io::Cursor, collections::HashSet};
 use crate::{errors::ServicesError, reports_interval::UnixTime, tcn_ext::tcn_keys::TcnKeys, networking::TcnApi};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use super::{memo::MemoMapper, public_report::PublicReport};
 use tcn::SignedReport;
 
@@ -36,39 +36,39 @@ impl Default for SymptomInputs {
   }}
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Cough {
   pub cough_type: UserInput<CoughType>,
   pub days: UserInput<Days>,
   pub status: UserInput<CoughStatus>
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum CoughType {
   Wet, Dry
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum CoughStatus {
   BetterAndWorseThroughDay, WorseWhenOutside, SameOrSteadilyWorse
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Days {
   pub value: u32
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Breathlessness {
   pub cause: UserInput<BreathlessnessCause>
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum BreathlessnessCause {
   LeavingHouseOrDressing, WalkingYardsOrMinsOnGround, GroundOwnPace, HurryOrHill, Exercise
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Fever {
   pub days: UserInput<Days>,
   pub taken_temperature_today: UserInput<bool>,
@@ -76,30 +76,30 @@ pub struct Fever {
   pub highest_temperature: UserInput<FarenheitTemperature>
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum TemperatureSpot {
   Mouth, Ear, Armpit, Other // Other(String)
 }
 
 // Temperature conversions are only for presentation, so in the apps
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct FarenheitTemperature {
   pub value: f32
 }
 
-#[derive(Debug, Eq, PartialEq, Hash, Deserialize, Clone)]
+#[derive(Debug, Eq, PartialEq, Hash, Deserialize, Serialize, Clone)]
 pub enum SymptomId {
   Cough, Breathlessness, Fever, MuscleAches, LossSmellOrTaste, Diarrhea, RunnyNose, Other, None
 }
 
-#[derive(Debug, PartialEq, Clone, Deserialize)]
-pub enum UserInput<T> {
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+pub enum UserInput<T> where T: Serialize {
   Some(T),
   None,
 }
 
-impl <T> UserInput<T> {
-  pub fn map<F: FnOnce(T) -> U, U>(self, f: F) -> UserInput<U> {
+impl <T: Serialize> UserInput<T> {
+  pub fn map<F: FnOnce(T) -> U, U: Serialize>(self, f: F) -> UserInput<U> {
     match self {
       UserInput::Some(input) => UserInput::Some(f(input)),
       UserInput::None => UserInput::None
@@ -107,7 +107,7 @@ impl <T> UserInput<T> {
   }
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct EarliestSymptom {
   pub time: UserInput<UnixTime>
 }
@@ -121,7 +121,7 @@ pub trait SymptomInputsSubmitter<
 pub struct SymptomInputsSubmitterImpl<'a,
   MemoMapperType: MemoMapper, TcnKeysType: TcnKeys, TcnApiType: TcnApi
 > {
-  pub memo_mapper: MemoMapperType,
+  pub memo_mapper: &'a MemoMapperType,
   pub tcn_keys: TcnKeysType,
   pub api: &'a TcnApiType,
 }
