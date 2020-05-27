@@ -1,4 +1,4 @@
-use crate::{networking::{TcnApi, NetworkingError}, reports_interval, DB_UNINIT, DB, byte_vec_to_16_byte_array, errors::{Error, ServicesError}, preferences::{PreferencesKey, Preferences}, byte_vec_to_24_byte_array, byte_vec_to_8_byte_array};
+use crate::{networking::{TcnApi, NetworkingError}, reports_interval, DB_UNINIT, DB, byte_vec_to_16_byte_array, errors::{Error, ServicesError}, preferences::{PreferencesKey, Preferences}, byte_vec_to_24_byte_array, byte_vec_to_8_byte_array, reporting::{public_report::{PublicReport, FeverSeverity, CoughSeverity}, memo::{Memo, MemoMapper}, symptom_inputs::UserInput}};
 use reports_interval::{ReportsInterval, UnixTime};
 use tcn::{TemporaryContactNumber, SignedReport};
 use std::{time::Instant, sync::Arc};
@@ -146,43 +146,47 @@ impl ByteArrayMappable for u64 {
 #[derive(Debug, Serialize)]
 pub struct Alert {
   id: String,
-  memo: String,
+  report: PublicReport,
   contact_time: u64,
 }
 
 pub struct ReportsUpdater<'a, 
-  PreferencesType: Preferences, TcnDaoType: TcnDao, TcnMatcherType: TcnMatcher, ApiType: TcnApi
+  PreferencesType: Preferences, TcnDaoType: TcnDao, TcnMatcherType: TcnMatcher, ApiType: TcnApi, MemoMapperType: MemoMapper
 > {
   pub preferences: Arc<PreferencesType>, 
   pub tcn_dao: &'a TcnDaoType, 
   pub tcn_matcher: TcnMatcherType, 
-  pub api: &'a ApiType
+  pub api: &'a ApiType,
+  pub memo_mapper: &'a MemoMapperType,
 }
 
 impl<'a, 
-  PreferencesType: Preferences, TcnDaoType: TcnDao, TcnMatcherType: TcnMatcher, ApiType: TcnApi
-> ReportsUpdater<'a, PreferencesType, TcnDaoType, TcnMatcherType, ApiType> {
+  PreferencesType: Preferences, TcnDaoType: TcnDao, TcnMatcherType: TcnMatcher, ApiType: TcnApi, MemoMapperType: MemoMapper
+> ReportsUpdater<'a, PreferencesType, TcnDaoType, TcnMatcherType, ApiType, MemoMapperType> {
 
   pub fn fetch_new_reports(&self) -> Result<Vec<Alert>, ServicesError> {
     self.retrieve_and_match_new_reports().map(|signed_reports|
-
-      signed_reports.into_iter().filter_map(|matched_report| {
-        match matched_report.report.verify() {
-          Ok(report) => Some(Alert {
-            // TODO(important) id should be derived from report.
-            // TODO random UUIDs allow duplicate alerts in the DB, which is what we're trying to prevent.
-            // TODO Maybe add id field in TCN library. Everything is currently private.
-            id: format!("{:?}", Uuid::new_v4()),
-            memo: format!("{:?}", report.memo_data()),
-            contact_time: matched_report.contact_time.value
-          }),
-          Err(error) =>  {
-            println!("Couldn't get report from signed, error: {:?}", error);
-            None
-          }
-        }
-      }).collect()
+      signed_reports.into_iter().filter_map(|matched_report|
+        self.to_ffi_alert(matched_report).ok()
+      ).collect()
     )
+  }
+
+  // Note: For now we will not create an FFI layer to handle JSON conversions, since it may be possible
+  // to use directly the data structures.
+  fn to_ffi_alert(&self, matched_report: MatchedReport) -> Result<Alert, ServicesError> {
+    let report = matched_report.report.verify()?;
+
+    let public_report = self.memo_mapper.to_report(Memo { bytes: report.memo_data().to_vec() });
+
+    Ok(Alert {
+      // TODO(important) id should be derived from report.
+      // TODO random UUIDs allow duplicate alerts in the DB, which is what we're trying to prevent.
+      // TODO Maybe add id field in TCN library. Everything is currently private.
+      id: format!("{:?}", Uuid::new_v4()),
+      report: public_report,
+      contact_time: matched_report.contact_time.value
+    })
   }
 
   fn retrieve_and_match_new_reports(&self) -> Result<Vec<MatchedReport>, ServicesError> {

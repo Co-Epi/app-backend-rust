@@ -3,7 +3,7 @@ use std::os::raw::{c_char};
 use core_foundation::string::{CFString, CFStringRef};
 use core_foundation::base::TCFType;
 use serde::Serialize;
-use crate::{composition_root::COMP_ROOT, networking, reporting::symptom_inputs::{SymptomInputsSubmitter, SymptomInputs}, errors::ServicesError::{Networking, Error, self}};
+use crate::{composition_root::COMP_ROOT, networking, errors::ServicesError::{self}};
 use crate::{init_db, reporting::symptom_inputs_manager::SymptomInputsProcessor};
 use crate::reports_updater::ObservedTcnProcessor;
 use networking::TcnApi;
@@ -78,46 +78,6 @@ fn to_result_str<T: Serialize>(result: Result<T, ServicesError>) -> CFStringRef 
     Ok(success) => LibResult { status: 200, data: Some(success), error_message: None },
     // TODO better error identification, using HTTP status for everything is weird.
     Err(e) => LibResult { status: 500, data: None, error_message: Some(e.to_string()) }
-  };
-
-  let lib_result_string = serde_json::to_string(&lib_result).unwrap();
-
-  let cf_string = CFString::new(&lib_result_string);
-  let cf_string_ref = cf_string.as_concrete_TypeRef();
-
-  ::std::mem::forget(cf_string);
-
-  return cf_string_ref;
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn submit_symptoms_complete(c_report: *const c_char) -> CFStringRef {
-  println!("RUST: submitting symptoms: {:?}", c_report);
-
-  // TODO don't unwrap, use and handle result, handle
-  let symptoms_str = cstring_to_str(&c_report).unwrap();
-
-  println!("RUST: submitting symptoms, string: {:?}", symptoms_str);
-
-  let inputs: Result<SymptomInputs, serde_json::Error> = serde_json::from_str(symptoms_str);
-
-  println!("RUST: symptoms deserialization result: {:?}", inputs);
-
-  let lib_result: LibResult<()> = match inputs {
-    Ok(inputs) => {
-      let result = COMP_ROOT.symptom_inputs_submitter.submit_inputs(inputs);
-      match result {
-        Ok(_) => LibResult { status: 200, data: None, error_message: None },
-        Err(e) => match e {
-          Networking(e) =>
-            LibResult { status: e.http_status, data: None, error_message: Some(e.to_string()) },
-          Error(e) => 
-            LibResult { status: 500, data: None, error_message: Some(e.to_string()) }
-        }
-      }
-    },
-    Err(e) =>
-      LibResult { status: 400, data: None, error_message: Some(e.to_string()) }
   };
 
   let lib_result_string = serde_json::to_string(&lib_result).unwrap();

@@ -1,17 +1,18 @@
 
 use crate::reports_interval::UnixTime;
 use super::symptom_inputs::{SymptomInputs, UserInput, Fever, Cough, CoughType, SymptomId};
+use serde::Serialize;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize)]
 pub enum FeverSeverity {
   None, Mild, Serious
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize)]
 pub enum CoughSeverity {
   None, Existing, Wet, Dry
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize)]
 pub struct PublicReport {
   pub earliest_symptom_time: UserInput<UnixTime>,
   pub fever_severity: FeverSeverity,
