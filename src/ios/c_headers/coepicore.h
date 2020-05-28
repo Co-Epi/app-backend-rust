@@ -23,4 +23,4 @@ CFStringRef set_fever_highest_temperature_taken(uint8_t is_set, float days);
 CFStringRef set_earliest_symptom_started_days_ago(uint8_t is_set, uint32_t days);
 
 CFStringRef submit_symptoms();
-CFStringRef clear();
+CFStringRef clear_symptoms();

@@ -166,7 +166,7 @@ pub unsafe extern "C" fn set_earliest_symptom_started_days_ago(c_is_set: u8, c_d
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn clear_symptom_inputs() -> CFStringRef {
+pub unsafe extern "C" fn clear_symptoms() -> CFStringRef {
   let result = COMP_ROOT.symptom_inputs_processor.clear();
   return to_result_str(result);
 }
