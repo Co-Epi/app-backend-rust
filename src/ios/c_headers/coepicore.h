@@ -22,6 +22,8 @@ typedef struct {
 
 CFStringRef bootstrap_core(const char *db_path);
 
+int32_t call_callback(void (*callback)(int32_t, bool, CFStringRef));
+
 CFStringRef clear_symptoms(void);
 
 CFStringRef fetch_new_reports(void);
@@ -35,6 +37,8 @@ int32_t pass_struct(const FFIParameterStruct *par);
 CFStringRef post_report(const char *c_report);
 
 CFStringRef record_tcn(const char *c_tcn);
+
+int32_t register_callback(void (*callback)(int32_t, bool, CFStringRef));
 
 FFIReturnStruct return_struct(void);
 
@@ -59,3 +63,5 @@ CFStringRef set_fever_taken_temperature_today(uint8_t c_is_set, uint8_t c_taken)
 CFStringRef set_symptom_ids(const char *c_ids);
 
 CFStringRef submit_symptoms(void);
+
+int32_t trigger_callback(const char *my_str);
