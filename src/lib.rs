@@ -1,3 +1,5 @@
+#[macro_use]
+extern crate serde_big_array;
 use once_cell::sync::OnceCell;
 use persy::{Config, Persy, ValueMode};
 use std::path::Path;

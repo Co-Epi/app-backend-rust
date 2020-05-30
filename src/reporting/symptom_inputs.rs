@@ -1,8 +1,10 @@
 use std::{io::Cursor, collections::HashSet};
-use crate::{errors::ServicesError, reports_interval::UnixTime, tcn_ext::tcn_keys::TcnKeys, networking::TcnApi};
 use serde::{Deserialize, Serialize};
-use super::{memo::MemoMapper, public_report::PublicReport};
+use crate::{errors::ServicesError, reports_interval::UnixTime, tcn_ext::tcn_keys::{TcnKeys,TcnKeysImpl}, networking::{TcnApi, TcnApiImpl}};
+use super::{memo::MemoMapper, public_report::*};
 use tcn::SignedReport;
+use crate::reporting::memo::MemoMapperImpl;
+use crate::preferences::PreferencesMock;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct SymptomInputs {
@@ -227,22 +229,50 @@ fn test_public_report_with_inputs(){
 fn test_public_report_should_be_sent(){
   assert_eq!(1, 1);
 
-  let report_required_true = PublicReport {
+  let report_which_should_be_sent = PublicReport {
     earliest_symptom_time: UserInput::Some(UnixTime{value: 1590356601}),
     fever_severity: FeverSeverity::Mild,
     cough_severity: CoughSeverity::Dry,
     breathlessness: true,
   };
 
-  assert_eq!(true, report_required_true.should_be_sent());
+  assert_eq!(true, report_which_should_be_sent.should_be_sent());
 
-  let report_required_false = PublicReport {
+  let report_which_should_not_be_sent = PublicReport {
     earliest_symptom_time: UserInput::Some(UnixTime{value: 1590356601}),
     fever_severity: FeverSeverity::None,
     cough_severity: CoughSeverity::None,
     breathlessness: false,
   };
 
-  assert_eq!(false, report_required_false.should_be_sent());
+  assert_eq!(false, report_which_should_not_be_sent.should_be_sent());
+
+}
+
+#[test]
+fn test_public_report_signed_report(){
+
+  let report_which_should_be_sent = PublicReport {
+    earliest_symptom_time: UserInput::Some(UnixTime{value: 1590356601}),
+    fever_severity: FeverSeverity::Mild,
+    cough_severity: CoughSeverity::Dry,
+    breathlessness: true,
+  };
+
+  // let memo = self.memo_mapper.to_memo(report_which_should_be_sent, UnixTime::now());
+  // let signed_report = self.tcn_keys.create_report(memo.bytes)?;
+  let x = SymptomInputsSubmitterImpl { 
+    memo_mapper: MemoMapperImpl {},  
+    tcn_keys: TcnKeysImpl { 
+      preferences: PreferencesMock {}
+    },
+    api: TcnApiImpl {}
+  };
+
+  let memo = x.memo_mapper.to_memo(report_which_should_be_sent, UnixTime::now());
+  let signed_report = x.tcn_keys.create_report(memo.bytes);
+
+  assert!(true);
+
 
 }
