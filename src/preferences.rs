@@ -3,6 +3,7 @@ use parking_lot::RwLock;
 use crate::reports_interval::ReportsInterval;
 use crate::tcn_ext::tcn_keys::TcnKeysImpl;
 use std::fmt;
+use tcn::TemporaryContactKey;
 
 pub const TCK_SIZE_IN_BYTES: usize = 66; 
 
@@ -16,65 +17,31 @@ big_array! { BigArray; +TCK_SIZE_IN_BYTES}
 pub struct MyConfig {
   last_completed_reports_interval: Option<ReportsInterval>,
   autorization_key: Option<[u8; 32]>,
-  tck: Option<TckArray>,
+  tck: Option<TckBytesWrapper>,
 }
 
 #[derive(Copy, Clone, Serialize, Deserialize)]
-pub struct TckArray {
+pub struct TckBytesWrapper {
   #[serde(with = "BigArray")]
-  pub tck_byte_array: [u8; TCK_SIZE_IN_BYTES]
+  pub tck_bytes: [u8; TCK_SIZE_IN_BYTES]
 }
 
-impl fmt::Debug for TckArray {
+impl fmt::Debug for TckBytesWrapper {
   fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-      self.tck_byte_array[..].fmt(formatter)
+      self.tck_bytes[..].fmt(formatter)
   }
 }
 
-/*
-error[E0277]: the trait bound `preferences::TckArray: std::convert::AsRef<[u8]>` is not satisfied
-   --> src/tcn_ext/tcn_keys.rs:87:31
-    |
-87  |     TemporaryContactKey::read(Cursor::new(&tck))
-    |                               ^^^^^^^^^^^^^^^^^ the trait `std::convert::AsRef<[u8]>` is not implemented for `preferences::TckArray`
-    | 
-   ::: /Users/duskoo/.cargo/git/checkouts/tcn-c61a3c0b0375ae97/37add39/src/serialize.rs:128:20
-    |
-128 |     pub fn read<R: io::Read>(mut reader: R) -> Result<TemporaryContactKey, io::Error> {
-    |                    -------- required by this bound in `tcn::serialize::<impl tcn::keys::TemporaryContactKey>::read`
-    |
-    = note: required because of the requirements on the impl of `std::convert::AsRef<[u8]>` for `&preferences::TckArray`
-    = note: required because of the requirements on the impl of `std::io::Read` for `std::io::Cursor<&preferences::TckArray>`
-
-    */
 
 
-impl AsRef<[u8]> for TckArray {
+
+impl AsRef<[u8]> for TckBytesWrapper {
   fn as_ref(&self) -> &[u8] {
-      &self.tck_byte_array//.first().unwrap()//?? https://stackoverflow.com/q/29278940
+      &self.tck_bytes
   }
 }
 
-// fn from_big_array<D>(deserializer: D) -> Result<[u8;TCK_SIZE_IN_BYTES], D::Error>
-// where d:Deserializer
-// {
 
-// }
-
-
-
-// impl Deserialize for MyConfig {
-//   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-//   where D: Deserializer<'de> {
-//       let mut myConfig = MyConfig{
-//         last_completed_reports_interval: None,
-//         autorization_key: None,
-//         tck: None
-//       };
-
-
-//   }
-// }
 
 impl Default for MyConfig {
   fn default() -> Self { Self { 
@@ -94,8 +61,8 @@ pub trait Preferences {
   fn authorization_key(&self) -> Option<[u8; 32]>;
   fn set_autorization_key(&self, value: [u8; 32]);
 
-  fn tck(&self) -> Option<TckArray>;
-  fn set_tck(&self, value: TckArray);
+  fn tck(&self) -> Option<TckBytesWrapper>;
+  fn set_tck(&self, value: TckBytesWrapper);
 }
 
 pub struct PreferencesImpl {
@@ -136,11 +103,11 @@ impl Preferences for PreferencesImpl {
     }
   }
 
-  fn tck(&self) -> Option<TckArray> {
+  fn tck(&self) -> Option<TckBytesWrapper> {
     self.config.read().tck
   }
 
-  fn set_tck(&self, value: TckArray) {
+  fn set_tck(&self, value: TckBytesWrapper) {
     let mut config = self.config.write();
     config.tck = Some(value);
 
@@ -153,6 +120,26 @@ impl Preferences for PreferencesImpl {
 }
 
 pub struct PreferencesMock;
+
+impl PreferencesMock {
+  fn generate_tck(&self, index: usize) -> Option<TemporaryContactKey>{
+    if let Some(rak_bytes) = self.authorization_key() {
+      let rak = TcnKeysImpl::<PreferencesMock>::bytes_to_rak(rak_bytes);
+      let mut tck = rak.initial_temporary_contact_key(); // tck <- tck_1
+      // let mut tcns = Vec::new();
+      for _ in 0..index {
+        // tcns.push(tck.temporary_contact_number());
+        tck = tck.ratchet().unwrap();
+      }
+  
+      return Some(tck)
+  
+    }else{
+      return None
+    }
+  
+  }
+}
 
 impl Preferences for PreferencesMock {
   fn last_completed_reports_interval(&self, _: PreferencesKey) -> std::option::Option<ReportsInterval> { 
@@ -179,12 +166,18 @@ impl Preferences for PreferencesMock {
     return; 
   }
 
-  fn tck(&self) -> std::option::Option<TckArray> { 
-    todo!() 
+  fn tck(&self) -> std::option::Option<TckBytesWrapper> { 
+    if let Some(tck) = self.generate_tck(15){
+      let tck_bytes = TcnKeysImpl::<PreferencesMock>::tck_to_bytes(tck);
+      return Some(tck_bytes)
+    }else{
+      return None
+    }
   }
 
-  fn set_tck(&self, value: TckArray) { 
-    todo!() 
+  fn set_tck(&self, value: TckBytesWrapper) { 
+    return;
   }
+
 }
 

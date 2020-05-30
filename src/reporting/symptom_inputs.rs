@@ -261,7 +261,7 @@ fn test_public_report_signed_report(){
 
   // let memo = self.memo_mapper.to_memo(report_which_should_be_sent, UnixTime::now());
   // let signed_report = self.tcn_keys.create_report(memo.bytes)?;
-  let x = SymptomInputsSubmitterImpl { 
+  let submitter = SymptomInputsSubmitterImpl { 
     memo_mapper: MemoMapperImpl {},  
     tcn_keys: TcnKeysImpl { 
       preferences: PreferencesMock {}
@@ -269,8 +269,16 @@ fn test_public_report_signed_report(){
     api: TcnApiImpl {}
   };
 
-  let memo = x.memo_mapper.to_memo(report_which_should_be_sent, UnixTime::now());
-  let signed_report = x.tcn_keys.create_report(memo.bytes);
+  let memo = submitter.memo_mapper.to_memo(report_which_should_be_sent, UnixTime::now());
+
+  let sig = match submitter.tcn_keys.create_report(memo.bytes) {
+    Ok(signed) => signed,
+    Err(_) => return assert!(false)//Err(e),
+  };
+
+    let report = sig
+    .verify()
+    .expect("Valid reports should verify correctly");
 
   assert!(true);
 
