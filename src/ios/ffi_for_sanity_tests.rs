@@ -5,7 +5,7 @@ use libc::c_char;
 use std::{thread, sync::mpsc::{self, Sender}};
 use mpsc::Receiver;
 
-// Expose an interface for app's (for now only iOS) to test that general FFI is working as expected.
+// Expose an interface for apps (for now only iOS) to test that general FFI is working as expected.
 // i.e. assumptions on which the actual FFI interface relies.
 // TODO can the c headers for this be generated in a separate file? Needs adjustments in script to generate lib and framework too.
 
