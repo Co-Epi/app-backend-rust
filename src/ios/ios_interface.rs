@@ -202,7 +202,7 @@ pub unsafe extern "C" fn post_report(c_report: *const c_char) -> CFStringRef {
 }
 
 // Convert C string to Rust string slice
-unsafe fn cstring_to_str<'a>(cstring: &'a *const c_char) -> Option<&str> {
+pub unsafe fn cstring_to_str<'a>(cstring: &'a *const c_char) -> Option<&str> {
   if cstring.is_null() {
       return None;
   }

@@ -8,7 +8,7 @@
 RUSTFLAGS="-Z embed-bitcode" cargo +ios-arm64 build --target aarch64-apple-ios --release --lib
 cargo build --target=x86_64-apple-ios --release
 
-libtool -static -o ./target/CoEpiCore ./target/aarch64-apple-ios/release/libtcn_client.a ./target/x86_64-apple-ios/release/libtcn_client.a
+libtool -static -o ./target/CoEpiCore ./target/aarch64-apple-ios/release/libcoepi_core.a ./target/x86_64-apple-ios/release/libcoepi_core.a
 
 # Overwrite library in iOS app (downloaded with Carthage) with local build.
 

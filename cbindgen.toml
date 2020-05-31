@@ -1,0 +1,8 @@
+# cbindgen --config cbindgen.toml --crate coepi_core --output ./src/ios/c_headers/coepicore.h
+
+# Documentation:
+# https://github.com/eqrion/cbindgen/blob/master/docs.md#cbindgentoml
+
+language = "C"
+sys_includes = ["CoreFoundation/CoreFoundation.h"]
+no_includes = true

@@ -1,11 +1,11 @@
 [package]
-name = "tcn_client"
+name = "coepi_core"
 version = "0.1.0"
 authors = ["theseriousadult <jack@gallabytes.com>, ivanschuetz <ivanhp978@gmail.com>"]
 edition = "2018"
 
 [lib]
-name = "tcn_client"
+name = "coepi_core"
 crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
