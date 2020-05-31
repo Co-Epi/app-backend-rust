@@ -1,13 +1,10 @@
 use serde::{Serialize, Deserialize};
 use parking_lot::RwLock;
 use crate::reports_interval::ReportsInterval;
-use crate::tcn_ext::tcn_keys::TcnKeysImpl;
 use std::fmt;
-use tcn::TemporaryContactKey;
 
 pub const TCK_SIZE_IN_BYTES: usize = 66; 
 
-const USER_LIMIT:i32 = 100; 
 pub enum PreferencesKey {
   LastCompletedReportsInterval
 }
@@ -19,7 +16,7 @@ pub struct MyConfig {
   autorization_key: Option<[u8; 32]>,
   tck: Option<TckBytesWrapper>,
 }
-
+//Wrapper struct added to enable custom serialization of a large byte array
 #[derive(Copy, Clone, Serialize, Deserialize)]
 pub struct TckBytesWrapper {
   #[serde(with = "BigArray")]
@@ -32,16 +29,11 @@ impl fmt::Debug for TckBytesWrapper {
   }
 }
 
-
-
-
 impl AsRef<[u8]> for TckBytesWrapper {
   fn as_ref(&self) -> &[u8] {
       &self.tck_bytes
   }
 }
-
-
 
 impl Default for MyConfig {
   fn default() -> Self { Self { 
@@ -124,31 +116,10 @@ pub struct PreferencesMock{
   pub tck_bytes: TckBytesWrapper
 }
 
-// impl PreferencesMock {
-//   fn generate_tck(&self, index: usize) -> Option<TemporaryContactKey>{
-//     if let Some(rak_bytes) = self.authorization_key() {
-//       let rak = TcnKeysImpl::<PreferencesMock>::bytes_to_rak(rak_bytes);
-//       let mut tck = rak.initial_temporary_contact_key(); // tck <- tck_1
-//       // let mut tcns = Vec::new();
-//       for _ in 0..index {
-//         // tcns.push(tck.temporary_contact_number());
-//         tck = tck.ratchet().unwrap();
-//       }
-  
-//       return Some(tck)
-  
-//     }else{
-//       return None
-//     }
-  
-//   }
-// }
-
 impl Preferences for PreferencesMock {
   fn last_completed_reports_interval(&self, _: PreferencesKey) -> std::option::Option<ReportsInterval> { 
     let reports_interval = ReportsInterval{number: 8899222, length: 12232 };
     return Option::Some(reports_interval)
-
   }
 
   fn set_last_completed_reports_interval(&self, _: PreferencesKey, _: ReportsInterval) { 
@@ -165,13 +136,6 @@ impl Preferences for PreferencesMock {
   }
 
   fn tck(&self) -> std::option::Option<TckBytesWrapper> { 
-    // if let Some(tck) = self.generate_tck(15){
-    //   let tck_bytes = TcnKeysImpl::<PreferencesMock>::tck_to_bytes(tck);
-    //   return Some(tck_bytes)
-    // }else{
-    //   return None
-    // }
-
     Some(self.tck_bytes)
   }
 

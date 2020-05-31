@@ -3,9 +3,6 @@ use tcn::{TemporaryContactKey, ReportAuthorizationKey, MemoType, SignedReport, E
 use std::{cmp, io::Cursor, sync::Arc};
 use cmp::max;
 
-
-
-
 pub trait TcnKeys {
     fn create_report(&self, report: Vec<u8>) -> Result<SignedReport, Error>;
 }
@@ -17,6 +14,7 @@ pub struct TcnKeysImpl<PreferencesType: Preferences> {
 impl<PreferencesType: Preferences> TcnKeys for TcnKeysImpl<PreferencesType> {
     fn create_report(&self, report: Vec<u8>) -> Result<SignedReport, Error> {
         let end_index = self.tck().index();
+        //Important: logic change
         let periods = 14 * 24 * (60 / 15);
         let mut start_index = 0;
         if end_index > periods {
