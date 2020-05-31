@@ -25,6 +25,7 @@ parking_lot = "0.10.2"
 uuid = { version = "0.8.1", features = ["v4"] }
 rand = "0.7"
 hex = "0.4.2"
+rayon = "1.1"
 
 [dependencies.tcn]
 git = "https://github.com/TCNCoalition/TCN.git"
