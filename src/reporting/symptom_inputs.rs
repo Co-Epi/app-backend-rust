@@ -2,7 +2,7 @@ use std::{io::Cursor, collections::HashSet};
 use crate::{errors::ServicesError, reports_interval::UnixTime, tcn_ext::tcn_keys::{TcnKeys,TcnKeysImpl}, networking::{TcnApi, TcnApiImpl}};
 use serde::Deserialize;
 use super::{memo::MemoMapper, public_report::*};
-use tcn::SignedReport;
+use tcn::{SignedReport, TemporaryContactKey};
 use crate::reporting::memo::MemoMapperImpl;
 use crate::preferences::PreferencesMock;
 
@@ -128,6 +128,7 @@ fn signed_report_to_bytes(signed_report: SignedReport) -> Vec<u8> {
   buf
 }
 
+
 #[test]
 fn test_public_report_with_inputs(){
   
@@ -214,7 +215,7 @@ fn test_public_report_should_be_sent(){
 }
 
 #[test]
-fn test_public_report_signed_report(){
+fn test_public_report_to_signed_report(){
 
   let report_which_should_be_sent = PublicReport {
     earliest_symptom_time: UserInput::Some(UnixTime{value: 1590356601}),
@@ -223,28 +224,51 @@ fn test_public_report_signed_report(){
     breathlessness: true,
   };
 
-  // let memo = self.memo_mapper.to_memo(report_which_should_be_sent, UnixTime::now());
-  // let signed_report = self.tcn_keys.create_report(memo.bytes)?;
+let rak_bytes = [42, 118, 64, 131, 236, 36, 122, 23, 13, 108, 73, 171, 102, 145, 66, 91, 157, 105, 195, 126, 139, 162, 15, 31, 0, 22, 31, 230, 242, 241, 225, 85];
+let tck = generate_tck_for_index(rak_bytes, 60);
+println!(">> tck: {:#?}", tck);
+let tck_bytes = TcnKeysImpl::<PreferencesMock>::tck_to_bytes(tck);
+
   let submitter = SymptomInputsSubmitterImpl { 
     memo_mapper: MemoMapperImpl {},  
     tcn_keys: TcnKeysImpl { 
-      preferences: PreferencesMock {}
+      preferences: PreferencesMock {
+        rak_bytes: rak_bytes,
+        tck_bytes: tck_bytes,
+      }
     },
     api: TcnApiImpl {}
   };
 
   let memo = submitter.memo_mapper.to_memo(report_which_should_be_sent, UnixTime::now());
 
-  let sig = match submitter.tcn_keys.create_report(memo.bytes) {
+  let signed_report = match submitter.tcn_keys.create_report(memo.bytes) {
     Ok(signed) => signed,
     Err(_) => return assert!(false)//Err(e),
   };
+  let report = signed_report.clone()
+  .verify()
+  .expect("Valid reports should verify correctly");
 
-    let report = sig
-    .verify()
-    .expect("Valid reports should verify correctly");
+  println!(">> report: {:#?}", report);
+
+  println!(">> signed_report: {:#?}", signed_report);
+  let report_str = base64::encode(signed_report_to_bytes(signed_report));
+  println!(">> report_str: {:#?}", report_str);
 
   assert!(true);
+}
 
+fn generate_tck_for_index(rak_bytes: [u8; 32], index: usize) -> TemporaryContactKey{
+
+    let rak = TcnKeysImpl::<PreferencesMock>::bytes_to_rak(rak_bytes);
+    let mut tck = rak.initial_temporary_contact_key(); // tck <- tck_1
+    // let mut tcns = Vec::new();
+    for _ in 0..index {
+      // tcns.push(tck.temporary_contact_number());
+      tck = tck.ratchet().unwrap();
+    }
+
+    tck
 
 }

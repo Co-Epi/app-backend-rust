@@ -120,27 +120,30 @@ impl Preferences for PreferencesImpl {
   }
 }
 
-pub struct PreferencesMock;
-
-impl PreferencesMock {
-  fn generate_tck(&self, index: usize) -> Option<TemporaryContactKey>{
-    if let Some(rak_bytes) = self.authorization_key() {
-      let rak = TcnKeysImpl::<PreferencesMock>::bytes_to_rak(rak_bytes);
-      let mut tck = rak.initial_temporary_contact_key(); // tck <- tck_1
-      // let mut tcns = Vec::new();
-      for _ in 0..index {
-        // tcns.push(tck.temporary_contact_number());
-        tck = tck.ratchet().unwrap();
-      }
-  
-      return Some(tck)
-  
-    }else{
-      return None
-    }
-  
-  }
+pub struct PreferencesMock{
+  pub rak_bytes: [u8; 32],
+  pub tck_bytes: TckBytesWrapper
 }
+
+// impl PreferencesMock {
+//   fn generate_tck(&self, index: usize) -> Option<TemporaryContactKey>{
+//     if let Some(rak_bytes) = self.authorization_key() {
+//       let rak = TcnKeysImpl::<PreferencesMock>::bytes_to_rak(rak_bytes);
+//       let mut tck = rak.initial_temporary_contact_key(); // tck <- tck_1
+//       // let mut tcns = Vec::new();
+//       for _ in 0..index {
+//         // tcns.push(tck.temporary_contact_number());
+//         tck = tck.ratchet().unwrap();
+//       }
+  
+//       return Some(tck)
+  
+//     }else{
+//       return None
+//     }
+  
+//   }
+// }
 
 impl Preferences for PreferencesMock {
   fn last_completed_reports_interval(&self, _: PreferencesKey) -> std::option::Option<ReportsInterval> { 
@@ -154,12 +157,7 @@ impl Preferences for PreferencesMock {
   }
 
   fn authorization_key(&self) -> std::option::Option<[u8; 32]> { 
-    /*
-    let new_key = ReportAuthorizationKey::new(rand::thread_rng());
-      self.preferences.set_autorization_key(Self::rak_to_bytes(new_key));
-    */
     let bytes = [42, 118, 64, 131, 236, 36, 122, 23, 13, 108, 73, 171, 102, 145, 66, 91, 157, 105, 195, 126, 139, 162, 15, 31, 0, 22, 31, 230, 242, 241, 225, 85];
-    // let authorization_key = TcnKeysImpl::<PreferencesMock>::bytes_to_rak(bytes);
     return Option::Some(bytes)
   }
 
@@ -168,12 +166,14 @@ impl Preferences for PreferencesMock {
   }
 
   fn tck(&self) -> std::option::Option<TckBytesWrapper> { 
-    if let Some(tck) = self.generate_tck(15){
-      let tck_bytes = TcnKeysImpl::<PreferencesMock>::tck_to_bytes(tck);
-      return Some(tck_bytes)
-    }else{
-      return None
-    }
+    // if let Some(tck) = self.generate_tck(15){
+    //   let tck_bytes = TcnKeysImpl::<PreferencesMock>::tck_to_bytes(tck);
+    //   return Some(tck_bytes)
+    // }else{
+    //   return None
+    // }
+
+    Some(self.tck_bytes)
   }
 
   fn set_tck(&self, value: TckBytesWrapper) { 
