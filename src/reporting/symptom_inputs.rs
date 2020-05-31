@@ -1,10 +1,12 @@
 use std::{io::Cursor, collections::HashSet};
-use crate::{errors::ServicesError, reports_interval::UnixTime, tcn_ext::tcn_keys::{TcnKeys,TcnKeysImpl}, networking::{TcnApi, TcnApiImpl}};
+use crate::{errors::ServicesError, reports_interval::UnixTime, tcn_ext::tcn_keys::{TcnKeys,TcnKeysImpl}, networking::{TcnApi, TcnApiImpl, TcnApiMock}};
 use serde::Deserialize;
 use super::{memo::MemoMapper, public_report::*};
 use tcn::{SignedReport, TemporaryContactKey};
 use crate::reporting::memo::MemoMapperImpl;
 use crate::preferences::PreferencesMock;
+use crate::errors;
+use crate::errors::ServicesError::Error;
 
 #[derive(Deserialize)]
 pub struct SymptomInputs {
@@ -237,7 +239,7 @@ let tck_bytes = TcnKeysImpl::<PreferencesMock>::tck_to_bytes(tck);
         tck_bytes: tck_bytes,
       }
     },
-    api: TcnApiImpl {}
+    api: TcnApiMock {}
   };
 
   let memo = submitter.memo_mapper.to_memo(report_which_should_be_sent, UnixTime::now());
@@ -256,7 +258,10 @@ let tck_bytes = TcnKeysImpl::<PreferencesMock>::tck_to_bytes(tck);
   let report_str = base64::encode(signed_report_to_bytes(signed_report));
   println!(">> report_str: {:#?}", report_str);
 
-  assert!(true);
+  let res = submitter.api.post_report(report_str).map_err(ServicesError::from).expect("Networking Error");
+
+  assert!(true)
+
 }
 
 fn generate_tck_for_index(rak_bytes: [u8; 32], index: usize) -> TemporaryContactKey{
@@ -271,4 +276,75 @@ fn generate_tck_for_index(rak_bytes: [u8; 32], index: usize) -> TemporaryContact
 
     tck
 
+}
+
+fn testing_get_inputs() -> SymptomInputs {
+  let breathlessness = Breathlessness {
+    cause: UserInput::Some(BreathlessnessCause::HurryOrHill)
+  };
+
+  let cough = Cough {
+    cough_type: UserInput::Some(CoughType::Dry),
+    days: UserInput::Some(Days {value: 3}),
+    status: UserInput::Some(CoughStatus::SameOrSteadilyWorse),
+  };
+
+  let fever = Fever {
+    days: UserInput::Some(Days { value: 2}),
+    highest_temperature: UserInput::Some(FarenheitTemperature {value: 100.5}),
+    taken_temperature_today: UserInput::Some(true),
+    temperature_spot: UserInput::Some(TemperatureSpot::Armpit),
+  };
+
+  let earliest_symptom = EarliestSymptom {
+    time: UserInput::Some(UnixTime{value: 1590356601})
+  };
+
+  let mut symptom_ids_set: HashSet<SymptomId> = HashSet::new();
+
+  symptom_ids_set.insert(SymptomId::Cough);
+  symptom_ids_set.insert(SymptomId::Fever);
+  symptom_ids_set.insert(SymptomId::Diarrhea);
+  symptom_ids_set.insert(SymptomId::Breathlessness);
+
+  let inputs : SymptomInputs = SymptomInputs {
+    ids: symptom_ids_set,
+    cough,
+    breathlessness,
+    fever,
+    earliest_symptom,
+  };
+
+  inputs
+}
+
+fn testing_get_submitter() -> SymptomInputsSubmitterImpl<MemoMapperImpl, TcnKeysImpl<PreferencesMock>, TcnApiMock>{
+  let rak_bytes = [42, 118, 64, 131, 236, 36, 122, 23, 13, 108, 73, 171, 102, 145, 66, 91, 157, 105, 195, 126, 139, 162, 15, 31, 0, 22, 31, 230, 242, 241, 225, 85];
+let tck = generate_tck_for_index(rak_bytes, 60);
+println!(">> tck: {:#?}", tck);
+let tck_bytes = TcnKeysImpl::<PreferencesMock>::tck_to_bytes(tck);
+let submitter = SymptomInputsSubmitterImpl { 
+  memo_mapper: MemoMapperImpl {},  
+  tcn_keys: TcnKeysImpl { 
+    preferences: PreferencesMock {
+      rak_bytes: rak_bytes,
+      tck_bytes: tck_bytes,
+    }
+  },
+  api: TcnApiMock {}
+};
+
+submitter
+}
+
+#[test]
+fn test_submit_inputs(){
+  let submitter = testing_get_submitter();
+  let inputs = testing_get_inputs();
+
+  match submitter.submit_inputs(inputs){
+    Ok(()) => assert!(true),
+    Err(errors::ServicesError::Networking(_))=> assert!(false),
+    Err(Error(_)) => assert!(false),
+  }
 }
