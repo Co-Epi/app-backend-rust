@@ -177,41 +177,41 @@ pub unsafe extern "C" fn submit_symptoms() -> CFStringRef {
   return to_result_str(result);
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn submit_symptoms(c_report: *const c_char) -> CFStringRef {
-  println!("RUST: posting report: {:?}", c_report);
+// #[no_mangle]
+// pub unsafe extern "C" fn submit_symptoms(c_report: *const c_char) -> CFStringRef {
+//   println!("RUST: posting report: {:?}", c_report);
 
-  // TODO don't unwrap, use and handle result, handle
-  let report = cstring_to_str(&c_report).unwrap();
+//   // TODO don't unwrap, use and handle result, handle
+//   let report = cstring_to_str(&c_report).unwrap();
 
-  let inputs: Result<SymptomInputs, serde_json::Error> = serde_json::from_str(report);
+//   let inputs: Result<SymptomInputs, serde_json::Error> = serde_json::from_str(report);
 
-  let lib_result: LibResult<()> = match inputs {
-    Ok(inputs) => {
-      let result = COMP_ROOT.symptom_inputs_submitter.submit_inputs(inputs);
-      match result {
-        Ok(_) => LibResult { status: 200, data: None, error_message: None },
-        Err(e) => match e {
-          Networking(e) =>
-            LibResult { status: e.http_status, data: None, error_message: Some(e.to_string()) },
-          Error(e) => 
-            LibResult { status: 500, data: None, error_message: Some(e.to_string()) }
-        }
-      }
-    },
-    Err(e) =>
-      LibResult { status: 400, data: None, error_message: Some(e.to_string()) }
-  };
+//   let lib_result: LibResult<()> = match inputs {
+//     Ok(inputs) => {
+//       let result = COMP_ROOT.symptom_inputs_submitter.submit_inputs(inputs);
+//       match result {
+//         Ok(_) => LibResult { status: 200, data: None, error_message: None },
+//         Err(e) => match e {
+//           Networking(e) =>
+//             LibResult { status: e.http_status, data: None, error_message: Some(e.to_string()) },
+//           Error(e) => 
+//             LibResult { status: 500, data: None, error_message: Some(e.to_string()) }
+//         }
+//       }
+//     },
+//     Err(e) =>
+//       LibResult { status: 400, data: None, error_message: Some(e.to_string()) }
+//   };
 
-  let lib_result_string = serde_json::to_string(&lib_result).unwrap();
+//   let lib_result_string = serde_json::to_string(&lib_result).unwrap();
 
-  let cf_string = CFString::new(&lib_result_string);
-  let cf_string_ref = cf_string.as_concrete_TypeRef();
+//   let cf_string = CFString::new(&lib_result_string);
+//   let cf_string_ref = cf_string.as_concrete_TypeRef();
 
-  ::std::mem::forget(cf_string);
+//   ::std::mem::forget(cf_string);
 
-  return cf_string_ref;
-}
+//   return cf_string_ref;
+// }
 
 #[no_mangle]
 pub unsafe extern "C" fn post_report(c_report: *const c_char) -> CFStringRef {

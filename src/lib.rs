@@ -14,7 +14,6 @@ mod reporting;
 mod errors;
 mod preferences;
 mod tcn_ext;
-mod memo;
 
 pub type Res<T> = Result<T, Error>;
 
