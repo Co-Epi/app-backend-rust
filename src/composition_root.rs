@@ -1,5 +1,5 @@
 use crate::networking::{TcnApiImpl, TcnApi};
-use crate::reports_updater::{TcnMatcher, ReportsUpdater, TcnDao, TcnDaoImpl, TcnMatcherImpl, ObservedTcnProcessor, ObservedTcnProcessorImpl};
+use crate::reports_updater::{TcnMatcher, ReportsUpdater, TcnDao, TcnDaoImpl, TcnMatcherRayon, ObservedTcnProcessor, ObservedTcnProcessorImpl};
 use crate::{reporting::{memo::{MemoMapper, MemoMapperImpl}, symptom_inputs::{SymptomInputsSubmitterImpl, SymptomInputs}, symptom_inputs_manager::{SymptomInputsManagerImpl, SymptomInputsProcessorImpl, SymptomInputsProcessor}}, preferences::{Preferences, PreferencesImpl}, tcn_ext::tcn_keys::{TcnKeys, TcnKeysImpl}};
 use once_cell::sync::Lazy;
 use parking_lot::RwLock;
@@ -25,7 +25,7 @@ pub struct CompositionRoot<'a, A, B, C, D, F, G, H, I> where
 
 pub static COMP_ROOT: Lazy<
   CompositionRoot<
-    PreferencesImpl, TcnDaoImpl, TcnMatcherImpl, TcnApiImpl, 
+    PreferencesImpl, TcnDaoImpl, TcnMatcherRayon, TcnApiImpl, 
     SymptomInputsProcessorImpl<SymptomInputsManagerImpl<SymptomInputsSubmitterImpl<MemoMapperImpl, TcnKeysImpl<PreferencesImpl>, TcnApiImpl>>>,
     ObservedTcnProcessorImpl<TcnDaoImpl>, MemoMapperImpl, TcnKeysImpl<PreferencesImpl>
   >
@@ -34,7 +34,7 @@ pub static COMP_ROOT: Lazy<
 
 
 fn create_comp_root() -> CompositionRoot<'static, 
-  PreferencesImpl, TcnDaoImpl, TcnMatcherImpl, TcnApiImpl, 
+  PreferencesImpl, TcnDaoImpl, TcnMatcherRayon, TcnApiImpl, 
   SymptomInputsProcessorImpl<SymptomInputsManagerImpl<SymptomInputsSubmitterImpl<'static, MemoMapperImpl, TcnKeysImpl<PreferencesImpl>, TcnApiImpl>>>,
   ObservedTcnProcessorImpl<'static, TcnDaoImpl>, MemoMapperImpl, TcnKeysImpl<PreferencesImpl>
 > {
@@ -59,7 +59,7 @@ fn create_comp_root() -> CompositionRoot<'static,
     reports_updater: ReportsUpdater { 
       preferences: preferences.clone(),
       tcn_dao,
-      tcn_matcher: TcnMatcherImpl {},
+      tcn_matcher: TcnMatcherRayon {},
       api,
       memo_mapper
     },
