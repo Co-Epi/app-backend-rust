@@ -10,9 +10,9 @@ use crate::{
     tcn_ext::tcn_keys::{TcnKeys, TcnKeysImpl},
 };
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use std::{collections::HashSet, io::Cursor};
 use tcn::{SignedReport, TemporaryContactKey};
-use std::sync::Arc;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct SymptomInputs {
@@ -201,232 +201,237 @@ fn signed_report_to_bytes(signed_report: SignedReport) -> Vec<u8> {
     buf
 }
 
-#[test]
-fn test_public_report_with_inputs() {
-    let breathlessness = Breathlessness {
-        cause: UserInput::Some(BreathlessnessCause::HurryOrHill),
-    };
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_public_report_with_inputs() {
+        let breathlessness = Breathlessness {
+            cause: UserInput::Some(BreathlessnessCause::HurryOrHill),
+        };
 
-    let cough = Cough {
-        cough_type: UserInput::Some(CoughType::Dry),
-        days: UserInput::Some(Days { value: 3 }),
-        status: UserInput::Some(CoughStatus::SameOrSteadilyWorse),
-    };
+        let cough = Cough {
+            cough_type: UserInput::Some(CoughType::Dry),
+            days: UserInput::Some(Days { value: 3 }),
+            status: UserInput::Some(CoughStatus::SameOrSteadilyWorse),
+        };
 
-    let fever = Fever {
-        days: UserInput::Some(Days { value: 2 }),
-        highest_temperature: UserInput::Some(FarenheitTemperature { value: 100.5 }),
-        taken_temperature_today: UserInput::Some(true),
-        temperature_spot: UserInput::Some(TemperatureSpot::Armpit),
-    };
+        let fever = Fever {
+            days: UserInput::Some(Days { value: 2 }),
+            highest_temperature: UserInput::Some(FarenheitTemperature { value: 100.5 }),
+            taken_temperature_today: UserInput::Some(true),
+            temperature_spot: UserInput::Some(TemperatureSpot::Armpit),
+        };
 
-    let earliest_symptom = EarliestSymptom {
-        time: UserInput::Some(UnixTime { value: 1590356601 }),
-    };
+        let earliest_symptom = EarliestSymptom {
+            time: UserInput::Some(UnixTime { value: 1590356601 }),
+        };
 
-    let mut symptom_ids_set: HashSet<SymptomId> = HashSet::new();
+        let mut symptom_ids_set: HashSet<SymptomId> = HashSet::new();
 
-    symptom_ids_set.insert(SymptomId::Cough);
-    symptom_ids_set.insert(SymptomId::Fever);
-    symptom_ids_set.insert(SymptomId::Diarrhea);
-    symptom_ids_set.insert(SymptomId::Breathlessness);
+        symptom_ids_set.insert(SymptomId::Cough);
+        symptom_ids_set.insert(SymptomId::Fever);
+        symptom_ids_set.insert(SymptomId::Diarrhea);
+        symptom_ids_set.insert(SymptomId::Breathlessness);
 
-    let inputs: SymptomInputs = SymptomInputs {
-        ids: symptom_ids_set,
-        cough,
-        breathlessness,
-        fever,
-        earliest_symptom,
-    };
+        let inputs: SymptomInputs = SymptomInputs {
+            ids: symptom_ids_set,
+            cough,
+            breathlessness,
+            fever,
+            earliest_symptom,
+        };
 
-    let public_report = PublicReport::with_inputs(inputs);
+        let public_report = PublicReport::with_inputs(inputs);
 
-    println!("{:#?}", public_report);
-    /*
-      PublicReport {
-        earliest_symptom_time: Some(
-            UnixTime {
-                value: 1590356601,
+        println!("{:#?}", public_report);
+        /*
+          PublicReport {
+            earliest_symptom_time: Some(
+                UnixTime {
+                    value: 1590356601,
+                },
+            ),
+            fever_severity: Mild,
+            cough_severity: Dry,
+            breathlessness: true,
+        }
+          */
+
+        assert_eq!(CoughSeverity::Dry, public_report.cough_severity);
+        assert_eq!(FeverSeverity::Mild, public_report.fever_severity);
+        assert_eq!(true, public_report.breathlessness);
+    }
+
+    #[test]
+    fn test_public_report_should_be_sent() {
+        assert_eq!(1, 1);
+
+        let report_which_should_be_sent = PublicReport {
+            earliest_symptom_time: UserInput::Some(UnixTime { value: 1590356601 }),
+            fever_severity: FeverSeverity::Mild,
+            cough_severity: CoughSeverity::Dry,
+            breathlessness: true,
+        };
+
+        assert_eq!(true, report_which_should_be_sent.should_be_sent());
+
+        let report_which_should_not_be_sent = PublicReport {
+            earliest_symptom_time: UserInput::Some(UnixTime { value: 1590356601 }),
+            fever_severity: FeverSeverity::None,
+            cough_severity: CoughSeverity::None,
+            breathlessness: false,
+        };
+
+        assert_eq!(false, report_which_should_not_be_sent.should_be_sent());
+    }
+
+    #[test]
+    fn test_public_report_to_signed_report() {
+        let report_which_should_be_sent = PublicReport {
+            earliest_symptom_time: UserInput::Some(UnixTime { value: 1590356601 }),
+            fever_severity: FeverSeverity::Mild,
+            cough_severity: CoughSeverity::Dry,
+            breathlessness: true,
+        };
+
+        let rak_bytes = [
+            42, 118, 64, 131, 236, 36, 122, 23, 13, 108, 73, 171, 102, 145, 66, 91, 157, 105, 195,
+            126, 139, 162, 15, 31, 0, 22, 31, 230, 242, 241, 225, 85,
+        ];
+        let tck = generate_tck_for_index(rak_bytes, 60);
+        println!(">> tck: {:#?}", tck);
+        let tck_bytes = TcnKeysImpl::<PreferencesMock>::tck_to_bytes(tck);
+
+        let preferences = Arc::new(PreferencesMock {
+            rak_bytes: rak_bytes,
+            tck_bytes: tck_bytes,
+        });
+
+        let submitter = SymptomInputsSubmitterImpl {
+            memo_mapper: &MemoMapperImpl {},
+            tcn_keys: TcnKeysImpl {
+                preferences: preferences,
             },
-        ),
-        fever_severity: Mild,
-        cough_severity: Dry,
-        breathlessness: true,
-    }
-      */
+            api: &TcnApiMock {},
+        };
 
-    assert_eq!(CoughSeverity::Dry, public_report.cough_severity);
-    assert_eq!(FeverSeverity::Mild, public_report.fever_severity);
-    assert_eq!(true, public_report.breathlessness);
-}
+        let memo = submitter
+            .memo_mapper
+            .to_memo(report_which_should_be_sent, UnixTime::now());
 
-#[test]
-fn test_public_report_should_be_sent() {
-    assert_eq!(1, 1);
+        let signed_report = match submitter.tcn_keys.create_report(memo.bytes) {
+            Ok(signed) => signed,
+            Err(_) => return assert!(false), //Err(e),
+        };
+        let report = signed_report
+            .clone()
+            .verify()
+            .expect("Valid reports should verify correctly");
 
-    let report_which_should_be_sent = PublicReport {
-        earliest_symptom_time: UserInput::Some(UnixTime { value: 1590356601 }),
-        fever_severity: FeverSeverity::Mild,
-        cough_severity: CoughSeverity::Dry,
-        breathlessness: true,
-    };
+        println!(">> report: {:#?}", report);
 
-    assert_eq!(true, report_which_should_be_sent.should_be_sent());
+        println!(">> signed_report: {:#?}", signed_report);
+        let report_str = base64::encode(signed_report_to_bytes(signed_report));
+        println!(">> report_str: {:#?}", report_str);
 
-    let report_which_should_not_be_sent = PublicReport {
-        earliest_symptom_time: UserInput::Some(UnixTime { value: 1590356601 }),
-        fever_severity: FeverSeverity::None,
-        cough_severity: CoughSeverity::None,
-        breathlessness: false,
-    };
+        let res = submitter
+            .api
+            .post_report(report_str)
+            .map_err(ServicesError::from)
+            .expect("Networking Error");
 
-    assert_eq!(false, report_which_should_not_be_sent.should_be_sent());
-}
-
-#[test]
-fn test_public_report_to_signed_report() {
-    let report_which_should_be_sent = PublicReport {
-        earliest_symptom_time: UserInput::Some(UnixTime { value: 1590356601 }),
-        fever_severity: FeverSeverity::Mild,
-        cough_severity: CoughSeverity::Dry,
-        breathlessness: true,
-    };
-
-    let rak_bytes = [
-        42, 118, 64, 131, 236, 36, 122, 23, 13, 108, 73, 171, 102, 145, 66, 91, 157, 105, 195, 126,
-        139, 162, 15, 31, 0, 22, 31, 230, 242, 241, 225, 85,
-    ];
-    let tck = generate_tck_for_index(rak_bytes, 60);
-    println!(">> tck: {:#?}", tck);
-    let tck_bytes = TcnKeysImpl::<PreferencesMock>::tck_to_bytes(tck);
-
-    let preferences = Arc::new(PreferencesMock {
-      rak_bytes: rak_bytes,
-      tck_bytes: tck_bytes,
-  });
-
-    let submitter = SymptomInputsSubmitterImpl {
-        memo_mapper: &MemoMapperImpl {},
-        tcn_keys: TcnKeysImpl {
-            preferences: preferences
-        },
-        api: &TcnApiMock {},
-    };
-
-    let memo = submitter
-        .memo_mapper
-        .to_memo(report_which_should_be_sent, UnixTime::now());
-
-    let signed_report = match submitter.tcn_keys.create_report(memo.bytes) {
-        Ok(signed) => signed,
-        Err(_) => return assert!(false), //Err(e),
-    };
-    let report = signed_report
-        .clone()
-        .verify()
-        .expect("Valid reports should verify correctly");
-
-    println!(">> report: {:#?}", report);
-
-    println!(">> signed_report: {:#?}", signed_report);
-    let report_str = base64::encode(signed_report_to_bytes(signed_report));
-    println!(">> report_str: {:#?}", report_str);
-
-    let res = submitter
-        .api
-        .post_report(report_str)
-        .map_err(ServicesError::from)
-        .expect("Networking Error");
-
-    assert!(true)
-}
-
-fn generate_tck_for_index(rak_bytes: [u8; 32], index: usize) -> TemporaryContactKey {
-    let rak = TcnKeysImpl::<PreferencesMock>::bytes_to_rak(rak_bytes);
-    let mut tck = rak.initial_temporary_contact_key(); // tck <- tck_1
-                                                       // let mut tcns = Vec::new();
-    for _ in 0..index {
-        // tcns.push(tck.temporary_contact_number());
-        tck = tck.ratchet().unwrap();
+        assert!(true)
     }
 
-    tck
-}
+    fn generate_tck_for_index(rak_bytes: [u8; 32], index: usize) -> TemporaryContactKey {
+        let rak = TcnKeysImpl::<PreferencesMock>::bytes_to_rak(rak_bytes);
+        let mut tck = rak.initial_temporary_contact_key(); // tck <- tck_1
+                                                           // let mut tcns = Vec::new();
+        for _ in 0..index {
+            // tcns.push(tck.temporary_contact_number());
+            tck = tck.ratchet().unwrap();
+        }
 
-fn testing_get_inputs() -> SymptomInputs {
-    let breathlessness = Breathlessness {
-        cause: UserInput::Some(BreathlessnessCause::HurryOrHill),
-    };
+        tck
+    }
 
-    let cough = Cough {
-        cough_type: UserInput::Some(CoughType::Dry),
-        days: UserInput::Some(Days { value: 3 }),
-        status: UserInput::Some(CoughStatus::SameOrSteadilyWorse),
-    };
+    fn testing_get_inputs() -> SymptomInputs {
+        let breathlessness = Breathlessness {
+            cause: UserInput::Some(BreathlessnessCause::HurryOrHill),
+        };
 
-    let fever = Fever {
-        days: UserInput::Some(Days { value: 2 }),
-        highest_temperature: UserInput::Some(FarenheitTemperature { value: 100.5 }),
-        taken_temperature_today: UserInput::Some(true),
-        temperature_spot: UserInput::Some(TemperatureSpot::Armpit),
-    };
+        let cough = Cough {
+            cough_type: UserInput::Some(CoughType::Dry),
+            days: UserInput::Some(Days { value: 3 }),
+            status: UserInput::Some(CoughStatus::SameOrSteadilyWorse),
+        };
 
-    let earliest_symptom = EarliestSymptom {
-        time: UserInput::Some(UnixTime { value: 1590356601 }),
-    };
+        let fever = Fever {
+            days: UserInput::Some(Days { value: 2 }),
+            highest_temperature: UserInput::Some(FarenheitTemperature { value: 100.5 }),
+            taken_temperature_today: UserInput::Some(true),
+            temperature_spot: UserInput::Some(TemperatureSpot::Armpit),
+        };
 
-    let mut symptom_ids_set: HashSet<SymptomId> = HashSet::new();
+        let earliest_symptom = EarliestSymptom {
+            time: UserInput::Some(UnixTime { value: 1590356601 }),
+        };
 
-    symptom_ids_set.insert(SymptomId::Cough);
-    symptom_ids_set.insert(SymptomId::Fever);
-    symptom_ids_set.insert(SymptomId::Diarrhea);
-    symptom_ids_set.insert(SymptomId::Breathlessness);
+        let mut symptom_ids_set: HashSet<SymptomId> = HashSet::new();
 
-    let inputs: SymptomInputs = SymptomInputs {
-        ids: symptom_ids_set,
-        cough,
-        breathlessness,
-        fever,
-        earliest_symptom,
-    };
+        symptom_ids_set.insert(SymptomId::Cough);
+        symptom_ids_set.insert(SymptomId::Fever);
+        symptom_ids_set.insert(SymptomId::Diarrhea);
+        symptom_ids_set.insert(SymptomId::Breathlessness);
 
-    inputs
-}
+        let inputs: SymptomInputs = SymptomInputs {
+            ids: symptom_ids_set,
+            cough,
+            breathlessness,
+            fever,
+            earliest_symptom,
+        };
 
-fn testing_get_submitter(
-) -> SymptomInputsSubmitterImpl<'static, MemoMapperImpl, TcnKeysImpl<PreferencesMock>, TcnApiMock> {
-    let rak_bytes = [
-        42, 118, 64, 131, 236, 36, 122, 23, 13, 108, 73, 171, 102, 145, 66, 91, 157, 105, 195, 126,
-        139, 162, 15, 31, 0, 22, 31, 230, 242, 241, 225, 85,
-    ];
-    let tck = generate_tck_for_index(rak_bytes, 60);
-    println!(">> tck: {:#?}", tck);
-    let tck_bytes = TcnKeysImpl::<PreferencesMock>::tck_to_bytes(tck);
+        inputs
+    }
 
-    let preferences = Arc::new(PreferencesMock {
-        rak_bytes: rak_bytes,
-        tck_bytes: tck_bytes,
-    });
+    fn testing_get_submitter(
+    ) -> SymptomInputsSubmitterImpl<'static, MemoMapperImpl, TcnKeysImpl<PreferencesMock>, TcnApiMock>
+    {
+        let rak_bytes = [
+            42, 118, 64, 131, 236, 36, 122, 23, 13, 108, 73, 171, 102, 145, 66, 91, 157, 105, 195,
+            126, 139, 162, 15, 31, 0, 22, 31, 230, 242, 241, 225, 85,
+        ];
+        let tck = generate_tck_for_index(rak_bytes, 60);
+        println!(">> tck: {:#?}", tck);
+        let tck_bytes = TcnKeysImpl::<PreferencesMock>::tck_to_bytes(tck);
 
-    let submitter = SymptomInputsSubmitterImpl {
-        memo_mapper: &MemoMapperImpl {},
-        tcn_keys: TcnKeysImpl {
-            preferences: preferences.clone()
-        },
-        api: &TcnApiMock {},
-    };
+        let preferences = Arc::new(PreferencesMock {
+            rak_bytes: rak_bytes,
+            tck_bytes: tck_bytes,
+        });
 
-    submitter
-}
+        let submitter = SymptomInputsSubmitterImpl {
+            memo_mapper: &MemoMapperImpl {},
+            tcn_keys: TcnKeysImpl {
+                preferences: preferences.clone(),
+            },
+            api: &TcnApiMock {},
+        };
 
-#[test]
-fn test_submit_inputs() {
-    let submitter = testing_get_submitter();
-    let inputs = testing_get_inputs();
+        submitter
+    }
 
-    match submitter.submit_inputs(inputs) {
-        Ok(()) => assert!(true),
-        Err(errors::ServicesError::Networking(_)) => assert!(false),
-        Err(Error(_)) => assert!(false),
+    #[test]
+    fn test_submit_inputs() {
+        let submitter = testing_get_submitter();
+        let inputs = testing_get_inputs();
+
+        match submitter.submit_inputs(inputs) {
+            Ok(()) => assert!(true),
+            Err(errors::ServicesError::Networking(_)) => assert!(false),
+            Err(Error(_)) => assert!(false),
+        }
     }
 }
