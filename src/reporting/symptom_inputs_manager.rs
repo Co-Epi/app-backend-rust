@@ -291,8 +291,8 @@ impl <A> SymptomInputsManager for SymptomInputsManagerImpl<A> where
     }
 
     fn clear(&self) {
-      // replace SymptomInputs instance with default or reset fields individually 
-      println!("RUST TODO implement clear symptoms");
+      println!("RUST clearing symptoms");
+      *self.inputs.write() =  Default::default();
       self.print_current_state();
     }
 }
