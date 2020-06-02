@@ -12,7 +12,7 @@ libtool -static -o ./target/CoEpiCore ./target/aarch64-apple-ios/release/libcoep
 
 # Overwrite library in iOS app (downloaded with Carthage) with local build.
 
-PATH_TO_IOS_REPO="<insert path>"
+PATH_TO_IOS_REPO="/Users/ischuetz/dev/covid/app-ios"
 
 PATH_TO_CARTHAGE_FRAMEWORK=$PATH_TO_IOS_REPO/Carthage/Build/iOS/CoEpiCore.framework
 cp ./target/CoEpiCore $PATH_TO_CARTHAGE_FRAMEWORK/Versions/A/

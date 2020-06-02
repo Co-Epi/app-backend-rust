@@ -28,6 +28,8 @@ CFStringRef clear_symptoms(void);
 
 CFStringRef fetch_new_reports(void);
 
+CFStringRef generate_tcn(void);
+
 CFStringRef get_reports(uint32_t interval_number, uint32_t interval_length);
 
 FFIReturnStruct pass_and_return_struct(const FFIParameterStruct *par);
