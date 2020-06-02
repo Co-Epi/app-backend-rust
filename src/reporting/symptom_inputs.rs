@@ -1,4 +1,4 @@
-use std::{io::Cursor, collections::HashSet};
+use std::{io::Cursor, collections::HashSet, sync::Arc};
 use crate::{errors::ServicesError, reports_interval::UnixTime, tcn_ext::tcn_keys::TcnKeys, networking::TcnApi};
 use serde::{Deserialize, Serialize};
 use super::{memo::MemoMapper, public_report::PublicReport};
@@ -122,7 +122,7 @@ pub struct SymptomInputsSubmitterImpl<'a,
   MemoMapperType: MemoMapper, TcnKeysType: TcnKeys, TcnApiType: TcnApi
 > {
   pub memo_mapper: &'a MemoMapperType,
-  pub tcn_keys: TcnKeysType,
+  pub tcn_keys: Arc<TcnKeysType>,
   pub api: &'a TcnApiType,
 }
 

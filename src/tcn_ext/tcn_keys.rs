@@ -1,10 +1,11 @@
 use crate::preferences::Preferences;
-use tcn::{TemporaryContactKey, ReportAuthorizationKey, MemoType, SignedReport, Error};
+use tcn::{TemporaryContactKey, ReportAuthorizationKey, MemoType, SignedReport, Error, TemporaryContactNumber};
 use std::{cmp, io::Cursor, sync::Arc};
 use cmp::max;
 
 pub trait TcnKeys {
   fn crate_report(&self, report: Vec<u8>) -> Result<SignedReport, Error>;
+  fn generate_tcn(&self) -> TemporaryContactNumber;
 }
 
 pub struct TcnKeysImpl<PreferencesType: Preferences> {
@@ -19,6 +20,20 @@ impl <PreferencesType: Preferences> TcnKeys for TcnKeysImpl<PreferencesType> {
     let start_index = max(0, (end_index as u32) - periods) as u16;
 
     self.rak().create_report(MemoType::CoEpiV1, report, start_index, end_index)
+  }
+
+  fn generate_tcn(&self) -> TemporaryContactNumber {
+    let tck = self.tck();
+    let tcn = tck.temporary_contact_number();
+    let new_tck = tck.ratchet();
+
+    if let Some(new_tck) = new_tck {
+      self.set_tck(new_tck);
+    }
+
+    println!("RUST generated tcn: {:?}", tcn);
+    // TODO: if None, rotate RAK
+    tcn
   }
 }
 
