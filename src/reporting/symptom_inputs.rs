@@ -6,13 +6,13 @@ use crate::reporting::memo::MemoMapperImpl;
 use crate::{
     errors::ServicesError,
     networking::{TcnApi, TcnApiImpl, TcnApiMock},
-    reports_interval::UnixTime,
-    tcn_ext::tcn_keys::{TcnKeys, TcnKeysImpl},
+    reports_interval::{ReportsInterval, UnixTime},
+    tcn_ext::tcn_keys::{TcnKeys, TcnKeysImpl, ReportAuthorizationKeyExt},
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::{collections::HashSet, io::Cursor};
-use tcn::{SignedReport, TemporaryContactKey};
+use tcn::{SignedReport, TemporaryContactKey, ReportAuthorizationKey};
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct SymptomInputs {
@@ -306,6 +306,7 @@ mod tests {
         let preferences = Arc::new(PreferencesMock {
             rak_bytes: rak_bytes,
             tck_bytes: tck_bytes,
+            reports_interval: ReportsInterval{number: 8899222, length: 12232 }
         });
 
         let submitter = SymptomInputsSubmitterImpl {
@@ -345,7 +346,8 @@ mod tests {
     }
 
     fn generate_tck_for_index(rak_bytes: [u8; 32], index: usize) -> TemporaryContactKey {
-        let rak = TcnKeysImpl::<PreferencesMock>::bytes_to_rak(rak_bytes);
+        // let rak = TcnKeysImpl::<PreferencesMock>::bytes_to_rak(rak_bytes);
+        let rak = ReportAuthorizationKey::with_bytes(rak_bytes);
         let mut tck = rak.initial_temporary_contact_key(); // tck <- tck_1
                                                            // let mut tcns = Vec::new();
         for _ in 0..index {
@@ -410,6 +412,7 @@ mod tests {
         let preferences = Arc::new(PreferencesMock {
             rak_bytes: rak_bytes,
             tck_bytes: tck_bytes,
+            reports_interval: ReportsInterval{number: 8899222, length: 12232 }
         });
 
         let submitter = SymptomInputsSubmitterImpl {

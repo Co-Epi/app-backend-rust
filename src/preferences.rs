@@ -2,6 +2,7 @@ use serde::{Serialize, Deserialize};
 use parking_lot::RwLock;
 use crate::reports_interval::ReportsInterval;
 use std::fmt;
+use std::option::Option;
 
 pub const TCK_SIZE_IN_BYTES: usize = 66; 
 
@@ -112,14 +113,16 @@ impl Preferences for PreferencesImpl {
 }
 
 pub struct PreferencesMock{
-  pub rak_bytes: [u8; 32],
-  pub tck_bytes: TckBytesWrapper
+    pub rak_bytes: [u8; 32],
+    pub tck_bytes: TckBytesWrapper,
+    pub reports_interval: ReportsInterval,
+  
 }
 
 impl Preferences for PreferencesMock {
-  fn last_completed_reports_interval(&self, _: PreferencesKey) -> std::option::Option<ReportsInterval> { 
-    let reports_interval = ReportsInterval{number: 8899222, length: 12232 };
-    return Option::Some(reports_interval)
+  fn last_completed_reports_interval(&self, _: PreferencesKey) -> Option<ReportsInterval> { 
+    // let reports_interval = ReportsInterval{number: 8899222, length: 12232 };
+    Option::Some(self.reports_interval)
   }
 
   fn set_last_completed_reports_interval(&self, _: PreferencesKey, _: ReportsInterval) { 
@@ -131,15 +134,15 @@ impl Preferences for PreferencesMock {
     return Option::Some(bytes)
   }
 
-  fn set_autorization_key(&self, _: [u8; 32]) { 
-    return; 
+  fn set_autorization_key(&self, _value: [u8; 32]) { 
+    return;
   }
 
   fn tck(&self) -> std::option::Option<TckBytesWrapper> { 
     Some(self.tck_bytes)
   }
 
-  fn set_tck(&self, value: TckBytesWrapper) { 
+  fn set_tck(&self, _value: TckBytesWrapper) { 
     return;
   }
 
