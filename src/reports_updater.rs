@@ -97,7 +97,7 @@ impl TcnMatcherStdThreadSpawn {
 
     // TODO no unwrap
     let rep = report.clone().verify().unwrap();
-    for tcn in rep.temporary_contact_numbers().take(10) {
+    for tcn in rep.temporary_contact_numbers() {
       if let Some(entry) = observed_tcns_map.get(&tcn.0) {
         out = Some(MatchedReport { report, contact_time: entry.time.clone() });
         break;
