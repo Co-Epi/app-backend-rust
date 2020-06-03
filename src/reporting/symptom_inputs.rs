@@ -304,9 +304,7 @@ mod tests {
         let tck_bytes = TcnKeysImpl::<PreferencesTckMock>::tck_to_bytes(tck);
 
         let preferences = Arc::new(PreferencesTckMock {
-            // rak_bytes: rak_bytes,
             tck_bytes: tck_bytes,
-            // reports_interval: ReportsInterval{number: 8899222, length: 12232 }
         });
 
         let submitter = SymptomInputsSubmitterImpl {
@@ -410,9 +408,7 @@ mod tests {
         let tck_bytes = TcnKeysImpl::<PreferencesTckMock>::tck_to_bytes(tck);
 
         let preferences = Arc::new(PreferencesTckMock {
-            // rak_bytes: rak_bytes,
             tck_bytes: tck_bytes,
-            // reports_interval: ReportsInterval{number: 8899222, length: 12232 }
         });
 
         let submitter = SymptomInputsSubmitterImpl {

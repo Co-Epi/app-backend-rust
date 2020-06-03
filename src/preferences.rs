@@ -113,10 +113,7 @@ impl Preferences for PreferencesImpl {
 }
 
 pub struct PreferencesTckMock{
-    // pub rak_bytes: [u8; 32],
     pub tck_bytes: TckBytesWrapper,
-    // pub reports_interval: ReportsInterval,
-  
 }
 
 impl Preferences for PreferencesTckMock {
