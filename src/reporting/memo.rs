@@ -50,11 +50,11 @@ impl MemoMapper for MemoMapperImpl {
 
 
       // Version for now not handled
-      let version_result = extract(&bits, &Self::VERSION_MAPPER, next)
+      let _ = extract(&bits, &Self::VERSION_MAPPER, next)
         .value (|v| next += v);
 
       // TODO handle report time?
-      let time_result = extract(&bits, &Self::TIME_MAPPER, next)
+      let _ = extract(&bits, &Self::TIME_MAPPER, next)
         .value (|v| next += v);
 
       let earliest_symptom_time = extract(&bits, &Self::TIME_USER_INPUT_MAPPER, next)

@@ -166,7 +166,7 @@ impl TcnDao for TcnDaoImpl {
       .ok_or(DB_UNINIT).map_err(Error::from)?
       .scan("tcn").map_err(Error::from)?;
 
-    for (_id,content) in items {
+    for (_id, content) in items {
       let byte_array: [u8; 24] = byte_vec_to_24_byte_array(content);
       out.push(ObservedTcn::from_bytes(byte_array));
     }
@@ -293,8 +293,8 @@ impl<'a,
       .unwrap_or(ReportsInterval::create_for_with_default_length(time))
   }
 
-  fn matching_reports(&self, startInterval: ReportsInterval, until: &UnixTime) -> Result<Vec<MatchedReportsChunk>, ServicesError> {
-    let sequence = Self::generate_intervals_sequence(startInterval, until);
+  fn matching_reports(&self, start_interval: ReportsInterval, until: &UnixTime) -> Result<Vec<MatchedReportsChunk>, ServicesError> {
+    let sequence = Self::generate_intervals_sequence(start_interval, until);
     let reports = sequence.map (|interval| self.retrieve_reports(interval));
     let matched_results = reports
       .map (|interval| self.match_retrieved_reports_result(interval));
@@ -379,7 +379,7 @@ impl<'a,
     matched_reports
   }
   
-  fn interval_ending_before(mut intervals: Vec<ReportsInterval>, time: &UnixTime) -> Option<ReportsInterval> {
+  fn interval_ending_before(intervals: Vec<ReportsInterval>, time: &UnixTime) -> Option<ReportsInterval> {
     // TODO shorter version of this?
     let reversed: Vec<ReportsInterval> = intervals.into_iter().rev().collect();
     reversed.into_iter().find(|i| i.ends_before(&time))

@@ -43,11 +43,11 @@ impl Preferences for PreferencesImpl {
 
   fn last_completed_reports_interval(&self, key: PreferencesKey) -> Option<ReportsInterval> {
     match key {
-      LastCompletedReportsInterval => self.config.read().last_completed_reports_interval
+      PreferencesKey::LastCompletedReportsInterval => self.config.read().last_completed_reports_interval
     }
   }
 
-  fn set_last_completed_reports_interval(&self, key: PreferencesKey, value: ReportsInterval) {
+  fn set_last_completed_reports_interval(&self, _: PreferencesKey, value: ReportsInterval) {
     let mut config = self.config.write();
     config.last_completed_reports_interval = Some(value);
 
