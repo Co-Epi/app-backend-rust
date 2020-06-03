@@ -9,7 +9,7 @@ pub enum PreferencesKey {
   LastCompletedReportsInterval
 }
 
-big_array! { BigArray; +TCK_SIZE_IN_BYTES}
+big_array! { BigArray; TCK_SIZE_IN_BYTES}
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct MyConfig {
   last_completed_reports_interval: Option<ReportsInterval>,
