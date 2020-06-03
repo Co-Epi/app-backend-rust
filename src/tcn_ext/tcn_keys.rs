@@ -1,4 +1,4 @@
-use crate::preferences::{Preferences, PreferencesMock, TckBytesWrapper, TCK_SIZE_IN_BYTES};
+use crate::preferences::{Preferences, PreferencesTckMock, TckBytesWrapper, TCK_SIZE_IN_BYTES};
 // use cmp::max;
 use std::{io::Cursor, sync::Arc};
 use tcn::{Error, MemoType, ReportAuthorizationKey, SignedReport, TemporaryContactKey};
@@ -114,7 +114,7 @@ mod tests {
     #[test]
     fn test_rak() {
         let new_key = ReportAuthorizationKey::new(rand::thread_rng());
-        let bytes = TcnKeysImpl::<PreferencesMock>::rak_to_bytes(new_key);
+        let bytes = TcnKeysImpl::<PreferencesTckMock>::rak_to_bytes(new_key);
         println!("{:?}", bytes);
     }
 
@@ -124,10 +124,10 @@ mod tests {
             42, 118, 64, 131, 236, 36, 122, 23, 13, 108, 73, 171, 102, 145, 66, 91, 157, 105, 195,
             126, 139, 162, 15, 31, 0, 22, 31, 230, 242, 241, 225, 85,
         ];
-        // let key = TcnKeysImpl::<PreferencesMock>::bytes_to_rak(bytes);
+        // let key = TcnKeysImpl::<PreferencesTckMock>::bytes_to_rak(bytes);
         let key = ReportAuthorizationKey::with_bytes(bytes);
         let tck = key.initial_temporary_contact_key();
-        let tck_bytes = TcnKeysImpl::<PreferencesMock>::tck_to_bytes(tck);
+        let tck_bytes = TcnKeysImpl::<PreferencesTckMock>::tck_to_bytes(tck);
 
     }
 
@@ -137,7 +137,7 @@ mod tests {
             42, 118, 64, 131, 236, 36, 122, 23, 13, 108, 73, 171, 102, 145, 66, 91, 157, 105, 195,
             126, 139, 162, 15, 31, 0, 22, 31, 230, 242, 241, 225, 85,
         ];
-        // let rak = TcnKeysImpl::<PreferencesMock>::bytes_to_rak(rak_bytes);
+        // let rak = TcnKeysImpl::<PreferencesTckMock>::bytes_to_rak(rak_bytes);
         let rak = ReportAuthorizationKey::with_bytes(rak_bytes);
 
         let tck_1 = rak.initial_temporary_contact_key();
@@ -157,8 +157,8 @@ mod tests {
         let complete_tck_vec = [&version_vec[..], &rak_vec[..], &tck_inner_vec[..]].concat();
 
         let tck_bytes_wrapped = TckBytesWrapper::with_bytes(complete_tck_vec);
-            // TcnKeysImpl::<PreferencesMock>::byte_vec_to_tck_byte_wrapper(complete_tck_vec);
-        let tck = TcnKeysImpl::<PreferencesMock>::bytes_to_tck(tck_bytes_wrapped);
+            // TcnKeysImpl::<PreferencesTckMock>::byte_vec_to_tck_byte_wrapper(complete_tck_vec);
+        let tck = TcnKeysImpl::<PreferencesTckMock>::bytes_to_tck(tck_bytes_wrapped);
 
         println!("{:#?}", tck);
         
@@ -170,7 +170,7 @@ mod tests {
             42, 118, 64, 131, 236, 36, 122, 23, 13, 108, 73, 171, 102, 145, 66, 91, 157, 105, 195,
             126, 139, 162, 15, 31, 0, 22, 31, 230, 242, 241, 225, 85,
         ];
-        // let rak = TcnKeysImpl::<PreferencesMock>::bytes_to_rak(rak_bytes);
+        // let rak = TcnKeysImpl::<PreferencesTckMock>::bytes_to_rak(rak_bytes);
         let rak = ReportAuthorizationKey::with_bytes(rak_bytes);
         let mut tck = rak.initial_temporary_contact_key(); // tck <- tck_1
         let mut tcns = Vec::new();

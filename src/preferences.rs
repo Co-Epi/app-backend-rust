@@ -112,17 +112,17 @@ impl Preferences for PreferencesImpl {
   }
 }
 
-pub struct PreferencesMock{
-    pub rak_bytes: [u8; 32],
+pub struct PreferencesTckMock{
+    // pub rak_bytes: [u8; 32],
     pub tck_bytes: TckBytesWrapper,
-    pub reports_interval: ReportsInterval,
+    // pub reports_interval: ReportsInterval,
   
 }
 
-impl Preferences for PreferencesMock {
+impl Preferences for PreferencesTckMock {
   fn last_completed_reports_interval(&self, _: PreferencesKey) -> Option<ReportsInterval> { 
-    // let reports_interval = ReportsInterval{number: 8899222, length: 12232 };
-    Option::Some(self.reports_interval)
+    let reports_interval = ReportsInterval{number: 8899222, length: 12232 };
+    Option::Some(reports_interval)
   }
 
   fn set_last_completed_reports_interval(&self, _: PreferencesKey, _: ReportsInterval) { 

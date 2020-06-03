@@ -1,7 +1,7 @@
 use super::{memo::MemoMapper, public_report::*};
 use crate::errors;
 use crate::errors::ServicesError::Error;
-use crate::preferences::PreferencesMock;
+use crate::preferences::PreferencesTckMock;
 use crate::reporting::memo::MemoMapperImpl;
 use crate::{
     errors::ServicesError,
@@ -301,12 +301,12 @@ mod tests {
         ];
         let tck = generate_tck_for_index(rak_bytes, 60);
         println!(">> tck: {:#?}", tck);
-        let tck_bytes = TcnKeysImpl::<PreferencesMock>::tck_to_bytes(tck);
+        let tck_bytes = TcnKeysImpl::<PreferencesTckMock>::tck_to_bytes(tck);
 
-        let preferences = Arc::new(PreferencesMock {
-            rak_bytes: rak_bytes,
+        let preferences = Arc::new(PreferencesTckMock {
+            // rak_bytes: rak_bytes,
             tck_bytes: tck_bytes,
-            reports_interval: ReportsInterval{number: 8899222, length: 12232 }
+            // reports_interval: ReportsInterval{number: 8899222, length: 12232 }
         });
 
         let submitter = SymptomInputsSubmitterImpl {
@@ -346,7 +346,7 @@ mod tests {
     }
 
     fn generate_tck_for_index(rak_bytes: [u8; 32], index: usize) -> TemporaryContactKey {
-        // let rak = TcnKeysImpl::<PreferencesMock>::bytes_to_rak(rak_bytes);
+        // let rak = TcnKeysImpl::<PreferencesTckMock>::bytes_to_rak(rak_bytes);
         let rak = ReportAuthorizationKey::with_bytes(rak_bytes);
         let mut tck = rak.initial_temporary_contact_key(); // tck <- tck_1
                                                            // let mut tcns = Vec::new();
@@ -399,7 +399,7 @@ mod tests {
     }
 
     fn testing_get_submitter(
-    ) -> SymptomInputsSubmitterImpl<'static, MemoMapperImpl, TcnKeysImpl<PreferencesMock>, TcnApiMock>
+    ) -> SymptomInputsSubmitterImpl<'static, MemoMapperImpl, TcnKeysImpl<PreferencesTckMock>, TcnApiMock>
     {
         let rak_bytes = [
             42, 118, 64, 131, 236, 36, 122, 23, 13, 108, 73, 171, 102, 145, 66, 91, 157, 105, 195,
@@ -407,12 +407,12 @@ mod tests {
         ];
         let tck = generate_tck_for_index(rak_bytes, 60);
         println!(">> tck: {:#?}", tck);
-        let tck_bytes = TcnKeysImpl::<PreferencesMock>::tck_to_bytes(tck);
+        let tck_bytes = TcnKeysImpl::<PreferencesTckMock>::tck_to_bytes(tck);
 
-        let preferences = Arc::new(PreferencesMock {
-            rak_bytes: rak_bytes,
+        let preferences = Arc::new(PreferencesTckMock {
+            // rak_bytes: rak_bytes,
             tck_bytes: tck_bytes,
-            reports_interval: ReportsInterval{number: 8899222, length: 12232 }
+            // reports_interval: ReportsInterval{number: 8899222, length: 12232 }
         });
 
         let submitter = SymptomInputsSubmitterImpl {
