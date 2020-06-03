@@ -1,9 +1,10 @@
 use crate::preferences::{Preferences, PreferencesTckMock, TckBytesWrapper, TCK_SIZE_IN_BYTES};
 use std::{io::Cursor, sync::Arc};
-use tcn::{Error, MemoType, ReportAuthorizationKey, SignedReport, TemporaryContactKey};
+use tcn::{Error, MemoType, ReportAuthorizationKey, SignedReport, TemporaryContactKey, TemporaryContactNumber};
 
 pub trait TcnKeys {
-    fn create_report(&self, report: Vec<u8>) -> Result<SignedReport, Error>;
+  fn create_report(&self, report: Vec<u8>) -> Result<SignedReport, Error>;
+  fn generate_tcn(&self) -> TemporaryContactNumber;
 }
 
 pub trait ReportAuthorizationKeyExt{
@@ -41,6 +42,20 @@ impl<PreferencesType: Preferences> TcnKeys for TcnKeysImpl<PreferencesType> {
 
         self.rak()
             .create_report(MemoType::CoEpiV1, report, start_index, end_index)
+    }
+
+    fn generate_tcn(&self) -> TemporaryContactNumber {
+      let tck = self.tck();
+      let tcn = tck.temporary_contact_number();
+      let new_tck = tck.ratchet();
+  
+      if let Some(new_tck) = new_tck {
+        self.set_tck(new_tck);
+      }
+  
+      println!("RUST generated tcn: {:?}", tcn);
+      // TODO: if None, rotate RAK
+      tcn
     }
 }
 

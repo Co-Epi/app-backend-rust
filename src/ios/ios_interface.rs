@@ -7,6 +7,7 @@ use crate::{composition_root::COMP_ROOT, networking, errors::ServicesError::{sel
 use crate::{init_db, reporting::symptom_inputs_manager::SymptomInputsProcessor};
 use crate::reports_updater::ObservedTcnProcessor;
 use networking::TcnApi;
+use crate::tcn_ext::tcn_keys::TcnKeys;
 
 // Generic struct to return results to app
 // For convenience, status will be HTTP status codes 
@@ -48,6 +49,22 @@ pub unsafe extern "C" fn record_tcn(c_tcn: *const c_char) -> CFStringRef {
   let result = COMP_ROOT.observed_tcn_processor.save(tcn_str);
   println!("RUST: recording TCN result {:?}", result);
   return to_result_str(result);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn generate_tcn() -> CFStringRef {
+
+  // TODO hex encoding in component, or send byte array directly?
+  let tcn_hex = hex::encode(COMP_ROOT.tcn_keys.generate_tcn().0);
+  
+  println!("RUST generated TCN: {:?}", tcn_hex);
+
+  let cf_string = CFString::new(&tcn_hex);
+  let cf_string_ref = cf_string.as_concrete_TypeRef();
+
+  ::std::mem::forget(cf_string);
+
+  cf_string_ref
 }
 
 #[no_mangle]

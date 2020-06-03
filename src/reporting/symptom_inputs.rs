@@ -5,13 +5,12 @@ use crate::preferences::PreferencesTckMock;
 use crate::reporting::memo::MemoMapperImpl;
 use crate::{
     errors::ServicesError,
-    networking::{TcnApi, TcnApiImpl, TcnApiMock},
-    reports_interval::{ReportsInterval, UnixTime},
+    networking::{TcnApi, TcnApiMock},
+    reports_interval::UnixTime,
     tcn_ext::tcn_keys::{TcnKeys, TcnKeysImpl, ReportAuthorizationKeyExt},
 };
+use std::{io::Cursor, collections::HashSet, sync::Arc};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use std::{collections::HashSet, io::Cursor};
 use tcn::{SignedReport, TemporaryContactKey, ReportAuthorizationKey};
 
 #[derive(Debug, Deserialize, Clone)]
@@ -154,6 +153,7 @@ pub trait SymptomInputsSubmitter<
     fn submit_inputs(&self, inputs: SymptomInputs) -> Result<(), ServicesError>;
 }
 
+
 pub struct SymptomInputsSubmitterImpl<
     'a,
     MemoMapperType: MemoMapper,
@@ -161,7 +161,7 @@ pub struct SymptomInputsSubmitterImpl<
     TcnApiType: TcnApi,
 > {
     pub memo_mapper: &'a MemoMapperType,
-    pub tcn_keys: TcnKeysType,
+    pub tcn_keys: Arc<TcnKeysType>,
     pub api: &'a TcnApiType,
 }
 
@@ -307,11 +307,13 @@ mod tests {
             tck_bytes: tck_bytes,
         });
 
+        let tcn_keys = Arc::new(TcnKeysImpl{
+          preferences: preferences.clone()
+        });
+
         let submitter = SymptomInputsSubmitterImpl {
             memo_mapper: &MemoMapperImpl {},
-            tcn_keys: TcnKeysImpl {
-                preferences: preferences,
-            },
+            tcn_keys: tcn_keys,
             api: &TcnApiMock {},
         };
 
@@ -344,12 +346,10 @@ mod tests {
     }
 
     fn generate_tck_for_index(rak_bytes: [u8; 32], index: usize) -> TemporaryContactKey {
-        // let rak = TcnKeysImpl::<PreferencesTckMock>::bytes_to_rak(rak_bytes);
         let rak = ReportAuthorizationKey::with_bytes(rak_bytes);
         let mut tck = rak.initial_temporary_contact_key(); // tck <- tck_1
                                                            // let mut tcns = Vec::new();
         for _ in 0..index {
-            // tcns.push(tck.temporary_contact_number());
             tck = tck.ratchet().unwrap();
         }
 
@@ -411,11 +411,13 @@ mod tests {
             tck_bytes: tck_bytes,
         });
 
+        let tcn_keys = Arc::new(TcnKeysImpl{
+          preferences: preferences.clone()
+        });
+
         let submitter = SymptomInputsSubmitterImpl {
             memo_mapper: &MemoMapperImpl {},
-            tcn_keys: TcnKeysImpl {
-                preferences: preferences.clone(),
-            },
+            tcn_keys: tcn_keys,
             api: &TcnApiMock {},
         };
 
