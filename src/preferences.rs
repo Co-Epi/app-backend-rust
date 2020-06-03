@@ -47,7 +47,7 @@ impl Preferences for PreferencesImpl {
     }
   }
 
-  fn set_last_completed_reports_interval(&self, _: PreferencesKey, value: ReportsInterval) {
+  fn set_last_completed_reports_interval(&self, key: PreferencesKey, value: ReportsInterval) {
     let mut config = self.config.write();
     config.last_completed_reports_interval = Some(value);
 
