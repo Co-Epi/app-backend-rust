@@ -43,7 +43,7 @@ impl Preferences for PreferencesImpl {
 
   fn last_completed_reports_interval(&self, key: PreferencesKey) -> Option<ReportsInterval> {
     match key {
-      LastCompletedReportsInterval => self.config.read().last_completed_reports_interval
+      PreferencesKey::LastCompletedReportsInterval => self.config.read().last_completed_reports_interval
     }
   }
 

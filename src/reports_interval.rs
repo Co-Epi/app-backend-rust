@@ -42,10 +42,6 @@ pub fn next(&self) -> ReportsInterval {
     self.end() < time.value
   }
 
-  pub fn contains(&self, time: &UnixTime) -> bool {
-    (self.start()..self.end()).contains(&time.value)
-  }
-
   pub fn create_for_with_default_length(time: &UnixTime) -> ReportsInterval {
     Self::create_for(time, 21600)
   }

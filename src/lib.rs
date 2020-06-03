@@ -1,7 +1,6 @@
 use once_cell::sync::OnceCell;
 use persy::{Config, Persy, ValueMode};
 use std::path::Path;
-use tcn::TemporaryContactNumber;
 use errors::Error;
 mod networking;
 mod ios;
@@ -35,18 +34,6 @@ pub const DB_UNINIT: &str = "DB not initialized";
 // TODO since we're using DI put this in a dependency, to be consistent
 pub static DB: OnceCell<Persy> = OnceCell::new();
 
-fn u128_of_tcn(tcn: &TemporaryContactNumber) -> u128 {
-    u128::from_le_bytes(tcn.0)
-}
-
-// maybe we don't care about this one?
-// leaving it here in case I need it as the library evolves
-// TODO: consider deleting
-// fn cen_of_u128(u: u128) -> ContactEventNumber {
-//     ContactEventNumber(u.to_le_bytes())
-// }
-
-
 // TODO refactor these (byte_vec_to) convertions or better way?
 
 // TODO move to utils file or similar. Consider returning Result instead of panicking.
@@ -69,23 +56,6 @@ pub fn byte_vec_to_8_byte_array(bytes: Vec<u8>) -> [u8; 8] {
   let bytes = &bytes[..array.len()]; // panics if not enough data
   array.copy_from_slice(bytes); 
   array
-}
-
-
-fn all_stored_tcns() -> Res<Vec<u128>> {
-    let mut out: Vec<u128> = Vec::new();
-
-    let items = DB
-        .get()
-        .ok_or(DB_UNINIT)?
-        .scan("tcn")?;
-
-    for (_id,content) in items {
-      let byte_array: [u8; 16] = byte_vec_to_16_byte_array(content);
-      let tcn_bits: u128 = u128::from_le_bytes(byte_array);
-      out.push(tcn_bits);
-    }
-    Ok(out)
 }
 
 // TODO (deleting of TCNs not critical for now)
