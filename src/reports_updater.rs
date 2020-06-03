@@ -1,53 +1,114 @@
-use crate::{networking::{TcnApi, NetworkingError}, reports_interval, DB_UNINIT, DB, byte_vec_to_16_byte_array, errors::{Error, ServicesError}, preferences::{PreferencesKey, Preferences}, byte_vec_to_24_byte_array, byte_vec_to_8_byte_array, reporting::{public_report::{PublicReport, FeverSeverity, CoughSeverity}, memo::{Memo, MemoMapper}, symptom_inputs::UserInput}};
+use crate::{networking::{TcnApi, NetworkingError}, reports_interval, DB_UNINIT, DB, byte_vec_to_16_byte_array, errors::{Error, ServicesError}, preferences::{PreferencesKey, Preferences}, byte_vec_to_24_byte_array, byte_vec_to_8_byte_array, reporting::{public_report::PublicReport, memo::{Memo, MemoMapper}}};
 use reports_interval::{ReportsInterval, UnixTime};
 use tcn::{TemporaryContactNumber, SignedReport};
 use std::{time::Instant, sync::Arc};
 use serde::Serialize;
 use uuid::Uuid;
 use chrono::Utc;
-use std::collections::HashMap;
+use std::{thread, collections::HashMap};
+use thread::JoinHandle;
+use rayon::prelude::*;
 
 pub trait TcnMatcher {
   fn match_reports(&self, tcns: Vec<ObservedTcn>, reports: Vec<SignedReport>) -> Result<Vec<MatchedReport>, ServicesError>;
 }
 
-pub struct TcnMatcherImpl {}
-impl TcnMatcher for TcnMatcherImpl {
+#[derive(Debug, Clone)]
+pub struct MatchedReport{ report: SignedReport, contact_time: UnixTime }
+
+pub struct TcnMatcherRayon {}
+
+impl TcnMatcher for TcnMatcherRayon {
   fn match_reports(&self, tcns: Vec<ObservedTcn>, reports: Vec<SignedReport>) -> Result<Vec<MatchedReport>, ServicesError> {
     Self::match_reports_with(tcns, reports)
   }
 }
  
-#[derive(Debug, Clone)]
-pub struct MatchedReport{ report: SignedReport, contact_time: UnixTime }
+impl TcnMatcherRayon {
 
-// TODO remove duplicate matcher functions from lib.rs
-impl TcnMatcherImpl {
-
-  // TODO use TCN repo's match_btreeset test code? Compare performance.
   pub fn match_reports_with(tcns: Vec<ObservedTcn>, reports: Vec<SignedReport>) -> Result<Vec<MatchedReport>, ServicesError> {
-    let mut out: Vec<MatchedReport> = Vec::new();
-
     let observed_tcns_map: HashMap<[u8; 16], ObservedTcn> = tcns.into_iter().map(|e|
       (e.tcn.0, e)
     ).collect();
 
-    for report in reports {
-      // TODO no unwrap
-      let rep = report.clone().verify().unwrap();
-      for tcn in rep.temporary_contact_numbers() {
-        if let Some(entry) = observed_tcns_map.get(&tcn.0) {
-          out.push(MatchedReport { report, contact_time: entry.time.clone() });
-          break;
-        }
+    let observed_tcns_map = Arc::new(observed_tcns_map);
+
+    let res: Vec<Option<MatchedReport>> = reports.par_iter().map(|report| {
+      Self::match_report_with(&observed_tcns_map, report) 
+    }).collect();
+    
+
+    let res: Vec<MatchedReport> = res
+      .into_iter()
+      .filter_map(|option| option) // drop None (reports that didn't match)
+      .collect();
+
+    Ok(res)
+  }
+
+  pub fn match_report_with(observed_tcns_map: &HashMap<[u8; 16], ObservedTcn>, report: &SignedReport) -> Option<MatchedReport> {
+    let mut out: Option<MatchedReport> = None;
+
+    // TODO no unwrap
+    let rep = report.clone().verify().unwrap();
+    for tcn in rep.temporary_contact_numbers() {
+      if let Some(entry) = observed_tcns_map.get(&tcn.0) {
+        out = Some(MatchedReport { report: report.clone(), contact_time: entry.time.clone() });
+        break;
       }
     }
-
-    Ok(out)
+    out
   }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+pub struct TcnMatcherStdThreadSpawn {}
+
+impl TcnMatcher for TcnMatcherStdThreadSpawn {
+  fn match_reports(&self, tcns: Vec<ObservedTcn>, reports: Vec<SignedReport>) -> Result<Vec<MatchedReport>, ServicesError> {
+    Self::match_reports_with(tcns, reports)
+  }
+}
+ 
+impl TcnMatcherStdThreadSpawn {
+
+  pub fn match_reports_with(tcns: Vec<ObservedTcn>, reports: Vec<SignedReport>) -> Result<Vec<MatchedReport>, ServicesError> {
+    let observed_tcns_map: HashMap<[u8; 16], ObservedTcn> = tcns.into_iter().map(|e|
+      (e.tcn.0, e)
+    ).collect();
+
+    let observed_tcns_map = Arc::new(observed_tcns_map);
+
+    let threads: Vec<JoinHandle<Option<MatchedReport>>> = reports.into_iter().map(|report| {
+      let observed_tcns_map = observed_tcns_map.clone();
+      thread::spawn(move || Self::match_report_with(&observed_tcns_map, report)
+    )}).collect();
+
+    let res: Vec<MatchedReport> = threads
+      .into_iter()
+      .map(|t| t.join().unwrap())
+      .filter_map(|option| option) // drop None (reports that didn't match)
+      .collect();
+
+    Ok(res)
+  }
+
+  pub fn match_report_with(observed_tcns_map: &HashMap<[u8; 16], ObservedTcn>, report: SignedReport) -> Option<MatchedReport> {
+    let mut out: Option<MatchedReport> = None;
+
+    // TODO no unwrap
+    let rep = report.clone().verify().unwrap();
+    for tcn in rep.temporary_contact_numbers() {
+      if let Some(entry) = observed_tcns_map.get(&tcn.0) {
+        out = Some(MatchedReport { report, contact_time: entry.time.clone() });
+        break;
+      }
+    }
+    out
+  }
+}
+
+
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ObservedTcn { tcn: TemporaryContactNumber, time: UnixTime }
 
 impl ObservedTcn {
@@ -160,6 +221,21 @@ pub struct ReportsUpdater<'a,
   pub memo_mapper: &'a MemoMapperType,
 }
 
+trait SignedReportExt {
+  fn with_str(str: &str) -> Option<SignedReport> {
+    base64::decode(str)
+    .map(|bytes| SignedReport::read( bytes.as_slice()).unwrap())
+    .also(|res| if res.is_err() { print!("error!"); })
+    .map_err(|err| {
+      println!("Error: {}", err);
+      err
+    })
+    .ok()
+  }
+}
+impl SignedReportExt for SignedReport {}
+
+
 impl<'a, 
   PreferencesType: Preferences, TcnDaoType: TcnDao, TcnMatcherType: TcnMatcher, ApiType: TcnApi, MemoMapperType: MemoMapper
 > ReportsUpdater<'a, PreferencesType, TcnDaoType, TcnMatcherType, ApiType, MemoMapperType> {
@@ -242,7 +318,7 @@ impl<'a,
             reports: report_strings
               .into_iter()
               .filter_map(|report_string|
-                Self::to_signed_report(&report_string).also(|res|
+                SignedReport::with_str(&report_string).also(|res|
                     if res.is_none() {
                         println!("Failed to convert report string: $it to report");
                     }
@@ -302,18 +378,7 @@ impl<'a,
 
     matched_reports
   }
-
-  fn to_signed_report(report_string: &str) -> Option<SignedReport> {
-    base64::decode(report_string)
-    .map(|bytes| SignedReport::read( bytes.as_slice()).unwrap())
-    .also(|res| if res.is_err() { print!("error!"); })
-    .map_err(|err| {
-      println!("Error: {}", err);
-      err
-    })
-    .ok()
-  }
-
+  
   fn interval_ending_before(mut intervals: Vec<ReportsInterval>, time: &UnixTime) -> Option<ReportsInterval> {
     // TODO shorter version of this?
     let reversed: Vec<ReportsInterval> = intervals.into_iter().rev().collect();
@@ -356,6 +421,9 @@ struct SignedReportsChunk {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use tcn::{MemoType, ReportAuthorizationKey};
+  use crate::reporting::{symptom_inputs::UserInput, memo::MemoMapperImpl, public_report::{CoughSeverity, FeverSeverity}};
+  use std::io::Cursor;
 
   #[test]
   fn tcn_saved_and_restored_from_bytes() {
@@ -368,5 +436,60 @@ mod tests {
     let observed_tcn_as_bytes = observed_tcn.as_bytes();
     let observed_tc_from_bytes = ObservedTcn::from_bytes(observed_tcn_as_bytes);
     assert_eq!(observed_tc_from_bytes, observed_tcn);
+  }
+
+  #[test]
+  fn matching_benchmark() {
+
+    let verification_report_str = "D7Z8XrufMgfsFH3K5COnv17IFG2ahDb4VM/UMK/5y0+/OtUVVTh7sN0DQ5+R+ocecTilR+SIIpPHzujeJdJzugEAECcAFAEAmmq5XgAAAACaarleAAAAACEBo8p1WdGeXb5O5/3kN6x7GSylgiYGIGsABl3NrxhJu9XHwsN3f6yvRwUxs2fhP4oU5E3+JWabBP6v09pGV1xRCw==";
+    let verification_report_tcn: [u8; 16] = [24, 229, 125, 245, 98, 86, 219, 221, 172, 25, 232, 150, 206, 66, 164, 173]; // belongs to report
+    let verification_contact_time =  UnixTime { value: 1590528300 };
+    let verification_report = SignedReport::with_str(verification_report_str).unwrap();
+
+    let mut reports: Vec<SignedReport> = vec![0; 20].into_iter().map(|_| create_test_report()).collect();
+    reports.push(verification_report);
+
+    // let matcher = TcnMatcherStdThreadSpawn {}; // 20 -> 1s, 200 -> 16s, 1000 -> 84s, 10000 ->
+    let matcher = TcnMatcherRayon {}; // 20 -> 1s, 200 -> 7s, 1000 -> 87s, 10000 -> 927s
+
+    let tcns = vec![
+      ObservedTcn { tcn: TemporaryContactNumber([0; 16]), time: UnixTime { value: 1590528300 } },
+      ObservedTcn { tcn: TemporaryContactNumber(verification_report_tcn), time:  verification_contact_time.clone() },
+      ObservedTcn { tcn: TemporaryContactNumber([1; 16]), time: UnixTime { value: 1590528300 } },
+    ];
+
+    let matching_start_time = Instant::now();
+
+    let res = matcher.match_reports(tcns, reports);
+
+    let matches = res.unwrap();
+    assert_eq!(matches.len(), 1);
+
+    let time = matching_start_time.elapsed().as_secs();
+    println!("Took {:?}s to match reports", time);
+
+    // Short verification that matching is working
+    let matched_report_str = base64::encode(signed_report_to_bytes(matches[0].report.clone()));
+    assert_eq!(matched_report_str, verification_report_str);
+    assert_eq!(matches[0].contact_time, verification_contact_time);
+  }
+
+  fn create_test_report() -> SignedReport {
+    let memo_mapper = MemoMapperImpl {};
+    let public_report = PublicReport {
+      earliest_symptom_time: UserInput::Some(UnixTime { value: 1589209754 }),
+      fever_severity: FeverSeverity::Serious,
+      breathlessness: true,
+      cough_severity: CoughSeverity::Existing
+    };
+    let rak = ReportAuthorizationKey::new(rand::thread_rng());
+    let memo_data = memo_mapper.to_memo(public_report, UnixTime { value: 1589209754 });
+    rak.create_report(MemoType::CoEpiV1, memo_data.bytes, 1, 10000).unwrap()
+  }
+
+  fn signed_report_to_bytes(signed_report: SignedReport) -> Vec<u8> {
+    let mut buf = Vec::new();
+    signed_report.write(Cursor::new(&mut buf)).expect("Couldn't write signed report bytes");
+    buf
   }
 }
