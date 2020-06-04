@@ -12,6 +12,18 @@ pub trait TcnApi {
   fn post_report(&self, report: String) -> Result<(), NetworkingError>;
 }
 
+pub struct TcnApiMock {}
+
+impl TcnApi for TcnApiMock{
+  fn get_reports(&self, interval_number: u64, interval_length: u64) -> Result<Vec<String>, NetworkingError> {
+    Err(NetworkingError{ http_status: 500, message: "Not impl".to_string()})
+  }
+
+  fn post_report(&self, report: String) -> Result<(), NetworkingError> {
+    Ok(())
+  }
+}
+
 pub struct TcnApiImpl {}
 
 impl TcnApiImpl {
@@ -37,12 +49,16 @@ impl TcnApi for TcnApiImpl {
   }
 
   fn post_report(&self, report: String) -> Result<(), NetworkingError> {
+    println!("RUST posting report: {}", report);
+
     let url: &str = &format!("{}/tcnreport", BASE_URL);
     let client = Self::create_client()?;
     let response = client.post(url)
       .header("Content-Type", "application/json")
       .body(report)
       .send()?;
+
+    println!("RUST post report success: {:?}", response);
     Ok(response).map(|_| ())
   }
 }

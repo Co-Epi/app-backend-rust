@@ -1,16 +1,12 @@
 use chrono::prelude::*;
 use serde::Serialize;
 use serde::Deserialize;
-
+#[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 pub struct UnixTime {
-  value: u64
+  pub value: u64
 }
 
 impl UnixTime {
-  pub fn from_value(value: u64) -> UnixTime {
-    UnixTime { value }
-  }
-
   pub fn now() -> UnixTime {
     UnixTime { value: Utc::now().timestamp() as u64 }
   }
@@ -44,10 +40,6 @@ pub fn next(&self) -> ReportsInterval {
 
   pub fn ends_before(&self, time: &UnixTime) -> bool {
     self.end() < time.value
-  }
-
-  pub fn contains(&self, time: &UnixTime) -> bool {
-    (self.start()..self.end()).contains(&time.value)
   }
 
   pub fn create_for_with_default_length(time: &UnixTime) -> ReportsInterval {

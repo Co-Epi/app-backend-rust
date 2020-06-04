@@ -1,5 +1,5 @@
 [package]
-name = "tcn_client"
+name = "coepi_core"
 version = "0.1.0"
 authors = ["theseriousadult <jack@gallabytes.com>, ivanschuetz <ivanhp978@gmail.com>"]
 edition = "2018"
@@ -8,8 +8,8 @@ edition = "2018"
 jni = { version = "0.5", default-features = false }
 
 [lib]
-name = "tcn_client"
-crate-type = ["dylib"] # "cdylib", "staticlib",
+name = "coepi_core"
+crate-type = ["dylib"] # "cdylib", "staticlib", 
 
 [dependencies]
 # persy = "0.9"
@@ -26,6 +26,10 @@ crate-type = ["dylib"] # "cdylib", "staticlib",
 # confy = "0.4.0"
 # parking_lot = "0.10.2"
 # uuid = { version = "0.8.1", features = ["v4"] }
+# rand = "0.7"
+# hex = "0.4.2"
+# serde-big-array = "0.3.0"
+# rayon = "1.1"
 
 # [dependencies.tcn]
 # git = "https://github.com/TCNCoalition/TCN.git"
