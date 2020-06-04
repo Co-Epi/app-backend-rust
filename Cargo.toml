@@ -6,7 +6,7 @@ edition = "2018"
 
 [lib]
 name = "coepi_core"
-crate-type = ["staticlib", "dylib"] # "cdylib"
+crate-type = ["staticlib", "cdylib"]
 
 [dependencies]
 
