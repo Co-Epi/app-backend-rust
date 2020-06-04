@@ -4,33 +4,35 @@ version = "0.1.0"
 authors = ["theseriousadult <jack@gallabytes.com>, ivanschuetz <ivanhp978@gmail.com>"]
 edition = "2018"
 
+[lib]
+name = "coepi_core"
+crate-type = ["staticlib", "dylib"] # "cdylib"
+
+[dependencies]
+
+[target.'cfg(target_os="ios")'.dependencies]
+persy = "0.9"
+once_cell = "1.3.1"
+reqwest = { version = "0.10.2", features = ["blocking", "json"] }
+cbindgen = "0.9.0"
+serde_json = "1.0"
+serde = "1.0"
+# ios
+libc = "0.2"
+core-foundation = "0.6.2"
+base64 = "0.12.1"
+chrono = "0.4"
+confy = "0.4.0"
+parking_lot = "0.10.2"
+uuid = { version = "0.8.1", features = ["v4"] }
+rand = "0.7"
+hex = "0.4.2"
+serde-big-array = "0.3.0"
+rayon = "1.1"
+
 [target.'cfg(target_os="android")'.dependencies]
 jni = { version = "0.5", default-features = false }
 
-[lib]
-name = "coepi_core"
-crate-type = ["dylib"] # "cdylib", "staticlib", 
-
-[dependencies]
-# persy = "0.9"
-# once_cell = "1.3.1"
-# reqwest = { version = "0.10.2", features = ["blocking", "json"] }
-# cbindgen = "0.9.0"
-# serde_json = "1.0"
-# serde = "1.0"
-# ios
-# libc = "0.2"
-# core-foundation = "0.6.2"
-# base64 = "0.12.1"
-# chrono = "0.4"
-# confy = "0.4.0"
-# parking_lot = "0.10.2"
-# uuid = { version = "0.8.1", features = ["v4"] }
-# rand = "0.7"
-# hex = "0.4.2"
-# serde-big-array = "0.3.0"
-# rayon = "1.1"
-
-# [dependencies.tcn]
-# git = "https://github.com/TCNCoalition/TCN.git"
-# branch = "main"
+[dependencies.tcn]
+git = "https://github.com/TCNCoalition/TCN.git"
+branch = "main"
