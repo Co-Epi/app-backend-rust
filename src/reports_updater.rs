@@ -577,13 +577,14 @@ mod tests {
     fn create_test_report() -> SignedReport {
         let memo_mapper = MemoMapperImpl {};
         let public_report = PublicReport {
+            report_time: UnixTime { value: 1589209754 },
             earliest_symptom_time: UserInput::Some(UnixTime { value: 1589209754 }),
             fever_severity: FeverSeverity::Serious,
             breathlessness: true,
             cough_severity: CoughSeverity::Existing,
         };
         let rak = ReportAuthorizationKey::new(rand::thread_rng());
-        let memo_data = memo_mapper.to_memo(public_report, UnixTime { value: 1589209754 });
+        let memo_data = memo_mapper.to_memo(public_report);
         rak.create_report(MemoType::CoEpiV1, memo_data.bytes, 1, 10000)
             .unwrap()
     }

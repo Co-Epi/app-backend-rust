@@ -155,7 +155,7 @@ impl<'a, T: MemoMapper, U: TcnKeys, V: TcnApi> SymptomInputsSubmitter<T, U, V>
     for SymptomInputsSubmitterImpl<'a, T, U, V>
 {
     fn submit_inputs(&self, inputs: SymptomInputs) -> Result<(), ServicesError> {
-        let public_report = PublicReport::with_inputs(inputs);
+        let public_report = PublicReport::with_inputs(inputs, UnixTime::now());
 
         if !public_report.should_be_sent() {
             println!("RUST Public report: {:?} doesn't contain infos relevant to other users. Not sending.", public_report);
@@ -164,7 +164,7 @@ impl<'a, T: MemoMapper, U: TcnKeys, V: TcnApi> SymptomInputsSubmitter<T, U, V>
 
         println!("RUST Created public report: {:?}", public_report);
 
-        let memo = self.memo_mapper.to_memo(public_report, UnixTime::now());
+        let memo = self.memo_mapper.to_memo(public_report);
 
         println!("RUST mapped public report to memo: {:?}", memo.bytes);
 
@@ -238,7 +238,7 @@ mod tests {
             earliest_symptom,
         };
 
-        let public_report = PublicReport::with_inputs(inputs);
+        let public_report = PublicReport::with_inputs(inputs, UnixTime { value: 0 });
 
         println!("{:#?}", public_report);
         /*
@@ -264,6 +264,7 @@ mod tests {
         assert_eq!(1, 1);
 
         let report_which_should_be_sent = PublicReport {
+            report_time: UnixTime { value: 0 },
             earliest_symptom_time: UserInput::Some(UnixTime { value: 1590356601 }),
             fever_severity: FeverSeverity::Mild,
             cough_severity: CoughSeverity::Dry,
@@ -273,6 +274,7 @@ mod tests {
         assert_eq!(true, report_which_should_be_sent.should_be_sent());
 
         let report_which_should_not_be_sent = PublicReport {
+            report_time: UnixTime { value: 0 },
             earliest_symptom_time: UserInput::Some(UnixTime { value: 1590356601 }),
             fever_severity: FeverSeverity::None,
             cough_severity: CoughSeverity::None,
@@ -285,6 +287,7 @@ mod tests {
     #[test]
     fn test_public_report_to_signed_report() {
         let report_which_should_be_sent = PublicReport {
+            report_time: UnixTime { value: 0 },
             earliest_symptom_time: UserInput::Some(UnixTime { value: 1590356601 }),
             fever_severity: FeverSeverity::Mild,
             cough_severity: CoughSeverity::Dry,
@@ -311,9 +314,7 @@ mod tests {
             api: &TcnApiMock {},
         };
 
-        let memo = submitter
-            .memo_mapper
-            .to_memo(report_which_should_be_sent, UnixTime::now());
+        let memo = submitter.memo_mapper.to_memo(report_which_should_be_sent);
 
         let signed_report = match submitter.tcn_keys.create_report(memo.bytes) {
             Ok(signed) => signed,
