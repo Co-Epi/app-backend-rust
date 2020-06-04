@@ -10,6 +10,6 @@ mkdir $PATH_TO_ANDROID_MAIN/jniLibs/arm64
 mkdir $PATH_TO_ANDROID_MAIN/jniLibs/armeabi
 mkdir $PATH_TO_ANDROID_MAIN/jniLibs/x86
 
-ln -s $PATH_TO_LIB_REPO/target/aarch64-linux-android/release/libtcn_client.so $PATH_TO_ANDROID_MAIN/jniLibs/arm64/libtcn_client.so
-ln -s $PATH_TO_LIB_REPO/target/i686-linux-android/release/libtcn_client.so $PATH_TO_ANDROID_MAIN/jniLibs/x86/libtcn_client.so
-ln -s $PATH_TO_LIB_REPO/target/armv7-linux-androideabi/release/libtcn_client.so $PATH_TO_ANDROID_MAIN/jniLibs/armeabi/libtcn_client.so
+ln -s $PATH_TO_LIB_REPO/target/aarch64-linux-android/release/libcoepi_core.so $PATH_TO_ANDROID_MAIN/jniLibs/arm64/libcoepi_core.so
+ln -s $PATH_TO_LIB_REPO/target/i686-linux-android/release/libcoepi_core.so $PATH_TO_ANDROID_MAIN/jniLibs/x86/libcoepi_core.so
+ln -s $PATH_TO_LIB_REPO/target/armv7-linux-androideabi/release/libcoepi_core.so $PATH_TO_ANDROID_MAIN/jniLibs/armeabi/libcoepi_core.so
