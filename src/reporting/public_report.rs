@@ -18,6 +18,7 @@ pub enum CoughSeverity {
 
 #[derive(Debug, PartialEq, Clone, Serialize)]
 pub struct PublicReport {
+    pub report_time: UnixTime,
     pub earliest_symptom_time: UserInput<UnixTime>,
     pub fever_severity: FeverSeverity,
     pub cough_severity: CoughSeverity,
@@ -31,8 +32,9 @@ impl PublicReport {
             || self.breathlessness
     }
 
-    pub fn with_inputs(inputs: SymptomInputs) -> PublicReport {
+    pub fn with_inputs(inputs: SymptomInputs, report_time: UnixTime) -> PublicReport {
         PublicReport {
+            report_time,
             breathlessness: inputs.ids.contains(&SymptomId::Breathlessness),
             earliest_symptom_time: inputs.earliest_symptom.time,
             fever_severity: to_fever_severity(inputs.fever),
