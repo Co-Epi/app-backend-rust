@@ -30,4 +30,4 @@ rayon = "1.1"
 
 [dependencies.tcn]
 git = "https://github.com/TCNCoalition/TCN.git"
-branch = "main"
+rev = "c8de5a7a6a0bd681f69f27e77a493832af47e482"
