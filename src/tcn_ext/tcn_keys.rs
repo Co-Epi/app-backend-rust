@@ -77,6 +77,7 @@ where
             .authorization_key()
             .map(|rak_bytes| ReportAuthorizationKey::with_bytes(rak_bytes)) //Self::bytes_to_rak(rak_bytes))
             .unwrap_or({
+            .unwrap_or_else(|| {
                 let new_key = ReportAuthorizationKey::new(rand::thread_rng());
                 self.preferences
                     .set_autorization_key(Self::rak_to_bytes(new_key));
