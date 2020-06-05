@@ -124,7 +124,10 @@ where
     None,
 }
 
-impl<T: Serialize> UserInput<T> {
+impl<T> UserInput<T>
+where
+    T: Serialize,
+{
     pub fn map<F: FnOnce(T) -> U, U: Serialize>(self, f: F) -> UserInput<U> {
         match self {
             UserInput::Some(input) => UserInput::Some(f(input)),
@@ -138,29 +141,18 @@ pub struct EarliestSymptom {
     pub time: UserInput<UnixTime>,
 }
 
-pub trait SymptomInputsSubmitter<
-    MemoMapperType: MemoMapper,
-    TcnKeysType: TcnKeys,
-    TcnApiType: TcnApi,
->
-{
+pub trait SymptomInputsSubmitter<T: MemoMapper, U: TcnKeys, V: TcnApi> {
     fn submit_inputs(&self, inputs: SymptomInputs) -> Result<(), ServicesError>;
 }
 
-pub struct SymptomInputsSubmitterImpl<
-    'a,
-    MemoMapperType: MemoMapper,
-    TcnKeysType: TcnKeys,
-    TcnApiType: TcnApi,
-> {
-    pub memo_mapper: &'a MemoMapperType,
-    pub tcn_keys: Arc<TcnKeysType>,
-    pub api: &'a TcnApiType,
+pub struct SymptomInputsSubmitterImpl<'a, T: MemoMapper, U: TcnKeys, V: TcnApi> {
+    pub memo_mapper: &'a T,
+    pub tcn_keys: Arc<U>,
+    pub api: &'a V,
 }
 
-impl<'a, MemoMapperType: MemoMapper, TcnKeysType: TcnKeys, TcnApiType: TcnApi>
-    SymptomInputsSubmitter<MemoMapperType, TcnKeysType, TcnApiType>
-    for SymptomInputsSubmitterImpl<'a, MemoMapperType, TcnKeysType, TcnApiType>
+impl<'a, T: MemoMapper, U: TcnKeys, V: TcnApi> SymptomInputsSubmitter<T, U, V>
+    for SymptomInputsSubmitterImpl<'a, T, U, V>
 {
     fn submit_inputs(&self, inputs: SymptomInputs) -> Result<(), ServicesError> {
         let public_report = PublicReport::with_inputs(inputs);

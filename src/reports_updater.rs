@@ -179,11 +179,17 @@ pub trait ObservedTcnProcessor {
     fn save(&self, tcn_str: &str) -> Result<(), ServicesError>;
 }
 
-pub struct ObservedTcnProcessorImpl<'a, A: TcnDao> {
-    pub tcn_dao: &'a A,
+pub struct ObservedTcnProcessorImpl<'a, T>
+where
+    T: TcnDao,
+{
+    pub tcn_dao: &'a T,
 }
 
-impl<'a, A: TcnDao> ObservedTcnProcessor for ObservedTcnProcessorImpl<'a, A> {
+impl<'a, T> ObservedTcnProcessor for ObservedTcnProcessorImpl<'a, T>
+where
+    T: TcnDao,
+{
     fn save(&self, tcn_str: &str) -> Result<(), ServicesError> {
         let bytes_vec: Vec<u8> = hex::decode(tcn_str)?;
         let observed_tcn = ObservedTcn {
@@ -256,19 +262,12 @@ pub struct Alert {
     contact_time: u64,
 }
 
-pub struct ReportsUpdater<
-    'a,
-    PreferencesType: Preferences,
-    TcnDaoType: TcnDao,
-    TcnMatcherType: TcnMatcher,
-    ApiType: TcnApi,
-    MemoMapperType: MemoMapper,
-> {
-    pub preferences: Arc<PreferencesType>,
-    pub tcn_dao: &'a TcnDaoType,
-    pub tcn_matcher: TcnMatcherType,
-    pub api: &'a ApiType,
-    pub memo_mapper: &'a MemoMapperType,
+pub struct ReportsUpdater<'a, T: Preferences, U: TcnDao, V: TcnMatcher, W: TcnApi, X: MemoMapper> {
+    pub preferences: Arc<T>,
+    pub tcn_dao: &'a U,
+    pub tcn_matcher: V,
+    pub api: &'a W,
+    pub memo_mapper: &'a X,
 }
 
 trait SignedReportExt {
@@ -289,14 +288,13 @@ trait SignedReportExt {
 }
 impl SignedReportExt for SignedReport {}
 
-impl<
-        'a,
-        PreferencesType: Preferences,
-        TcnDaoType: TcnDao,
-        TcnMatcherType: TcnMatcher,
-        ApiType: TcnApi,
-        MemoMapperType: MemoMapper,
-    > ReportsUpdater<'a, PreferencesType, TcnDaoType, TcnMatcherType, ApiType, MemoMapperType>
+impl<'a, T, U, V, W, X> ReportsUpdater<'a, T, U, V, W, X>
+where
+    T: Preferences,
+    U: TcnDao,
+    V: TcnMatcher,
+    W: TcnApi,
+    X: MemoMapper,
 {
     pub fn fetch_new_reports(&self) -> Result<Vec<Alert>, ServicesError> {
         self.retrieve_and_match_new_reports().map(|signed_reports| {
@@ -392,7 +390,7 @@ impl<
                     })
                 })
                 .collect(),
-            interval: interval,
+            interval,
         })
     }
 
@@ -476,7 +474,10 @@ impl<
 
 // To insert easily side effects in flows anywhere (from Kotlin)
 trait Also: Sized {
-    fn also<F: FnOnce(&Self) -> ()>(self, f: F) -> Self {
+    fn also<T>(self, f: T) -> Self
+    where
+        T: FnOnce(&Self) -> (),
+    {
         f(&self);
         self
     }
