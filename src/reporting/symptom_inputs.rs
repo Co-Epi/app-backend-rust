@@ -1,12 +1,10 @@
 use super::{memo::MemoMapper, public_report::*};
 use crate::{
-    errors::ServicesError,
-    networking::TcnApi,
-    reports_interval::UnixTime,
+    errors::ServicesError, networking::TcnApi, reports_interval::UnixTime,
     tcn_ext::tcn_keys::TcnKeys,
 };
-use std::{io::Cursor, collections::HashSet, sync::Arc};
 use serde::{Deserialize, Serialize};
+use std::{collections::HashSet, io::Cursor, sync::Arc};
 use tcn::SignedReport;
 
 #[derive(Debug, Deserialize, Clone)]
@@ -149,7 +147,6 @@ pub trait SymptomInputsSubmitter<
     fn submit_inputs(&self, inputs: SymptomInputs) -> Result<(), ServicesError>;
 }
 
-
 pub struct SymptomInputsSubmitterImpl<
     'a,
     MemoMapperType: MemoMapper,
@@ -201,12 +198,15 @@ fn signed_report_to_bytes(signed_report: SignedReport) -> Vec<u8> {
 mod tests {
     use super::*;
     use crate::errors;
+    use crate::errors::ServicesError;
     use crate::errors::ServicesError::Error;
     use crate::preferences::PreferencesTckMock;
     use crate::reporting::memo::MemoMapperImpl;
-    use crate::errors::ServicesError;
-    use crate::{tcn_ext::tcn_keys::{ReportAuthorizationKeyExt, TcnKeysImpl}, networking::TcnApiMock};
-    use tcn::{TemporaryContactKey, ReportAuthorizationKey};
+    use crate::{
+        networking::TcnApiMock,
+        tcn_ext::tcn_keys::{ReportAuthorizationKeyExt, TcnKeysImpl},
+    };
+    use tcn::{ReportAuthorizationKey, TemporaryContactKey};
 
     #[test]
     fn test_public_report_with_inputs() {
@@ -307,12 +307,10 @@ mod tests {
         println!(">> tck: {:#?}", tck);
         let tck_bytes = TcnKeysImpl::<PreferencesTckMock>::tck_to_bytes(tck);
 
-        let preferences = Arc::new(PreferencesTckMock {
-            tck_bytes,
-        });
+        let preferences = Arc::new(PreferencesTckMock { tck_bytes });
 
-        let tcn_keys = Arc::new(TcnKeysImpl{
-          preferences: preferences.clone()
+        let tcn_keys = Arc::new(TcnKeysImpl {
+            preferences: preferences.clone(),
         });
 
         let submitter = SymptomInputsSubmitterImpl {
@@ -400,9 +398,12 @@ mod tests {
         inputs
     }
 
-    fn testing_get_submitter(
-    ) -> SymptomInputsSubmitterImpl<'static, MemoMapperImpl, TcnKeysImpl<PreferencesTckMock>, TcnApiMock>
-    {
+    fn testing_get_submitter() -> SymptomInputsSubmitterImpl<
+        'static,
+        MemoMapperImpl,
+        TcnKeysImpl<PreferencesTckMock>,
+        TcnApiMock,
+    > {
         let rak_bytes = [
             42, 118, 64, 131, 236, 36, 122, 23, 13, 108, 73, 171, 102, 145, 66, 91, 157, 105, 195,
             126, 139, 162, 15, 31, 0, 22, 31, 230, 242, 241, 225, 85,
@@ -415,8 +416,8 @@ mod tests {
             tck_bytes: tck_bytes,
         });
 
-        let tcn_keys = Arc::new(TcnKeysImpl{
-          preferences: preferences.clone()
+        let tcn_keys = Arc::new(TcnKeysImpl {
+            preferences: preferences.clone(),
         });
 
         let submitter = SymptomInputsSubmitterImpl {

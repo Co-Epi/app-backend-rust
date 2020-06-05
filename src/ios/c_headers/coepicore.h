@@ -1,23 +1,27 @@
 #include <CoreFoundation/CoreFoundation.h>
 
-typedef struct {
-  uint8_t my_u8;
+typedef struct
+{
+    uint8_t my_u8;
 } FFINestedReturnStruct;
 
-typedef struct {
-  int32_t my_int;
-  CFStringRef my_str;
-  FFINestedReturnStruct my_nested;
+typedef struct
+{
+    int32_t my_int;
+    CFStringRef my_str;
+    FFINestedReturnStruct my_nested;
 } FFIReturnStruct;
 
-typedef struct {
-  uint8_t my_u8;
+typedef struct
+{
+    uint8_t my_u8;
 } FFINestedParameterStruct;
 
-typedef struct {
-  int32_t my_int;
-  const char *my_str;
-  FFINestedParameterStruct my_nested;
+typedef struct
+{
+    int32_t my_int;
+    const char *my_str;
+    FFINestedParameterStruct my_nested;
 } FFIParameterStruct;
 
 CFStringRef bootstrap_core(const char *db_path);
