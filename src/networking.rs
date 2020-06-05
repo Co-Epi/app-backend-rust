@@ -2,8 +2,8 @@ use reqwest::{blocking::{Client, Response}, Error};
 use core::fmt;
 use std::error;
 
-// static BASE_URL: &str = "https://zmqh8rwdx4.execute-api.us-west-2.amazonaws.com/v4/0.4.0";
-static BASE_URL: &str = "https://v1.api.coepi.org/tcnreport/v0.4.0";
+static BASE_URL: &str = "https://zmqh8rwdx4.execute-api.us-west-2.amazonaws.com/v4/tcnreport/0.4.0";
+// static BASE_URL: &str = "https://v1.api.coepi.org/tcnreport/v0.4.0";
 
 static UNKNOWN_HTTP_STATUS: u16 = 520;
 
@@ -37,7 +37,9 @@ impl TcnApiImpl {
 impl TcnApi for TcnApiImpl {
 
   fn get_reports(&self, interval_number: u64, interval_length: u64) -> Result<Vec<String>, NetworkingError> {
-    let url: &str = &format!("{}/tcnreport", BASE_URL);
+    println!("RUST downloading reports: interval: {}, length: {}", interval_number, interval_length);
+
+    let url: &str = BASE_URL;
     let client = Self::create_client()?;
     let response = client.get(url)
       .header("Content-Type", "application/json")
@@ -45,13 +47,14 @@ impl TcnApi for TcnApiImpl {
       .query(&[("intervalLength", interval_length)]) 
       .send()?;
     let reports = response.json::<Vec<String>>()?;
+    println!("RUST retrieved reports count: {}", reports.len());
     Ok(reports)
   }
 
   fn post_report(&self, report: String) -> Result<(), NetworkingError> {
     println!("RUST posting report: {}", report);
 
-    let url: &str = &format!("{}/tcnreport", BASE_URL);
+    let url: &str = BASE_URL;
     let client = Self::create_client()?;
     let response = client.post(url)
       .header("Content-Type", "application/json")
@@ -112,9 +115,8 @@ mod tests {
   #[test]
   fn get_reports_is_ok() {
     let api = TcnApiImpl {};
-    let res = api.get_reports(1, 21600);
+    let res = api.get_reports(73673, 21600);
     assert!(res.is_ok());
-    assert_eq!(res.unwrap(),  Vec::<String>::new());
   }
 
   #[test]
