@@ -29,11 +29,17 @@ pub trait TckBytesWrapperExt {
 
 impl TckBytesWrapperExt for TckBytesWrapper {}
 
-pub struct TcnKeysImpl<PreferencesType: Preferences> {
-    pub preferences: Arc<PreferencesType>,
+pub struct TcnKeysImpl<T>
+where
+    T: Preferences,
+{
+    pub preferences: Arc<T>,
 }
 
-impl<PreferencesType: Preferences> TcnKeys for TcnKeysImpl<PreferencesType> {
+impl<T> TcnKeys for TcnKeysImpl<T>
+where
+    T: Preferences,
+{
     fn create_report(&self, report: Vec<u8>) -> Result<SignedReport, Error> {
         let end_index = self.tck().index();
         let periods = 14 * 24 * (60 / 15);
@@ -62,7 +68,10 @@ impl<PreferencesType: Preferences> TcnKeys for TcnKeysImpl<PreferencesType> {
     }
 }
 
-impl<PreferencesType: Preferences> TcnKeysImpl<PreferencesType> {
+impl<T> TcnKeysImpl<T>
+where
+    T: Preferences,
+{
     fn rak(&self) -> ReportAuthorizationKey {
         self.preferences
             .authorization_key()

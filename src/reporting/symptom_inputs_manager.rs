@@ -41,11 +41,11 @@ pub trait SymptomInputsProcessor {
     fn clear(&self) -> Result<(), ServicesError>;
 }
 
-pub struct SymptomInputsProcessorImpl<A>
+pub struct SymptomInputsProcessorImpl<T>
 where
-    A: SymptomInputsManager,
+    T: SymptomInputsManager,
 {
-    pub inputs_manager: A,
+    pub inputs_manager: T,
 }
 
 impl<A> SymptomInputsProcessor for SymptomInputsProcessorImpl<A>
@@ -243,29 +243,29 @@ pub trait SymptomInputsManager {
     fn clear(&self);
 }
 
-pub struct SymptomInputsManagerImpl<A>
+pub struct SymptomInputsManagerImpl<T>
 where
     // TODO no concrete types here?
-    A: SymptomInputsSubmitter<MemoMapperImpl, TcnKeysImpl<PreferencesImpl>, TcnApiImpl>,
+    T: SymptomInputsSubmitter<MemoMapperImpl, TcnKeysImpl<PreferencesImpl>, TcnApiImpl>,
 {
     pub inputs: Arc<RwLock<SymptomInputs>>,
-    pub inputs_submitter: A,
+    pub inputs_submitter: T,
 }
 
-impl<A> SymptomInputsManagerImpl<A>
+impl<T> SymptomInputsManagerImpl<T>
 where
     // TODO no concrete types here?
-    A: SymptomInputsSubmitter<MemoMapperImpl, TcnKeysImpl<PreferencesImpl>, TcnApiImpl>,
+    T: SymptomInputsSubmitter<MemoMapperImpl, TcnKeysImpl<PreferencesImpl>, TcnApiImpl>,
 {
     fn print_current_state(&self) {
         println!("RUST symptom inputs state: {:?}", self.inputs);
     }
 }
 
-impl<A> SymptomInputsManager for SymptomInputsManagerImpl<A>
+impl<T> SymptomInputsManager for SymptomInputsManagerImpl<T>
 where
     // TODO no concrete types here?
-    A: SymptomInputsSubmitter<MemoMapperImpl, TcnKeysImpl<PreferencesImpl>, TcnApiImpl>,
+    T: SymptomInputsSubmitter<MemoMapperImpl, TcnKeysImpl<PreferencesImpl>, TcnApiImpl>,
 {
     fn select_symptom_ids(&self, ids: HashSet<SymptomId>) {
         self.inputs.write().ids = ids;
