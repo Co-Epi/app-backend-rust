@@ -1,17 +1,13 @@
 use super::{memo::MemoMapper, public_report::*};
-use crate::errors;
-use crate::errors::ServicesError::Error;
-use crate::preferences::PreferencesTckMock;
-use crate::reporting::memo::MemoMapperImpl;
 use crate::{
     errors::ServicesError,
-    networking::{TcnApi, TcnApiMock},
+    networking::TcnApi,
     reports_interval::UnixTime,
-    tcn_ext::tcn_keys::{TcnKeys, TcnKeysImpl, ReportAuthorizationKeyExt},
+    tcn_ext::tcn_keys::TcnKeys,
 };
 use std::{io::Cursor, collections::HashSet, sync::Arc};
 use serde::{Deserialize, Serialize};
-use tcn::{SignedReport, TemporaryContactKey, ReportAuthorizationKey};
+use tcn::SignedReport;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct SymptomInputs {
@@ -204,6 +200,14 @@ fn signed_report_to_bytes(signed_report: SignedReport) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::errors;
+    use crate::errors::ServicesError::Error;
+    use crate::preferences::PreferencesTckMock;
+    use crate::reporting::memo::MemoMapperImpl;
+    use crate::errors::ServicesError;
+    use crate::{tcn_ext::tcn_keys::{ReportAuthorizationKeyExt, TcnKeysImpl}, networking::TcnApiMock};
+    use tcn::{TemporaryContactKey, ReportAuthorizationKey};
+
     #[test]
     fn test_public_report_with_inputs() {
         let breathlessness = Breathlessness {
@@ -304,7 +308,7 @@ mod tests {
         let tck_bytes = TcnKeysImpl::<PreferencesTckMock>::tck_to_bytes(tck);
 
         let preferences = Arc::new(PreferencesTckMock {
-            tck_bytes: tck_bytes,
+            tck_bytes,
         });
 
         let tcn_keys = Arc::new(TcnKeysImpl{
@@ -313,7 +317,7 @@ mod tests {
 
         let submitter = SymptomInputsSubmitterImpl {
             memo_mapper: &MemoMapperImpl {},
-            tcn_keys: tcn_keys,
+            tcn_keys,
             api: &TcnApiMock {},
         };
 
@@ -336,7 +340,7 @@ mod tests {
         let report_str = base64::encode(signed_report_to_bytes(signed_report));
         println!(">> report_str: {:#?}", report_str);
 
-        let res = submitter
+        submitter
             .api
             .post_report(report_str)
             .map_err(ServicesError::from)

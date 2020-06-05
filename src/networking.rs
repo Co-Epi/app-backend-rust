@@ -14,12 +14,12 @@ pub trait TcnApi {
 
 pub struct TcnApiMock {}
 
-impl TcnApi for TcnApiMock{
-  fn get_reports(&self, interval_number: u64, interval_length: u64) -> Result<Vec<String>, NetworkingError> {
+impl TcnApi for TcnApiMock {
+  fn get_reports(&self, _interval_number: u64, _interval_length: u64) -> Result<Vec<String>, NetworkingError> {
     Err(NetworkingError{ http_status: 500, message: "Not impl".to_string()})
   }
 
-  fn post_report(&self, report: String) -> Result<(), NetworkingError> {
+  fn post_report(&self, _report: String) -> Result<(), NetworkingError> {
     Ok(())
   }
 }

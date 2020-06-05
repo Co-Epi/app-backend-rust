@@ -1,4 +1,4 @@
-use crate::preferences::{Preferences, PreferencesTckMock, TckBytesWrapper, TCK_SIZE_IN_BYTES};
+use crate::preferences::{Preferences, TckBytesWrapper, TCK_SIZE_IN_BYTES};
 use std::{io::Cursor, sync::Arc};
 use tcn::{Error, MemoType, ReportAuthorizationKey, SignedReport, TemporaryContactKey, TemporaryContactNumber};
 
@@ -113,6 +113,7 @@ impl<PreferencesType: Preferences> TcnKeysImpl<PreferencesType> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::preferences::PreferencesTckMock;
 
     #[test]
     fn test_rak() {
@@ -129,7 +130,7 @@ mod tests {
         ];
         let key = ReportAuthorizationKey::with_bytes(bytes);
         let tck = key.initial_temporary_contact_key();
-        let tck_bytes = TcnKeysImpl::<PreferencesTckMock>::tck_to_bytes(tck);
+        TcnKeysImpl::<PreferencesTckMock>::tck_to_bytes(tck);
 
     }
 
@@ -140,7 +141,7 @@ mod tests {
             126, 139, 162, 15, 31, 0, 22, 31, 230, 242, 241, 225, 85,
         ];
         let rak = ReportAuthorizationKey::with_bytes(rak_bytes);
-        let tck_1 = rak.initial_temporary_contact_key();
+        let _tck_1 = rak.initial_temporary_contact_key();
 
         let tck_inner_bytes = [
             34, 166, 47, 23, 224, 52, 240, 95, 140, 186, 95, 243, 26, 13, 174, 128, 224, 229, 158,
