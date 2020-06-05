@@ -17,7 +17,6 @@ use std::{collections::HashMap, thread};
 use std::{sync::Arc, time::Instant};
 use tcn::{SignedReport, TemporaryContactNumber};
 use thread::JoinHandle;
-use uuid::Uuid;
 
 pub trait TcnMatcher {
     fn match_reports(
@@ -308,17 +307,14 @@ where
     // Note: For now we will not create an FFI layer to handle JSON conversions, since it may be possible
     // to use directly the data structures.
     fn to_ffi_alert(&self, matched_report: MatchedReport) -> Result<Alert, ServicesError> {
-        let report = matched_report.report.verify()?;
+        let report = matched_report.report.clone().verify()?;
 
         let public_report = self.memo_mapper.to_report(Memo {
             bytes: report.memo_data().to_vec(),
         });
 
         Ok(Alert {
-            // TODO(important) id should be derived from report.
-            // TODO random UUIDs allow duplicate alerts in the DB, which is what we're trying to prevent.
-            // TODO Maybe add id field in TCN library. Everything is currently private.
-            id: format!("{:?}", Uuid::new_v4()),
+            id: format!("{:?}", matched_report.report.sig),
             report: public_report,
             contact_time: matched_report.contact_time.value,
         })
