@@ -521,6 +521,19 @@ mod tests {
         assert_eq!(observed_tc_from_bytes, observed_tcn);
     }
 
+    // Utility to see quickly all TCNs (hex) for a report
+    // #[test]
+    // fn print_tcns_for_report() {
+    //     let report_str = "rOFMgzy3y36MJns34Xj7EZu5Dti9XMhYGRpa/DVznep6q4hMtMYm9sYMg9+sRSHAj0Ff2rHTPXskuzJH0+pZMQEAAgAAFAEAnazaXgAAAAD//////////wMAMFLrKLNOvwUJQSNta9rlzTyjFdpfq25Kv34c6y+ZOoSzRewzNAWsd56Yzm8LUw9cpHB8yyzDUMJ9YTKhD8dADA==";
+    //     let report = SignedReport::with_str(report_str).unwrap();
+
+    //     println!("{:?}", report);
+
+    //     for tcn in report.verify().unwrap().temporary_contact_numbers() {
+    //         println!("{}", hex::encode(tcn.0));
+    //     }
+    // }
+
     #[test]
     fn matching_benchmark() {
         let verification_report_str = "D7Z8XrufMgfsFH3K5COnv17IFG2ahDb4VM/UMK/5y0+/OtUVVTh7sN0DQ5+R+ocecTilR+SIIpPHzujeJdJzugEAECcAFAEAmmq5XgAAAACaarleAAAAACEBo8p1WdGeXb5O5/3kN6x7GSylgiYGIGsABl3NrxhJu9XHwsN3f6yvRwUxs2fhP4oU5E3+JWabBP6v09pGV1xRCw==";
