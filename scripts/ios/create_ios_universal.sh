@@ -25,8 +25,6 @@ cargo build --target=x86_64-apple-ios --release
 libtool -static -o ./target/CoEpiCore ./target/aarch64-apple-ios/release/libcoepi_core.a ./target/x86_64-apple-ios/release/libcoepi_core.a
 
 # Overwrite library in iOS app (downloaded with Carthage) with local build.
-
-#Set PATH_TO_IOS_REPO as environment variable. ie. 'export PATH_TO_IOS_REPO=...'
 PATH_TO_CARTHAGE_FRAMEWORK=$PATH_TO_IOS_REPO/Carthage/Build/iOS/CoEpiCore.framework
 cp ./target/CoEpiCore $PATH_TO_CARTHAGE_FRAMEWORK/Versions/A/
 cp ./src/ios/c_headers/coepicore.h $PATH_TO_CARTHAGE_FRAMEWORK/Versions/A/Headers/
