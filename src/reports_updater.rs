@@ -523,16 +523,14 @@ mod tests {
 
     // Utility to see quickly all TCNs (hex) for a report
     // #[test]
-    // fn print_tcns_for_report() {
-    //     let report_str = "rOFMgzy3y36MJns34Xj7EZu5Dti9XMhYGRpa/DVznep6q4hMtMYm9sYMg9+sRSHAj0Ff2rHTPXskuzJH0+pZMQEAAgAAFAEAnazaXgAAAAD//////////wMAMFLrKLNOvwUJQSNta9rlzTyjFdpfq25Kv34c6y+ZOoSzRewzNAWsd56Yzm8LUw9cpHB8yyzDUMJ9YTKhD8dADA==";
-    //     let report = SignedReport::with_str(report_str).unwrap();
-
-    //     println!("{:?}", report);
-
-    //     for tcn in report.verify().unwrap().temporary_contact_numbers() {
-    //         println!("{}", hex::encode(tcn.0));
-    //     }
-    // }
+    fn _print_tcns_for_report() {
+        let report_str = "rOFMgzy3y36MJns34Xj7EZu5Dti9XMhYGRpa/DVznep6q4hMtMYm9sYMg9+sRSHAj0Ff2rHTPXskuzJH0+pZMQEAAgAAFAEAnazaXgAAAAD//////////wMAMFLrKLNOvwUJQSNta9rlzTyjFdpfq25Kv34c6y+ZOoSzRewzNAWsd56Yzm8LUw9cpHB8yyzDUMJ9YTKhD8dADA==";
+        let report = SignedReport::with_str(report_str).unwrap();
+        println!("{:?}", report);
+        for tcn in report.verify().unwrap().temporary_contact_numbers() {
+            println!("{}", hex::encode(tcn.0));
+        }
+    }
 
     #[test]
     fn matching_benchmark() {
