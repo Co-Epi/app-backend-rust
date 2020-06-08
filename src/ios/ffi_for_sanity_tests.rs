@@ -115,7 +115,7 @@ pub extern "C" fn call_callback(callback: unsafe extern "C" fn(i32, bool, CFStri
     1
 }
 
-static mut SENDER: Option<Sender<String>> = None;
+pub static mut SENDER: Option<Sender<String>> = None;
 
 #[no_mangle]
 pub unsafe extern "C" fn register_callback(

@@ -199,9 +199,12 @@ mod tests {
         tcn_ext::tcn_keys::{ReportAuthorizationKeyExt, TcnKeysImpl},
     };
     use tcn::{ReportAuthorizationKey, TemporaryContactKey};
+    use log::{info, warn};
+    use crate::simple_logger;
 
     #[test]
     fn test_public_report_with_inputs() {
+        
         let breathlessness = Breathlessness {
             cause: UserInput::Some(BreathlessnessCause::HurryOrHill),
         };
@@ -241,6 +244,10 @@ mod tests {
         let public_report = PublicReport::with_inputs(inputs, UnixTime { value: 0 });
 
         println!("{:#?}", public_report);
+
+        let _ = simple_logger::init();
+
+        info!(target: "yak_events", "Commencing yak shaving for {:?}", public_report);
         /*
           PublicReport {
             earliest_symptom_time: Some(

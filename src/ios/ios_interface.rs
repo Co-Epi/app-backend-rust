@@ -26,7 +26,7 @@ pub unsafe extern "C" fn bootstrap_core(db_path: *const c_char) -> CFStringRef {
     let db_path_str = cstring_to_str(&db_path).unwrap();
 
     println!("RUST: bootstrapping with db path: {:?}", db_path_str);
-
+    //TODO: init logging
     let result = init_db(db_path_str).map_err(ServicesError::from);
     println!("RUST: bootstrapping result: {:?}", result);
     return to_result_str(result);
