@@ -1,28 +1,41 @@
 #include <CoreFoundation/CoreFoundation.h>
 
-typedef struct
-{
-    uint8_t my_u8;
+#define TCK_SIZE_IN_BYTES 66
+
+enum CoreLogLevel {
+  Trace,
+  Debug,
+  Info,
+  Warn,
+  Error,
+};
+typedef uint8_t CoreLogLevel;
+
+typedef struct {
+  uint8_t my_u8;
 } FFINestedReturnStruct;
 
-typedef struct
-{
-    int32_t my_int;
-    CFStringRef my_str;
-    FFINestedReturnStruct my_nested;
+typedef struct {
+  int32_t my_int;
+  CFStringRef my_str;
+  FFINestedReturnStruct my_nested;
 } FFIReturnStruct;
 
-typedef struct
-{
-    uint8_t my_u8;
+typedef struct {
+  uint8_t my_u8;
 } FFINestedParameterStruct;
 
-typedef struct
-{
-    int32_t my_int;
-    const char *my_str;
-    FFINestedParameterStruct my_nested;
+typedef struct {
+  int32_t my_int;
+  const char *my_str;
+  FFINestedParameterStruct my_nested;
 } FFIParameterStruct;
+
+typedef struct {
+  CoreLogLevel level;
+  CFStringRef text;
+  int64_t time;
+} CoreLogMessage;
 
 CFStringRef bootstrap_core(const char *db_path);
 
@@ -45,6 +58,8 @@ CFStringRef post_report(const char *c_report);
 CFStringRef record_tcn(const char *c_tcn);
 
 int32_t register_callback(void (*callback)(int32_t, bool, CFStringRef));
+
+int32_t register_log_callback(void (*log_callback)(CoreLogMessage));
 
 FFIReturnStruct return_struct(void);
 
@@ -71,3 +86,5 @@ CFStringRef set_symptom_ids(const char *c_ids);
 CFStringRef submit_symptoms(void);
 
 int32_t trigger_callback(const char *my_str);
+
+int32_t trigger_logging_macros(void);

@@ -13,6 +13,7 @@ mod reporting;
 mod errors;
 mod preferences;
 mod tcn_ext;
+mod simple_logger;
 
 pub type Res<T> = Result<T, Error>;
 
