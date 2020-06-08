@@ -1,6 +1,7 @@
-use crate::ios::ffi_for_sanity_tests::SENDER;
+use crate::ios::ffi_for_sanity_tests::{LOG_SENDER, LogMessageThreadSafe, LogLevel};
 use log::{Level, Metadata, Record};
 use log::{LevelFilter, SetLoggerError};
+use chrono::Utc;
 
 static LOGGER: SimpleLogger = SimpleLogger;
 
@@ -11,10 +12,19 @@ pub fn init() -> Result<(), SetLoggerError> {
 pub struct SimpleLogger;
 
 impl SimpleLogger {
-    fn log_to_app(str: &str) {
+    // fn log_to_app(str: &str) {
+    //     unsafe {
+    //         if let Some(s) = &SENDER {
+    //             s.send(str.to_owned()).expect("Couldn't send");
+    //         } else {
+    //             println!("No SENDER!");
+    //         }
+    //     }
+    // }
+    fn log_message_to_app(log_message: LogMessageThreadSafe){
         unsafe {
-            if let Some(s) = &SENDER {
-                s.send(str.to_owned()).expect("Couldn't send");
+            if let Some(s) = &LOG_SENDER {
+                s.send(log_message).expect("Couldn't send");
             } else {
                 println!("No SENDER!");
             }
@@ -31,7 +41,21 @@ impl log::Log for SimpleLogger {
         if self.enabled(record.metadata()) {
             println!("{} - {}", record.level(), record.args());
             let arg_string = format!("{}", record.args());
-            SimpleLogger::log_to_app(&arg_string);
+            let lvl = match record.level(){
+                Level::Debug => LogLevel::D,
+                Level::Error => LogLevel::E,
+                Level::Info => LogLevel::Info,
+                Level::Warn => LogLevel::W,
+                Level::Trace => LogLevel::V,
+            };
+
+            let lmts = LogMessageThreadSafe{
+                level: lvl,
+                text: arg_string,
+                time: Utc::now().timestamp(),
+            };
+
+            SimpleLogger::log_message_to_app(lmts);
         }
     }
 

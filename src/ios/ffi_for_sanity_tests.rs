@@ -11,6 +11,7 @@ use std::{
 };
 use log::*;
 
+
 // Expose an interface for apps (for now only iOS) to test that general FFI is working as expected.
 // i.e. assumptions on which the actual FFI interface relies.
 // TODO can the c headers for this be generated in a separate file? Needs adjustments in script to generate lib and framework too.
@@ -33,6 +34,54 @@ struct MyStruct {
     my_str: String,
     my_u8: u8,
 }
+#[repr(u8)]
+#[derive(Debug, Clone)]
+pub enum LogLevel {
+    V,
+    D,
+    Info,
+    W,
+    E,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct LogMessage {
+    level: LogLevel,
+    text: CFStringRef,
+    time: i64,
+}
+
+/**
+ * let cf_string = CFString::new(&lib_result_string);
+    let cf_string_ref = cf_string.as_concrete_TypeRef();
+
+    ::std::mem::forget(cf_string);
+
+    return cf_string_ref;
+ */
+impl From<LogMessageThreadSafe> for LogMessage{
+    fn from(lts: LogMessageThreadSafe) -> Self {
+        let cf_string = CFString::new(&lts.text);
+        let cf_string_ref = cf_string.as_concrete_TypeRef();
+        ::std::mem::forget(cf_string);
+        LogMessage{
+            level: lts.level,
+            text: cf_string_ref,
+            time: lts.time
+        }
+    }
+}
+
+pub struct LogMessageThreadSafe {
+    //TODO: hide fields
+    pub level: LogLevel,
+    pub text: String,
+    pub time: i64,
+}
+
+
+
 
 #[no_mangle]
 pub unsafe extern "C" fn pass_struct(par: *const FFIParameterStruct) -> i32 {
@@ -107,6 +156,21 @@ impl Callback for unsafe extern "C" fn(i32, bool, CFStringRef) {
     }
 }
 
+
+pub trait LogCallback {
+    fn call(&self, log_message: LogMessage);
+}
+
+impl LogCallback for unsafe extern "C" fn(LogMessage) {
+    fn call(&self, log_message: LogMessage) {
+        unsafe {
+            self(log_message);
+        }
+    }
+}
+
+
+
 #[no_mangle]
 pub extern "C" fn call_callback(callback: unsafe extern "C" fn(i32, bool, CFStringRef)) -> i32 {
     let cf_string = CFString::new(&"hi!".to_owned());
@@ -117,6 +181,7 @@ pub extern "C" fn call_callback(callback: unsafe extern "C" fn(i32, bool, CFStri
 }
 
 pub static mut SENDER: Option<Sender<String>> = None;
+pub static mut LOG_SENDER: Option<Sender<LogMessageThreadSafe>> = None;
 
 #[no_mangle]
 pub unsafe extern "C" fn register_callback(
@@ -124,6 +189,14 @@ pub unsafe extern "C" fn register_callback(
 ) -> i32 {
     register_callback_internal(Box::new(callback));
     1
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn register_log_callback(
+    log_callback: unsafe extern "C" fn(LogMessage),
+) -> i32 {
+    register_log_callback_internal(Box::new(log_callback));
+    2
 }
 
 #[no_mangle]
@@ -163,6 +236,27 @@ fn register_callback_internal(callback: Box<dyn Callback>) {
             let cf_string_ref = cf_string.as_concrete_TypeRef();
             // For convenience, pass around only the string and hardcode the other 2 parameters.
             my_callback.call(1, true, cf_string_ref)
+        }
+    });
+}
+
+fn register_log_callback_internal(callback: Box<dyn LogCallback>) {
+    // Make callback implement Send (marker for thread safe, basically) https://doc.rust-lang.org/std/marker/trait.Send.html
+    let log_callback =
+        unsafe { std::mem::transmute::<Box<dyn LogCallback>, Box<dyn LogCallback + Send>>(callback) };
+
+    // Create channel
+    let (tx, rx): (Sender<LogMessageThreadSafe>, Receiver<LogMessageThreadSafe>) = mpsc::channel();
+
+    // Save the sender in a static variable, which will be used to push elements to the callback
+    unsafe {
+        LOG_SENDER = Some(tx);
+    }
+
+    // Thread waits for elements pushed to SENDER and calls the callback
+    thread::spawn(move || {
+        for log_entry in rx.iter() {
+             log_callback.call(log_entry.into());
         }
     });
 }
