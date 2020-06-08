@@ -4,6 +4,7 @@ use crate::{
     composition_root::COMP_ROOT,
     errors::ServicesError::{self},
     networking,
+    simple_logger,
 };
 use crate::{init_db, reporting::symptom_inputs_manager::SymptomInputsProcessor};
 use core_foundation::base::TCFType;
@@ -11,6 +12,7 @@ use core_foundation::string::{CFString, CFStringRef};
 use networking::TcnApi;
 use serde::Serialize;
 use std::os::raw::c_char;
+use log::*;
 
 // Generic struct to return results to app
 // For convenience, status will be HTTP status codes
@@ -26,9 +28,11 @@ pub unsafe extern "C" fn bootstrap_core(db_path: *const c_char) -> CFStringRef {
     let db_path_str = cstring_to_str(&db_path).unwrap();
 
     println!("RUST: bootstrapping with db path: {:?}", db_path_str);
-    //TODO: init logging
+    //TODO: Investigate using Box-ed logger
+    let _ = simple_logger::init();
     let result = init_db(db_path_str).map_err(ServicesError::from);
-    println!("RUST: bootstrapping result: {:?}", result);
+    // println!("RUST: bootstrapping result: {:?}", result);
+    info!(target: "boot_events", "RUST: bootstrapping result: {:?}", result);
     return to_result_str(result);
 }
 
@@ -57,8 +61,8 @@ pub unsafe extern "C" fn record_tcn(c_tcn: *const c_char) -> CFStringRef {
 pub unsafe extern "C" fn generate_tcn() -> CFStringRef {
     // TODO hex encoding in component, or send byte array directly?
     let tcn_hex = hex::encode(COMP_ROOT.tcn_keys.generate_tcn().0);
-
-    println!("RUST generated TCN: {:?}", tcn_hex);
+    info!(target: "tcn_events", "RUST generated TCN: {:?}", tcn_hex);
+    // println!("RUST generated TCN: {:?}", tcn_hex);
 
     let cf_string = CFString::new(&tcn_hex);
     let cf_string_ref = cf_string.as_concrete_TypeRef();

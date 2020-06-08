@@ -30,7 +30,8 @@ impl log::Log for SimpleLogger {
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
             println!("{} - {}", record.level(), record.args());
-            SimpleLogger::log_to_app("test1");
+            let arg_string = format!("{}", record.args());
+            SimpleLogger::log_to_app(&arg_string);
         }
     }
 

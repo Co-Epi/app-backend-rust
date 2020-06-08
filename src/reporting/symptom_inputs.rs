@@ -247,7 +247,7 @@ mod tests {
 
         let _ = simple_logger::init();
 
-        info!(target: "yak_events", "Commencing yak shaving for {:?}", public_report);
+        info!(target: "test_events", "Logging PublicReport: {:?}", public_report);
         /*
           PublicReport {
             earliest_symptom_time: Some(

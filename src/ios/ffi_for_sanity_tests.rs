@@ -9,6 +9,7 @@ use std::{
     sync::mpsc::{self, Sender},
     thread,
 };
+use log::*;
 
 // Expose an interface for apps (for now only iOS) to test that general FFI is working as expected.
 // i.e. assumptions on which the actual FFI interface relies.
@@ -164,4 +165,15 @@ fn register_callback_internal(callback: Box<dyn Callback>) {
             my_callback.call(1, true, cf_string_ref)
         }
     });
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn trigger_logging_macros() -> i32 {
+    debug!(target: "test_events", "CoEpi debug");
+    trace!(target: "test_events", "CoEpi trace");
+    info!(target: "test_events", "CoEpi info");
+    warn!(target: "test_events", "CoEpi warn");
+    error!(target: "test_events", "CoEpi error");
+    
+    1
 }

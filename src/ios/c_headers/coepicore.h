@@ -71,3 +71,5 @@ CFStringRef set_symptom_ids(const char *c_ids);
 CFStringRef submit_symptoms(void);
 
 int32_t trigger_callback(const char *my_str);
+
+int32_t trigger_logging_macros();
