@@ -7,7 +7,7 @@ use log::*;
 static LOGGER: SimpleLogger = SimpleLogger;
 
 pub fn init() -> Result<(), SetLoggerError> {
-    log::set_logger(&LOGGER).map(|()| log::set_max_level(LevelFilter::Info))
+    log::set_logger(&LOGGER).map(|()| log::set_max_level(LevelFilter::Trace))
 }
 
 pub struct SimpleLogger;
