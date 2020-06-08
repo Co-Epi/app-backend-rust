@@ -1,4 +1,4 @@
-use crate::ios::ffi_for_sanity_tests::{LOG_SENDER, LogMessageThreadSafe, LogLevel};
+use crate::ios::ffi_for_sanity_tests::{LOG_SENDER, CoreLogMessageThreadSafe, CoreLogLevel};
 use log::{Level, Metadata, Record};
 use log::{LevelFilter, SetLoggerError};
 use chrono::Utc;
@@ -21,7 +21,7 @@ impl SimpleLogger {
     //         }
     //     }
     // }
-    fn log_message_to_app(log_message: LogMessageThreadSafe){
+    fn log_message_to_app(log_message: CoreLogMessageThreadSafe){
         unsafe {
             if let Some(s) = &LOG_SENDER {
                 s.send(log_message).expect("Couldn't send");
@@ -42,14 +42,14 @@ impl log::Log for SimpleLogger {
             println!("{} - {}", record.level(), record.args());
             let arg_string = format!("{}", record.args());
             let lvl = match record.level(){
-                Level::Debug => LogLevel::D,
-                Level::Error => LogLevel::E,
-                Level::Info => LogLevel::Info,
-                Level::Warn => LogLevel::W,
-                Level::Trace => LogLevel::V,
+                Level::Debug => CoreLogLevel::Debug,
+                Level::Error => CoreLogLevel::Error,
+                Level::Info => CoreLogLevel::Info,
+                Level::Warn => CoreLogLevel::Warn,
+                Level::Trace => CoreLogLevel::Trace,
             };
 
-            let lmts = LogMessageThreadSafe{
+            let lmts = CoreLogMessageThreadSafe{
                 level: lvl,
                 text: arg_string,
                 time: Utc::now().timestamp(),

@@ -2,14 +2,14 @@
 
 #define TCK_SIZE_IN_BYTES 66
 
-enum LogLevel {
-  V,
-  D,
+enum CoreLogLevel {
+  Trace,
+  Debug,
   Info,
-  W,
-  E,
+  Warn,
+  Error,
 };
-typedef uint8_t LogLevel;
+typedef uint8_t CoreLogLevel;
 
 typedef struct {
   uint8_t my_u8;
@@ -32,10 +32,10 @@ typedef struct {
 } FFIParameterStruct;
 
 typedef struct {
-  LogLevel level;
+  CoreLogLevel level;
   CFStringRef text;
   int64_t time;
-} LogMessage;
+} CoreLogMessage;
 
 CFStringRef bootstrap_core(const char *db_path);
 
@@ -59,7 +59,7 @@ CFStringRef record_tcn(const char *c_tcn);
 
 int32_t register_callback(void (*callback)(int32_t, bool, CFStringRef));
 
-int32_t register_log_callback(void (*log_callback)(LogMessage));
+int32_t register_log_callback(void (*log_callback)(CoreLogMessage));
 
 FFIReturnStruct return_struct(void);
 

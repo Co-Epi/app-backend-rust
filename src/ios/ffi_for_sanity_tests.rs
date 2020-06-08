@@ -36,36 +36,29 @@ struct MyStruct {
 }
 #[repr(u8)]
 #[derive(Debug, Clone)]
-pub enum LogLevel {
-    V,
-    D,
+pub enum CoreLogLevel {
+    Trace,
+    Debug,
     Info,
-    W,
-    E,
+    Warn,
+    Error,
 }
 
 #[repr(C)]
 #[derive(Debug, Clone)]
-pub struct LogMessage {
-    level: LogLevel,
+pub struct CoreLogMessage {
+    level: CoreLogLevel,
     text: CFStringRef,
     time: i64,
 }
 
-/**
- * let cf_string = CFString::new(&lib_result_string);
-    let cf_string_ref = cf_string.as_concrete_TypeRef();
 
-    ::std::mem::forget(cf_string);
-
-    return cf_string_ref;
- */
-impl From<LogMessageThreadSafe> for LogMessage{
-    fn from(lts: LogMessageThreadSafe) -> Self {
+impl From<CoreLogMessageThreadSafe> for CoreLogMessage{
+    fn from(lts: CoreLogMessageThreadSafe) -> Self {
         let cf_string = CFString::new(&lts.text);
         let cf_string_ref = cf_string.as_concrete_TypeRef();
         ::std::mem::forget(cf_string);
-        LogMessage{
+        CoreLogMessage{
             level: lts.level,
             text: cf_string_ref,
             time: lts.time
@@ -73,9 +66,9 @@ impl From<LogMessageThreadSafe> for LogMessage{
     }
 }
 
-pub struct LogMessageThreadSafe {
+pub struct CoreLogMessageThreadSafe {
     //TODO: hide fields
-    pub level: LogLevel,
+    pub level: CoreLogLevel,
     pub text: String,
     pub time: i64,
 }
@@ -158,11 +151,11 @@ impl Callback for unsafe extern "C" fn(i32, bool, CFStringRef) {
 
 
 pub trait LogCallback {
-    fn call(&self, log_message: LogMessage);
+    fn call(&self, log_message: CoreLogMessage);
 }
 
-impl LogCallback for unsafe extern "C" fn(LogMessage) {
-    fn call(&self, log_message: LogMessage) {
+impl LogCallback for unsafe extern "C" fn(CoreLogMessage) {
+    fn call(&self, log_message: CoreLogMessage) {
         unsafe {
             self(log_message);
         }
@@ -181,7 +174,7 @@ pub extern "C" fn call_callback(callback: unsafe extern "C" fn(i32, bool, CFStri
 }
 
 pub static mut SENDER: Option<Sender<String>> = None;
-pub static mut LOG_SENDER: Option<Sender<LogMessageThreadSafe>> = None;
+pub static mut LOG_SENDER: Option<Sender<CoreLogMessageThreadSafe>> = None;
 
 #[no_mangle]
 pub unsafe extern "C" fn register_callback(
@@ -193,7 +186,7 @@ pub unsafe extern "C" fn register_callback(
 
 #[no_mangle]
 pub unsafe extern "C" fn register_log_callback(
-    log_callback: unsafe extern "C" fn(LogMessage),
+    log_callback: unsafe extern "C" fn(CoreLogMessage),
 ) -> i32 {
     register_log_callback_internal(Box::new(log_callback));
     2
@@ -246,7 +239,7 @@ fn register_log_callback_internal(callback: Box<dyn LogCallback>) {
         unsafe { std::mem::transmute::<Box<dyn LogCallback>, Box<dyn LogCallback + Send>>(callback) };
 
     // Create channel
-    let (tx, rx): (Sender<LogMessageThreadSafe>, Receiver<LogMessageThreadSafe>) = mpsc::channel();
+    let (tx, rx): (Sender<CoreLogMessageThreadSafe>, Receiver<CoreLogMessageThreadSafe>) = mpsc::channel();
 
     // Save the sender in a static variable, which will be used to push elements to the callback
     unsafe {
