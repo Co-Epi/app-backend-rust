@@ -1,7 +1,8 @@
 use crate::ios::ffi_for_sanity_tests::{LOG_SENDER, CoreLogMessageThreadSafe, CoreLogLevel};
-use log::{Level, Metadata, Record};
-use log::{LevelFilter, SetLoggerError};
+// use log::{Level, Metadata, Record};
+// use log::{LevelFilter, SetLoggerError};
 use chrono::Utc;
+use log::*;
 
 static LOGGER: SimpleLogger = SimpleLogger;
 
@@ -26,7 +27,7 @@ impl SimpleLogger {
             if let Some(s) = &LOG_SENDER {
                 s.send(log_message).expect("Couldn't send");
             } else {
-                println!("No SENDER!");
+                warn!("No SENDER!");
             }
         }
     }
@@ -48,6 +49,7 @@ impl log::Log for SimpleLogger {
                 Level::Warn => CoreLogLevel::Warn,
                 Level::Trace => CoreLogLevel::Trace,
             };
+
 
             let lmts = CoreLogMessageThreadSafe{
                 level: lvl,

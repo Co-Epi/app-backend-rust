@@ -4,6 +4,7 @@ use reqwest::{
     Error,
 };
 use std::error;
+use log::*;
 
 static BASE_URL: &str = "https://zmqh8rwdx4.execute-api.us-west-2.amazonaws.com/v4/tcnreport/0.4.0";
 // static BASE_URL: &str = "https://v1.api.coepi.org/tcnreport/v0.4.0";
@@ -68,7 +69,8 @@ impl TcnApi for TcnApiImpl {
             .query(&[("intervalLength", interval_length)])
             .send()?;
         let reports = response.json::<Vec<String>>()?;
-        println!("RUST retrieved reports count: {}", reports.len());
+        // println!("RUST retrieved reports count: {}", reports.len());
+        info!("RUST retrieved reports count: {}", reports.len());
         Ok(reports)
     }
 

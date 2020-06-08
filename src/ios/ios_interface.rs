@@ -32,17 +32,17 @@ pub unsafe extern "C" fn bootstrap_core(db_path: *const c_char) -> CFStringRef {
     let _ = simple_logger::init();
     let result = init_db(db_path_str).map_err(ServicesError::from);
     // println!("RUST: bootstrapping result: {:?}", result);
-    info!(target: "boot_events", "RUST: bootstrapping result: {:?}", result);
+    info!("RUST: bootstrapping result: {:?}", result);
     return to_result_str(result);
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn fetch_new_reports() -> CFStringRef {
-    println!("RUST: updating reports");
+    info!("RUST: updating reports");
 
     let result = COMP_ROOT.reports_updater.fetch_new_reports();
 
-    println!("RUST: new reports: {:?}", result);
+    info!("RUST: new reports: {:?}", result);
 
     return to_result_str(result);
 }
@@ -51,9 +51,9 @@ pub unsafe extern "C" fn fetch_new_reports() -> CFStringRef {
 pub unsafe extern "C" fn record_tcn(c_tcn: *const c_char) -> CFStringRef {
     // TODO don't unwrap, use and handle result, handle
     let tcn_str = cstring_to_str(&c_tcn).unwrap();
-    println!("RUST: recording a TCN {:?}", c_tcn);
+    info!("RUST: recording a TCN {:?}", c_tcn);
     let result = COMP_ROOT.observed_tcn_processor.save(tcn_str);
-    println!("RUST: recording TCN result {:?}", result);
+    info!("RUST: recording TCN result {:?}", result);
     return to_result_str(result);
 }
 
@@ -61,8 +61,8 @@ pub unsafe extern "C" fn record_tcn(c_tcn: *const c_char) -> CFStringRef {
 pub unsafe extern "C" fn generate_tcn() -> CFStringRef {
     // TODO hex encoding in component, or send byte array directly?
     let tcn_hex = hex::encode(COMP_ROOT.tcn_keys.generate_tcn().0);
-    info!(target: "tcn_events", "RUST generated TCN: {:?}", tcn_hex);
-    // println!("RUST generated TCN: {:?}", tcn_hex);
+    info!("RUST generated TCN: {:?}", tcn_hex);
+    // info!("RUST generated TCN: {:?}", tcn_hex);
 
     let cf_string = CFString::new(&tcn_hex);
     let cf_string_ref = cf_string.as_concrete_TypeRef();
@@ -74,7 +74,7 @@ pub unsafe extern "C" fn generate_tcn() -> CFStringRef {
 
 #[no_mangle]
 pub unsafe extern "C" fn get_reports(interval_number: u32, interval_length: u32) -> CFStringRef {
-    println!(
+    info!(
         "RUST: fetching reports for interval_number: {}, interval_length {}",
         interval_number, interval_length
     );
@@ -83,7 +83,7 @@ pub unsafe extern "C" fn get_reports(interval_number: u32, interval_length: u32)
         .api
         .get_reports(interval_number as u64, interval_length as u64);
 
-    println!("RUST: Api returned: {:?}", result);
+    info!("RUST: Api returned: {:?}", result);
 
     let lib_result = match result {
         Ok(success) => LibResult {
@@ -135,7 +135,7 @@ fn to_result_str<T: Serialize>(result: Result<T, ServicesError>) -> CFStringRef 
 
 #[no_mangle]
 pub unsafe extern "C" fn set_symptom_ids(c_ids: *const c_char) -> CFStringRef {
-    println!("RUST: setting symptom ids: {:?}", c_ids);
+    debug!("RUST: setting symptom ids: {:?}", c_ids);
     // TODO don't unwrap, use and handle result, handle
     let ids_str = cstring_to_str(&c_ids).unwrap();
     let result = COMP_ROOT.symptom_inputs_processor.set_symptom_ids(ids_str);
@@ -144,7 +144,7 @@ pub unsafe extern "C" fn set_symptom_ids(c_ids: *const c_char) -> CFStringRef {
 
 #[no_mangle]
 pub unsafe extern "C" fn set_cough_type(c_cough_type: *const c_char) -> CFStringRef {
-    println!("RUST: setting cough type: {:?}", c_cough_type);
+    debug!("RUST: setting cough type: {:?}", c_cough_type);
     // TODO don't unwrap, use and handle result, handle
     let cough_type_str = cstring_to_str(&c_cough_type).unwrap();
     let result = COMP_ROOT
@@ -163,7 +163,7 @@ pub unsafe extern "C" fn set_cough_days(c_is_set: u8, c_days: u32) -> CFStringRe
 
 #[no_mangle]
 pub unsafe extern "C" fn set_cough_status(c_status: *const c_char) -> CFStringRef {
-    println!("RUST: setting cough status: {:?}", c_status);
+    debug!("RUST: setting cough status: {:?}", c_status);
     // TODO don't unwrap, use and handle result, handle
     let status_str = cstring_to_str(&c_status).unwrap();
     let result = COMP_ROOT
@@ -174,7 +174,7 @@ pub unsafe extern "C" fn set_cough_status(c_status: *const c_char) -> CFStringRe
 
 #[no_mangle]
 pub unsafe extern "C" fn set_breathlessness_cause(c_cause: *const c_char) -> CFStringRef {
-    println!("RUST: setting breathlessness cause: {:?}", c_cause);
+    debug!("RUST: setting breathlessness cause: {:?}", c_cause);
     // TODO don't unwrap, use and handle result, handle
     let cause_str = cstring_to_str(&c_cause).unwrap();
     let result = COMP_ROOT
@@ -204,7 +204,7 @@ pub unsafe extern "C" fn set_fever_taken_temperature_today(
 
 #[no_mangle]
 pub unsafe extern "C" fn set_fever_taken_temperature_spot(c_cause: *const c_char) -> CFStringRef {
-    println!("RUST: setting temperature spot cause: {:?}", c_cause);
+    debug!("RUST: setting temperature spot cause: {:?}", c_cause);
     // TODO don't unwrap, use and handle result, handle
     let spot_str = cstring_to_str(&c_cause).unwrap();
     let result = COMP_ROOT
@@ -249,7 +249,7 @@ pub unsafe extern "C" fn submit_symptoms() -> CFStringRef {
 
 #[no_mangle]
 pub unsafe extern "C" fn post_report(c_report: *const c_char) -> CFStringRef {
-    println!("RUST: posting report: {:?}", c_report);
+    info!("RUST: posting report: {:?}", c_report);
 
     // TODO don't unwrap, use and handle result, handle
     let report = cstring_to_str(&c_report).unwrap();
@@ -300,7 +300,7 @@ mod tests {
     fn test_get_reports() {
         unsafe {
             let res = get_reports(1, 21600);
-            println!("reports: {:?}", res);
+            debug!("reports: {:?}", res);
             assert!(true);
         }
     }

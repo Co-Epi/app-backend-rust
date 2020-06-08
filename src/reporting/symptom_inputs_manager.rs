@@ -12,6 +12,7 @@ use crate::{
 use chrono::{Duration, Utc};
 use parking_lot::RwLock;
 use std::{collections::HashSet, sync::Arc};
+use log::*;
 
 pub trait SymptomInputsProcessor {
     fn set_symptom_ids(&self, ids: &str) -> Result<(), ServicesError>;
@@ -85,7 +86,7 @@ where
             _ => Err(format!("Not supported: {}", cough_type))?,
         };
 
-        println!("RUST setting cough type: {:?}", input);
+        debug!("RUST setting cough type: {:?}", input);
 
         self.inputs_manager.set_cough_type(input);
         Ok(())
@@ -97,7 +98,7 @@ where
             false => UserInput::None,
         };
 
-        println!("RUST setting cough days {:?}", input);
+        debug!("RUST setting cough days {:?}", input);
 
         self.inputs_manager.set_cough_days(input);
         Ok(())
@@ -112,7 +113,7 @@ where
             _ => Err(format!("Not supported: {}", status))?,
         };
 
-        println!("RUST setting cough status: {:?}", input);
+        debug!("RUST setting cough status: {:?}", input);
 
         self.inputs_manager.set_cough_status(input);
         Ok(())
@@ -133,7 +134,7 @@ where
             _ => Err(format!("Not supported: {}", cause))?,
         };
 
-        println!("RUST setting breathlessness cause: {:?}", input);
+        debug!("RUST setting breathlessness cause: {:?}", input);
 
         self.inputs_manager.set_breathlessness_cause(input);
         Ok(())
@@ -145,7 +146,7 @@ where
             false => UserInput::None,
         };
 
-        println!("RUST setting fever days {:?}", input);
+        debug!("RUST setting fever days {:?}", input);
 
         self.inputs_manager.set_fever_days(input);
         Ok(())
@@ -161,7 +162,7 @@ where
             false => UserInput::None,
         };
 
-        println!("RUST setting taken temperature today {:?}", input);
+        debug!("RUST setting taken temperature today {:?}", input);
 
         self.inputs_manager.set_fever_taken_temperature_today(input);
         Ok(())
@@ -177,7 +178,7 @@ where
             _ => Err(format!("Not supported: {}", spot))?,
         };
 
-        println!("RUST setting fever temperature spot: {:?}", input);
+        debug!("RUST setting fever temperature spot: {:?}", input);
 
         self.inputs_manager.set_fever_taken_temperature_spot(input);
         Ok(())
@@ -193,7 +194,7 @@ where
             false => UserInput::None,
         };
 
-        println!("RUST setting highest temperature taken {:?}", input);
+        debug!("RUST setting highest temperature taken {:?}", input);
 
         self.inputs_manager
             .set_fever_highest_temperature_taken(input);
@@ -210,7 +211,7 @@ where
             false => UserInput::None,
         };
 
-        println!("RUST setting earliest symptom days ago {:?}", input);
+        debug!("RUST setting earliest symptom days ago {:?}", input);
 
         self.inputs_manager
             .set_earliest_symptom_started_days_ago(input);
@@ -258,7 +259,7 @@ where
     T: SymptomInputsSubmitter<MemoMapperImpl, TcnKeysImpl<PreferencesImpl>, TcnApiImpl>,
 {
     fn print_current_state(&self) {
-        println!("RUST symptom inputs state: {:?}", self.inputs);
+        debug!("RUST symptom inputs state: {:?}", self.inputs);
     }
 }
 
@@ -325,7 +326,7 @@ where
     }
 
     fn submit(&self) -> Result<(), ServicesError> {
-        println!("RUST Submitting symptom inputs...");
+        debug!("RUST Submitting symptom inputs...");
         self.print_current_state();
         let result = self
             .inputs_submitter
@@ -340,7 +341,7 @@ where
     }
 
     fn clear(&self) {
-        println!("RUST clearing symptoms");
+        debug!("RUST clearing symptoms");
         *self.inputs.write() = Default::default();
         self.print_current_state();
     }
