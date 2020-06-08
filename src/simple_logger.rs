@@ -27,7 +27,7 @@ impl SimpleLogger {
             if let Some(s) = &LOG_SENDER {
                 s.send(log_message).expect("Couldn't send");
             } else {
-                warn!("No SENDER!");
+                println!("No SENDER!");
             }
         }
     }

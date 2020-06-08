@@ -86,7 +86,7 @@ pub unsafe extern "C" fn pass_struct(par: *const FFIParameterStruct) -> i32 {
         my_u8: (*par).my_nested.my_u8,
     };
 
-    println!("Received struct from iOS: {:?}", my_struct);
+    info!("Received struct from iOS: {:?}", my_struct);
 
     1
 }
@@ -203,7 +203,7 @@ pub unsafe extern "C" fn trigger_callback(my_str: *const c_char) -> i32 {
         }
 
         None => {
-            println!("No callback registered");
+            warn!("No callback registered");
             0
         }
     }
