@@ -63,7 +63,7 @@ where
             self.set_tck(new_tck);
         }
 
-        debug!("RUST generated tcn: {:?}", tcn);
+        debug!("Generated tcn: {:?}", tcn);
         // TODO: if None, rotate RAK
         tcn
     }

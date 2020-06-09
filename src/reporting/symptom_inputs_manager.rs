@@ -10,9 +10,9 @@ use crate::{
     reports_interval::UnixTime, tcn_ext::tcn_keys::TcnKeysImpl,
 };
 use chrono::{Duration, Utc};
+use log::*;
 use parking_lot::RwLock;
 use std::{collections::HashSet, sync::Arc};
-use log::*;
 
 pub trait SymptomInputsProcessor {
     fn set_symptom_ids(&self, ids: &str) -> Result<(), ServicesError>;
@@ -68,7 +68,7 @@ where
                 "runny_nose" => SymptomId::RunnyNose,
                 "other" => SymptomId::Other,
                 "none" => SymptomId::None,
-                _ => Err(format!("RUST Not supported: {}", str_id))?,
+                _ => Err(format!("Not supported: {}", str_id))?,
             };
             symptom_ids.insert(symptom_id);
         }
@@ -86,7 +86,7 @@ where
             _ => Err(format!("Not supported: {}", cough_type))?,
         };
 
-        debug!("RUST setting cough type: {:?}", input);
+        debug!("Setting cough type: {:?}", input);
 
         self.inputs_manager.set_cough_type(input);
         Ok(())
@@ -98,7 +98,7 @@ where
             false => UserInput::None,
         };
 
-        debug!("RUST setting cough days {:?}", input);
+        debug!("Setting cough days {:?}", input);
 
         self.inputs_manager.set_cough_days(input);
         Ok(())
@@ -113,7 +113,7 @@ where
             _ => Err(format!("Not supported: {}", status))?,
         };
 
-        debug!("RUST setting cough status: {:?}", input);
+        debug!("Setting cough status: {:?}", input);
 
         self.inputs_manager.set_cough_status(input);
         Ok(())
@@ -134,7 +134,7 @@ where
             _ => Err(format!("Not supported: {}", cause))?,
         };
 
-        debug!("RUST setting breathlessness cause: {:?}", input);
+        debug!("Setting breathlessness cause: {:?}", input);
 
         self.inputs_manager.set_breathlessness_cause(input);
         Ok(())
@@ -146,7 +146,7 @@ where
             false => UserInput::None,
         };
 
-        debug!("RUST setting fever days {:?}", input);
+        debug!("Setting fever days {:?}", input);
 
         self.inputs_manager.set_fever_days(input);
         Ok(())
@@ -162,7 +162,7 @@ where
             false => UserInput::None,
         };
 
-        debug!("RUST setting taken temperature today {:?}", input);
+        debug!("Setting taken temperature today {:?}", input);
 
         self.inputs_manager.set_fever_taken_temperature_today(input);
         Ok(())
@@ -178,7 +178,7 @@ where
             _ => Err(format!("Not supported: {}", spot))?,
         };
 
-        debug!("RUST setting fever temperature spot: {:?}", input);
+        debug!("Setting fever temperature spot: {:?}", input);
 
         self.inputs_manager.set_fever_taken_temperature_spot(input);
         Ok(())
@@ -194,7 +194,7 @@ where
             false => UserInput::None,
         };
 
-        debug!("RUST setting highest temperature taken {:?}", input);
+        debug!("Setting highest temperature taken {:?}", input);
 
         self.inputs_manager
             .set_fever_highest_temperature_taken(input);
@@ -211,7 +211,7 @@ where
             false => UserInput::None,
         };
 
-        debug!("RUST setting earliest symptom days ago {:?}", input);
+        debug!("Setting earliest symptom days ago {:?}", input);
 
         self.inputs_manager
             .set_earliest_symptom_started_days_ago(input);
@@ -259,7 +259,7 @@ where
     T: SymptomInputsSubmitter<MemoMapperImpl, TcnKeysImpl<PreferencesImpl>, TcnApiImpl>,
 {
     fn print_current_state(&self) {
-        debug!("RUST symptom inputs state: {:?}", self.inputs);
+        debug!("Symptom inputs state: {:?}", self.inputs);
     }
 }
 
@@ -326,7 +326,7 @@ where
     }
 
     fn submit(&self) -> Result<(), ServicesError> {
-        debug!("RUST Submitting symptom inputs...");
+        debug!("Submitting symptom inputs...");
         self.print_current_state();
         let result = self
             .inputs_submitter
@@ -341,7 +341,7 @@ where
     }
 
     fn clear(&self) {
-        debug!("RUST clearing symptoms");
+        debug!("Clearing symptoms");
         *self.inputs.write() = Default::default();
         self.print_current_state();
     }

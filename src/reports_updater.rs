@@ -15,7 +15,7 @@ use rayon::prelude::*;
 use reports_interval::{ReportsInterval, UnixTime};
 use serde::Serialize;
 use std::collections::HashMap;
-use std::{sync::Arc, time::Instant};
+use std::{io::Cursor, sync::Arc, time::Instant};
 use tcn::{SignedReport, TemporaryContactNumber};
 
 pub trait TcnMatcher {
@@ -136,6 +136,8 @@ where
     T: TcnDao,
 {
     fn save(&self, tcn_str: &str) -> Result<(), ServicesError> {
+        info!("Recording a TCN {:?}", tcn_str);
+
         let bytes_vec: Vec<u8> = hex::decode(tcn_str)?;
         let observed_tcn = ObservedTcn {
             tcn: TemporaryContactNumber(byte_vec_to_16_byte_array(bytes_vec)),
@@ -288,9 +290,16 @@ where
     }
 
     fn determine_start_interval(&self, time: &UnixTime) -> ReportsInterval {
-        self.retrieve_last_completed_interval()
-            .map(|interval| interval.next())
-            .unwrap_or_else(|| ReportsInterval::create_for_with_default_length(time))
+        let last = self.retrieve_last_completed_interval();
+        debug!(
+            "Determining start reports interval. Last completed interval: {:?}",
+            last
+        );
+        let next = last.map(|interval| interval.next());
+        debug!("Next interval: {:?}", next);
+        let result = next.unwrap_or_else(|| ReportsInterval::create_for_with_default_length(time));
+        debug!("Interval to fetch: {:?}", result);
+        result
     }
 
     fn matching_reports(
@@ -371,7 +380,16 @@ where
         info!("R Start matching...");
 
         let tcns = self.tcn_dao.all();
-        info!("R DB TCNs count: {:?}", tcns);
+
+        if let Ok(tcns) = &tcns {
+            let tcns_for_debugging: Vec<String> = tcns
+                .clone()
+                .into_iter()
+                .map(|tcn| hex::encode(tcn.tcn.0))
+                .collect();
+
+            info!("R DB TCNs: {:?}", tcns_for_debugging);
+        }
 
         let matched_reports: Result<Vec<MatchedReport>, ServicesError> =
             tcns.and_then(|tcns| self.tcn_matcher.match_reports(tcns, reports));
@@ -381,7 +399,12 @@ where
 
         if let Ok(reports) = &matched_reports {
             if !reports.is_empty() {
-                info!("Matches found ({:?}): {:?}", reports.len(), matched_reports);
+                let reports_strings: Vec<String> = reports
+                    .into_iter()
+                    .map(|report| base64::encode(signed_report_to_bytes(report.report.clone())))
+                    .collect();
+
+                info!("Matches found ({:?}): {:?}", reports.len(), reports_strings);
             } else {
                 info!("No matches found");
             }
@@ -404,7 +427,11 @@ where
     }
 
     fn store_last_completed_interval(&self, intervals: Vec<ReportsInterval>, now: &UnixTime) {
-        let interval = Self::interval_ending_before(intervals, now);
+        let interval = Self::interval_ending_before(intervals.clone(), now);
+        debug!(
+            "Storing last completed reports interval: {:?}, for intervals: {:?}",
+            interval, intervals
+        );
 
         if let Some(interval) = interval {
             self.preferences.set_last_completed_reports_interval(
@@ -449,7 +476,6 @@ mod tests {
         public_report::{CoughSeverity, FeverSeverity},
         symptom_inputs::UserInput,
     };
-    use std::io::Cursor;
     use tcn::{MemoType, ReportAuthorizationKey};
 
     #[test]
@@ -542,12 +568,13 @@ mod tests {
         rak.create_report(MemoType::CoEpiV1, memo_data.bytes, 1, 10000)
             .unwrap()
     }
+}
 
-    fn signed_report_to_bytes(signed_report: SignedReport) -> Vec<u8> {
-        let mut buf = Vec::new();
-        signed_report
-            .write(Cursor::new(&mut buf))
-            .expect("Couldn't write signed report bytes");
-        buf
-    }
+// Testing / debugging
+fn signed_report_to_bytes(signed_report: SignedReport) -> Vec<u8> {
+    let mut buf = Vec::new();
+    signed_report
+        .write(Cursor::new(&mut buf))
+        .expect("Couldn't write signed report bytes");
+    buf
 }
