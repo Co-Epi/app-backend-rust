@@ -27,6 +27,7 @@ mod errors;
 mod preferences;
 #[cfg(target_os="ios")]
 mod tcn_ext;
+#[cfg(target_os="ios")]
 mod simple_logger;
 
 #[cfg(target_os="ios")]
