@@ -14,7 +14,7 @@ impl UnixTime {
     }
 }
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct ReportsInterval {
     pub number: u64,
     pub length: u64,
