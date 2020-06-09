@@ -17,6 +17,7 @@ use std::{collections::HashMap, thread};
 use std::{sync::Arc, time::Instant};
 use tcn::{SignedReport, TemporaryContactNumber};
 use thread::JoinHandle;
+use log::*;
 
 pub trait TcnMatcher {
     fn match_reports(
@@ -279,7 +280,7 @@ trait SignedReportExt {
                 }
             })
             .map_err(|err| {
-                println!("Error: {}", err);
+                error!("Error: {}", err);
                 err
             })
             .ok()
@@ -381,7 +382,7 @@ where
                 .filter_map(|report_string| {
                     SignedReport::with_str(&report_string).also(|res| {
                         if res.is_none() {
-                            println!("Failed to convert report string: $it to report");
+                            error!("Failed to convert report string: $it to report");
                         }
                     })
                 })
@@ -421,27 +422,27 @@ where
     ) -> Result<Vec<MatchedReport>, ServicesError> {
         let matching_start_time = Instant::now();
 
-        println!("R Start matching...");
+        info!("R Start matching...");
 
         let tcns = self.tcn_dao.all();
-        println!("R DB TCNs count: {:?}", tcns);
+        info!("R DB TCNs count: {:?}", tcns);
 
         let matched_reports: Result<Vec<MatchedReport>, ServicesError> =
             tcns.and_then(|tcns| self.tcn_matcher.match_reports(tcns, reports));
 
         let time = matching_start_time.elapsed().as_secs();
-        println!("Took {:?}s to match reports", time);
+        info!("Took {:?}s to match reports", time);
 
         if let Ok(reports) = &matched_reports {
             if !reports.is_empty() {
-                println!("Matches found ({:?}): {:?}", reports.len(), matched_reports);
+                info!("Matches found ({:?}): {:?}", reports.len(), matched_reports);
             } else {
-                println!("No matches found");
+                info!("No matches found");
             }
         };
 
         if let Err(error) = &matched_reports {
-            println!("Matching error: ({:?})", error)
+            error!("Matching error: ({:?})", error)
         }
 
         matched_reports
@@ -526,9 +527,9 @@ mod tests {
     fn _print_tcns_for_report() {
         let report_str = "rOFMgzy3y36MJns34Xj7EZu5Dti9XMhYGRpa/DVznep6q4hMtMYm9sYMg9+sRSHAj0Ff2rHTPXskuzJH0+pZMQEAAgAAFAEAnazaXgAAAAD//////////wMAMFLrKLNOvwUJQSNta9rlzTyjFdpfq25Kv34c6y+ZOoSzRewzNAWsd56Yzm8LUw9cpHB8yyzDUMJ9YTKhD8dADA==";
         let report = SignedReport::with_str(report_str).unwrap();
-        println!("{:?}", report);
+        info!("{:?}", report);
         for tcn in report.verify().unwrap().temporary_contact_numbers() {
-            println!("{}", hex::encode(tcn.0));
+            info!("{}", hex::encode(tcn.0));
         }
     }
 
@@ -573,7 +574,7 @@ mod tests {
         assert_eq!(matches.len(), 1);
 
         let time = matching_start_time.elapsed().as_secs();
-        println!("Took {:?}s to match reports", time);
+        info!("Took {:?}s to match reports", time);
 
         // Short verification that matching is working
         let matched_report_str = base64::encode(signed_report_to_bytes(matches[0].report.clone()));

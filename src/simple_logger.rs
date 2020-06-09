@@ -1,12 +1,13 @@
 use crate::ios::ffi_for_sanity_tests::{LOG_SENDER, CoreLogMessageThreadSafe, CoreLogLevel};
-use log::{Level, Metadata, Record};
-use log::{LevelFilter, SetLoggerError};
+// use log::{Level, Metadata, Record};
+// use log::{LevelFilter, SetLoggerError};
 use chrono::Utc;
+use log::*;
 
 static LOGGER: SimpleLogger = SimpleLogger;
 
 pub fn init() -> Result<(), SetLoggerError> {
-    log::set_logger(&LOGGER).map(|()| log::set_max_level(LevelFilter::Info))
+    log::set_logger(&LOGGER).map(|()| log::set_max_level(LevelFilter::Trace))
 }
 
 pub struct SimpleLogger;
@@ -48,6 +49,7 @@ impl log::Log for SimpleLogger {
                 Level::Warn => CoreLogLevel::Warn,
                 Level::Trace => CoreLogLevel::Trace,
             };
+
 
             let lmts = CoreLogMessageThreadSafe{
                 level: lvl,
