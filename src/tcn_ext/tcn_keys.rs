@@ -1,36 +1,45 @@
-use crate::preferences::{Preferences, PreferencesTckMock, TckBytesWrapper, TCK_SIZE_IN_BYTES};
+use crate::preferences::{Preferences, TckBytesWrapper, TCK_SIZE_IN_BYTES};
 use std::{io::Cursor, sync::Arc};
-use tcn::{Error, MemoType, ReportAuthorizationKey, SignedReport, TemporaryContactKey, TemporaryContactNumber};
+use tcn::{
+    Error, MemoType, ReportAuthorizationKey, SignedReport, TemporaryContactKey,
+    TemporaryContactNumber,
+};
 
 pub trait TcnKeys {
-  fn create_report(&self, report: Vec<u8>) -> Result<SignedReport, Error>;
-  fn generate_tcn(&self) -> TemporaryContactNumber;
+    fn create_report(&self, report: Vec<u8>) -> Result<SignedReport, Error>;
+    fn generate_tcn(&self) -> TemporaryContactNumber;
 }
 
-pub trait ReportAuthorizationKeyExt{
-    fn with_bytes(bytes: [u8;32]) -> ReportAuthorizationKey {
+pub trait ReportAuthorizationKeyExt {
+    fn with_bytes(bytes: [u8; 32]) -> ReportAuthorizationKey {
         ReportAuthorizationKey::read(Cursor::new(&bytes)).expect("Couldn't read RAK bytes")
     }
 }
 
-impl ReportAuthorizationKeyExt for ReportAuthorizationKey{}
+impl ReportAuthorizationKeyExt for ReportAuthorizationKey {}
 
 pub trait TckBytesWrapperExt {
-  fn with_bytes(bytes: Vec<u8>) -> TckBytesWrapper {
-    let mut array = [0; TCK_SIZE_IN_BYTES];
+    fn with_bytes(bytes: Vec<u8>) -> TckBytesWrapper {
+        let mut array = [0; TCK_SIZE_IN_BYTES];
         let bytes = &bytes[..array.len()]; // panics if not enough data
         array.copy_from_slice(bytes);
         TckBytesWrapper { tck_bytes: array }
-  }
+    }
 }
 
-impl TckBytesWrapperExt for TckBytesWrapper{}
+impl TckBytesWrapperExt for TckBytesWrapper {}
 
-pub struct TcnKeysImpl<PreferencesType: Preferences> {
-    pub preferences: Arc<PreferencesType>,
+pub struct TcnKeysImpl<T>
+where
+    T: Preferences,
+{
+    pub preferences: Arc<T>,
 }
 
-impl<PreferencesType: Preferences> TcnKeys for TcnKeysImpl<PreferencesType> {
+impl<T> TcnKeys for TcnKeysImpl<T>
+where
+    T: Preferences,
+{
     fn create_report(&self, report: Vec<u8>) -> Result<SignedReport, Error> {
         let end_index = self.tck().index();
         let periods = 14 * 24 * (60 / 15);
@@ -45,26 +54,29 @@ impl<PreferencesType: Preferences> TcnKeys for TcnKeysImpl<PreferencesType> {
     }
 
     fn generate_tcn(&self) -> TemporaryContactNumber {
-      let tck = self.tck();
-      let tcn = tck.temporary_contact_number();
-      let new_tck = tck.ratchet();
-  
-      if let Some(new_tck) = new_tck {
-        self.set_tck(new_tck);
-      }
-  
-      println!("RUST generated tcn: {:?}", tcn);
-      // TODO: if None, rotate RAK
-      tcn
+        let tck = self.tck();
+        let tcn = tck.temporary_contact_number();
+        let new_tck = tck.ratchet();
+
+        if let Some(new_tck) = new_tck {
+            self.set_tck(new_tck);
+        }
+
+        println!("RUST generated tcn: {:?}", tcn);
+        // TODO: if None, rotate RAK
+        tcn
     }
 }
 
-impl<PreferencesType: Preferences> TcnKeysImpl<PreferencesType> {
+impl<T> TcnKeysImpl<T>
+where
+    T: Preferences,
+{
     fn rak(&self) -> ReportAuthorizationKey {
         self.preferences
             .authorization_key()
-            .map(|rak_bytes| ReportAuthorizationKey::with_bytes(rak_bytes))//Self::bytes_to_rak(rak_bytes))
-            .unwrap_or({
+            .map(|rak_bytes| ReportAuthorizationKey::with_bytes(rak_bytes)) //Self::bytes_to_rak(rak_bytes))
+            .unwrap_or_else(|| {
                 let new_key = ReportAuthorizationKey::new(rand::thread_rng());
                 self.preferences
                     .set_autorization_key(Self::rak_to_bytes(new_key));
@@ -113,6 +125,7 @@ impl<PreferencesType: Preferences> TcnKeysImpl<PreferencesType> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::preferences::PreferencesTckMock;
 
     #[test]
     fn test_rak() {
@@ -129,8 +142,7 @@ mod tests {
         ];
         let key = ReportAuthorizationKey::with_bytes(bytes);
         let tck = key.initial_temporary_contact_key();
-        let tck_bytes = TcnKeysImpl::<PreferencesTckMock>::tck_to_bytes(tck);
-
+        TcnKeysImpl::<PreferencesTckMock>::tck_to_bytes(tck);
     }
 
     #[test]
@@ -140,7 +152,7 @@ mod tests {
             126, 139, 162, 15, 31, 0, 22, 31, 230, 242, 241, 225, 85,
         ];
         let rak = ReportAuthorizationKey::with_bytes(rak_bytes);
-        let tck_1 = rak.initial_temporary_contact_key();
+        let _tck_1 = rak.initial_temporary_contact_key();
 
         let tck_inner_bytes = [
             34, 166, 47, 23, 224, 52, 240, 95, 140, 186, 95, 243, 26, 13, 174, 128, 224, 229, 158,
@@ -160,7 +172,6 @@ mod tests {
         let tck = TcnKeysImpl::<PreferencesTckMock>::bytes_to_tck(tck_bytes_wrapped);
 
         println!("{:#?}", tck);
-        
     }
 
     #[test]

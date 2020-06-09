@@ -27,6 +27,7 @@ mod errors;
 mod preferences;
 #[cfg(target_os="ios")]
 mod tcn_ext;
+mod simple_logger;
 
 #[cfg(target_os="ios")]
 pub type Res<T> = Result<T, Error>;

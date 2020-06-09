@@ -1,17 +1,11 @@
 use super::{memo::MemoMapper, public_report::*};
-use crate::errors;
-use crate::errors::ServicesError::Error;
-use crate::preferences::PreferencesTckMock;
-use crate::reporting::memo::MemoMapperImpl;
 use crate::{
-    errors::ServicesError,
-    networking::{TcnApi, TcnApiMock},
-    reports_interval::UnixTime,
-    tcn_ext::tcn_keys::{TcnKeys, TcnKeysImpl, ReportAuthorizationKeyExt},
+    errors::ServicesError, networking::TcnApi, reports_interval::UnixTime,
+    tcn_ext::tcn_keys::TcnKeys,
 };
-use std::{io::Cursor, collections::HashSet, sync::Arc};
 use serde::{Deserialize, Serialize};
-use tcn::{SignedReport, TemporaryContactKey, ReportAuthorizationKey};
+use std::{collections::HashSet, io::Cursor, sync::Arc};
+use tcn::SignedReport;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct SymptomInputs {
@@ -130,7 +124,10 @@ where
     None,
 }
 
-impl<T: Serialize> UserInput<T> {
+impl<T> UserInput<T>
+where
+    T: Serialize,
+{
     pub fn map<F: FnOnce(T) -> U, U: Serialize>(self, f: F) -> UserInput<U> {
         match self {
             UserInput::Some(input) => UserInput::Some(f(input)),
@@ -144,33 +141,21 @@ pub struct EarliestSymptom {
     pub time: UserInput<UnixTime>,
 }
 
-pub trait SymptomInputsSubmitter<
-    MemoMapperType: MemoMapper,
-    TcnKeysType: TcnKeys,
-    TcnApiType: TcnApi,
->
-{
+pub trait SymptomInputsSubmitter<T: MemoMapper, U: TcnKeys, V: TcnApi> {
     fn submit_inputs(&self, inputs: SymptomInputs) -> Result<(), ServicesError>;
 }
 
-
-pub struct SymptomInputsSubmitterImpl<
-    'a,
-    MemoMapperType: MemoMapper,
-    TcnKeysType: TcnKeys,
-    TcnApiType: TcnApi,
-> {
-    pub memo_mapper: &'a MemoMapperType,
-    pub tcn_keys: Arc<TcnKeysType>,
-    pub api: &'a TcnApiType,
+pub struct SymptomInputsSubmitterImpl<'a, T: MemoMapper, U: TcnKeys, V: TcnApi> {
+    pub memo_mapper: &'a T,
+    pub tcn_keys: Arc<U>,
+    pub api: &'a V,
 }
 
-impl<'a, MemoMapperType: MemoMapper, TcnKeysType: TcnKeys, TcnApiType: TcnApi>
-    SymptomInputsSubmitter<MemoMapperType, TcnKeysType, TcnApiType>
-    for SymptomInputsSubmitterImpl<'a, MemoMapperType, TcnKeysType, TcnApiType>
+impl<'a, T: MemoMapper, U: TcnKeys, V: TcnApi> SymptomInputsSubmitter<T, U, V>
+    for SymptomInputsSubmitterImpl<'a, T, U, V>
 {
     fn submit_inputs(&self, inputs: SymptomInputs) -> Result<(), ServicesError> {
-        let public_report = PublicReport::with_inputs(inputs);
+        let public_report = PublicReport::with_inputs(inputs, UnixTime::now());
 
         if !public_report.should_be_sent() {
             println!("RUST Public report: {:?} doesn't contain infos relevant to other users. Not sending.", public_report);
@@ -179,7 +164,7 @@ impl<'a, MemoMapperType: MemoMapper, TcnKeysType: TcnKeys, TcnApiType: TcnApi>
 
         println!("RUST Created public report: {:?}", public_report);
 
-        let memo = self.memo_mapper.to_memo(public_report, UnixTime::now());
+        let memo = self.memo_mapper.to_memo(public_report);
 
         println!("RUST mapped public report to memo: {:?}", memo.bytes);
 
@@ -204,8 +189,22 @@ fn signed_report_to_bytes(signed_report: SignedReport) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::errors;
+    use crate::errors::ServicesError;
+    use crate::errors::ServicesError::Error;
+    use crate::preferences::PreferencesTckMock;
+    use crate::reporting::memo::MemoMapperImpl;
+    use crate::{
+        networking::TcnApiMock,
+        tcn_ext::tcn_keys::{ReportAuthorizationKeyExt, TcnKeysImpl},
+    };
+    use tcn::{ReportAuthorizationKey, TemporaryContactKey};
+    use log::{info, warn};
+    use crate::simple_logger;
+
     #[test]
     fn test_public_report_with_inputs() {
+        
         let breathlessness = Breathlessness {
             cause: UserInput::Some(BreathlessnessCause::HurryOrHill),
         };
@@ -242,9 +241,13 @@ mod tests {
             earliest_symptom,
         };
 
-        let public_report = PublicReport::with_inputs(inputs);
+        let public_report = PublicReport::with_inputs(inputs, UnixTime { value: 0 });
 
         println!("{:#?}", public_report);
+
+        let _ = simple_logger::init();
+
+        info!(target: "test_events", "Logging PublicReport: {:?}", public_report);
         /*
           PublicReport {
             earliest_symptom_time: Some(
@@ -268,6 +271,7 @@ mod tests {
         assert_eq!(1, 1);
 
         let report_which_should_be_sent = PublicReport {
+            report_time: UnixTime { value: 0 },
             earliest_symptom_time: UserInput::Some(UnixTime { value: 1590356601 }),
             fever_severity: FeverSeverity::Mild,
             cough_severity: CoughSeverity::Dry,
@@ -277,6 +281,7 @@ mod tests {
         assert_eq!(true, report_which_should_be_sent.should_be_sent());
 
         let report_which_should_not_be_sent = PublicReport {
+            report_time: UnixTime { value: 0 },
             earliest_symptom_time: UserInput::Some(UnixTime { value: 1590356601 }),
             fever_severity: FeverSeverity::None,
             cough_severity: CoughSeverity::None,
@@ -289,6 +294,7 @@ mod tests {
     #[test]
     fn test_public_report_to_signed_report() {
         let report_which_should_be_sent = PublicReport {
+            report_time: UnixTime { value: 0 },
             earliest_symptom_time: UserInput::Some(UnixTime { value: 1590356601 }),
             fever_severity: FeverSeverity::Mild,
             cough_severity: CoughSeverity::Dry,
@@ -303,23 +309,19 @@ mod tests {
         println!(">> tck: {:#?}", tck);
         let tck_bytes = TcnKeysImpl::<PreferencesTckMock>::tck_to_bytes(tck);
 
-        let preferences = Arc::new(PreferencesTckMock {
-            tck_bytes: tck_bytes,
-        });
+        let preferences = Arc::new(PreferencesTckMock { tck_bytes });
 
-        let tcn_keys = Arc::new(TcnKeysImpl{
-          preferences: preferences.clone()
+        let tcn_keys = Arc::new(TcnKeysImpl {
+            preferences: preferences.clone(),
         });
 
         let submitter = SymptomInputsSubmitterImpl {
             memo_mapper: &MemoMapperImpl {},
-            tcn_keys: tcn_keys,
+            tcn_keys,
             api: &TcnApiMock {},
         };
 
-        let memo = submitter
-            .memo_mapper
-            .to_memo(report_which_should_be_sent, UnixTime::now());
+        let memo = submitter.memo_mapper.to_memo(report_which_should_be_sent);
 
         let signed_report = match submitter.tcn_keys.create_report(memo.bytes) {
             Ok(signed) => signed,
@@ -336,7 +338,7 @@ mod tests {
         let report_str = base64::encode(signed_report_to_bytes(signed_report));
         println!(">> report_str: {:#?}", report_str);
 
-        let res = submitter
+        submitter
             .api
             .post_report(report_str)
             .map_err(ServicesError::from)
@@ -396,9 +398,12 @@ mod tests {
         inputs
     }
 
-    fn testing_get_submitter(
-    ) -> SymptomInputsSubmitterImpl<'static, MemoMapperImpl, TcnKeysImpl<PreferencesTckMock>, TcnApiMock>
-    {
+    fn testing_get_submitter() -> SymptomInputsSubmitterImpl<
+        'static,
+        MemoMapperImpl,
+        TcnKeysImpl<PreferencesTckMock>,
+        TcnApiMock,
+    > {
         let rak_bytes = [
             42, 118, 64, 131, 236, 36, 122, 23, 13, 108, 73, 171, 102, 145, 66, 91, 157, 105, 195,
             126, 139, 162, 15, 31, 0, 22, 31, 230, 242, 241, 225, 85,
@@ -411,8 +416,8 @@ mod tests {
             tck_bytes: tck_bytes,
         });
 
-        let tcn_keys = Arc::new(TcnKeysImpl{
-          preferences: preferences.clone()
+        let tcn_keys = Arc::new(TcnKeysImpl {
+            preferences: preferences.clone(),
         });
 
         let submitter = SymptomInputsSubmitterImpl {
