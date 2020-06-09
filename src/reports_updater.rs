@@ -220,20 +220,21 @@ pub struct ReportsUpdater<'a, T: Preferences, U: TcnDao, V: TcnMatcher, W: TcnAp
 trait SignedReportExt {
     fn with_str(str: &str) -> Option<SignedReport> {
         base64::decode(str)
-            .map_err(Error::from)
-            .and_then(|bytes| SignedReport::read(bytes.as_slice()).map_err(Error::from))
             .also(|res| {
-                if res.is_err() {
-                    print!("error!");
+                if let Err(error) = res {
+                    error!("Error: {} decoding (base64) report: {:?}", error, res)
                 }
             })
+            .map_err(Error::from)
+            .and_then(|bytes| SignedReport::read(bytes.as_slice()).map_err(Error::from))
             .map_err(|err| {
-                error!("Error: {}", err);
+                error!("Error decoding or generating report: {}", err);
                 err
             })
             .ok()
     }
 }
+
 impl SignedReportExt for SignedReport {}
 
 impl<'a, T, U, V, W, X> ReportsUpdater<'a, T, U, V, W, X>
@@ -634,6 +635,21 @@ mod tests {
         let matched_report_str = base64::encode(signed_report_to_bytes(matches[0].report.clone()));
         assert_eq!(matched_report_str, verification_report_str);
         assert_eq!(matches[0].contact_time, verification_contact_time);
+    }
+
+    #[test]
+    fn test_report_empty_is_none() {
+        assert!(SignedReport::with_str("").is_none())
+    }
+
+    #[test]
+    fn test_report_base64_invalid_is_none() {
+        assert!(SignedReport::with_str("%~=-🥳").is_none())
+    }
+
+    #[test]
+    fn test_report_base64_valid_report_invalid_is_none() {
+        assert!(SignedReport::with_str("slkdjfslfd").is_none())
     }
 
     fn create_test_report() -> SignedReport {
