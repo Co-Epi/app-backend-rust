@@ -159,15 +159,18 @@ impl<'a, T: MemoMapper, U: TcnKeys, V: TcnApi> SymptomInputsSubmitter<T, U, V>
         let public_report = PublicReport::with_inputs(inputs, UnixTime::now());
 
         if !public_report.should_be_sent() {
-            warn!("RUST Public report: {:?} doesn't contain infos relevant to other users. Not sending.", public_report);
+            warn!(
+                "Public report: {:?} doesn't contain infos relevant to other users. Not sending.",
+                public_report
+            );
             return Ok(());
         }
 
-        debug!("RUST Created public report: {:?}", public_report);
+        debug!("Created public report: {:?}", public_report);
 
         let memo = self.memo_mapper.to_memo(public_report);
 
-        debug!("RUST mapped public report to memo: {:?}", memo.bytes);
+        debug!("mapped public report to memo: {:?}", memo.bytes);
 
         let signed_report = self.tcn_keys.create_report(memo.bytes)?;
 

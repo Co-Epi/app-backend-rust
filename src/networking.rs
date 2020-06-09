@@ -1,10 +1,10 @@
 use core::fmt;
+use log::*;
 use reqwest::{
     blocking::{Client, Response},
     Error,
 };
 use std::error;
-use log::*;
 
 static BASE_URL: &str = "https://zmqh8rwdx4.execute-api.us-west-2.amazonaws.com/v4/tcnreport/0.4.0";
 // static BASE_URL: &str = "https://v1.api.coepi.org/tcnreport/v0.4.0";
@@ -56,7 +56,7 @@ impl TcnApi for TcnApiImpl {
         interval_length: u64,
     ) -> Result<Vec<String>, NetworkingError> {
         info!(
-            "RUST downloading reports: interval: {}, length: {}",
+            "Downloading reports: interval: {}, length: {}",
             interval_number, interval_length
         );
 
@@ -69,13 +69,12 @@ impl TcnApi for TcnApiImpl {
             .query(&[("intervalLength", interval_length)])
             .send()?;
         let reports = response.json::<Vec<String>>()?;
-        // info!("RUST retrieved reports count: {}", reports.len());
-        info!("RUST retrieved reports count: {}", reports.len());
+        info!("Retrieved reports count: {}", reports.len());
         Ok(reports)
     }
 
     fn post_report(&self, report: String) -> Result<(), NetworkingError> {
-        info!("RUST posting report: {}", report);
+        info!("Posting report: {}", report);
 
         let url: &str = BASE_URL;
         let client = Self::create_client()?;
@@ -85,12 +84,12 @@ impl TcnApi for TcnApiImpl {
             .body(report)
             .send()?;
 
-        info!("RUST post report success: {:?}", response);
+        info!("Post report success: {:?}", response);
         Ok(response).map(|_| ())
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NetworkingError {
     pub http_status: u16,
     pub message: String,

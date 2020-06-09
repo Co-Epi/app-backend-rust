@@ -22,23 +22,22 @@ struct LibResult<T> {
 pub unsafe extern "C" fn bootstrap_core(db_path: *const c_char) -> CFStringRef {
     let db_path_str = cstring_to_str(&db_path);
 
-    println!("RUST: bootstrapping with db path: {:?}", db_path_str);
+    println!("Bootstrapping with db path: {:?}", db_path_str);
     //TODO: Investigate using Box-ed logger
     //TODO: let app set max_logging_level
     let _ = simple_logger::init();
     let result = db_path_str.and_then(|path| init_db(path).map_err(ServicesError::from));
-    // println!("RUST: bootstrapping result: {:?}", result);
-    info!("RUST: bootstrapping result: {:?}", result);
+    info!("Bootstrapping result: {:?}", result);
     return to_result_str(result);
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn fetch_new_reports() -> CFStringRef {
-    info!("RUST: updating reports");
+    info!("Updating reports");
 
     let result = COMP_ROOT.reports_updater.fetch_new_reports();
 
-    info!("RUST: new reports: {:?}", result);
+    info!("New reports: {:?}", result);
 
     return to_result_str(result);
 }
@@ -46,9 +45,8 @@ pub unsafe extern "C" fn fetch_new_reports() -> CFStringRef {
 #[no_mangle]
 pub unsafe extern "C" fn record_tcn(c_tcn: *const c_char) -> CFStringRef {
     let tcn_str = cstring_to_str(&c_tcn);
-    info!("RUST: recording a TCN {:?}", c_tcn);
     let result = tcn_str.and_then(|tcn_str| COMP_ROOT.observed_tcn_processor.save(tcn_str));
-    info!("RUST: recording TCN result {:?}", result);
+    info!("Recording TCN result {:?}", result);
     return to_result_str(result);
 }
 
@@ -57,8 +55,7 @@ pub unsafe extern "C" fn record_tcn(c_tcn: *const c_char) -> CFStringRef {
 pub unsafe extern "C" fn generate_tcn() -> CFStringRef {
     // TODO hex encoding in component, or send byte array directly?
     let tcn_hex = hex::encode(COMP_ROOT.tcn_keys.generate_tcn().0);
-    info!("RUST generated TCN: {:?}", tcn_hex);
-    // info!("RUST generated TCN: {:?}", tcn_hex);
+    info!("Generated TCN: {:?}", tcn_hex);
 
     let cf_string = CFString::new(&tcn_hex);
     let cf_string_ref = cf_string.as_concrete_TypeRef();
@@ -106,7 +103,7 @@ fn fallback_error_result_str<T: Serialize>() -> String {
 
 #[no_mangle]
 pub unsafe extern "C" fn set_symptom_ids(c_ids: *const c_char) -> CFStringRef {
-    debug!("RUST: setting symptom ids: {:?}", c_ids);
+    debug!("Setting symptom ids: {:?}", c_ids);
     let ids_str = cstring_to_str(&c_ids);
     let result =
         ids_str.and_then(|ids_str| COMP_ROOT.symptom_inputs_processor.set_symptom_ids(ids_str));
@@ -115,7 +112,7 @@ pub unsafe extern "C" fn set_symptom_ids(c_ids: *const c_char) -> CFStringRef {
 
 #[no_mangle]
 pub unsafe extern "C" fn set_cough_type(c_cough_type: *const c_char) -> CFStringRef {
-    debug!("RUST: setting cough type: {:?}", c_cough_type);
+    debug!("Setting cough type: {:?}", c_cough_type);
     let cough_type_str = cstring_to_str(&c_cough_type);
     let result = cough_type_str.and_then(|cough_type_str| {
         COMP_ROOT
@@ -135,7 +132,7 @@ pub unsafe extern "C" fn set_cough_days(c_is_set: u8, c_days: u32) -> CFStringRe
 
 #[no_mangle]
 pub unsafe extern "C" fn set_cough_status(c_status: *const c_char) -> CFStringRef {
-    debug!("RUST: setting cough status: {:?}", c_status);
+    info!("Setting cough status: {:?}", c_status);
     let status_str = cstring_to_str(&c_status);
     let result = status_str.and_then(|status_str| {
         COMP_ROOT
@@ -147,7 +144,7 @@ pub unsafe extern "C" fn set_cough_status(c_status: *const c_char) -> CFStringRe
 
 #[no_mangle]
 pub unsafe extern "C" fn set_breathlessness_cause(c_cause: *const c_char) -> CFStringRef {
-    debug!("RUST: setting breathlessness cause: {:?}", c_cause);
+    debug!("Setting breathlessness cause: {:?}", c_cause);
     let cause_str = cstring_to_str(&c_cause);
     let result = cause_str.and_then(|cause_str| {
         COMP_ROOT
@@ -178,7 +175,7 @@ pub unsafe extern "C" fn set_fever_taken_temperature_today(
 
 #[no_mangle]
 pub unsafe extern "C" fn set_fever_taken_temperature_spot(c_cause: *const c_char) -> CFStringRef {
-    debug!("RUST: setting temperature spot cause: {:?}", c_cause);
+    debug!("Setting temperature spot cause: {:?}", c_cause);
     let spot_str = cstring_to_str(&c_cause);
     let result = spot_str.and_then(|spot_str| {
         COMP_ROOT
@@ -224,7 +221,7 @@ pub unsafe extern "C" fn submit_symptoms() -> CFStringRef {
 
 #[no_mangle]
 pub unsafe extern "C" fn post_report(c_report: *const c_char) -> CFStringRef {
-    info!("RUST: posting report: {:?}", c_report);
+    info!("Posting report: {:?}", c_report);
 
     let report = cstring_to_str(&c_report);
 
