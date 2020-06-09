@@ -80,6 +80,10 @@ fn create_comp_root() -> CompositionRoot<
 > {
     let api = &TcnApiImpl {};
     let preferences = Arc::new(PreferencesImpl {
+        // unwrap: "Errors that are returned from this function are I/O related,
+        // for example if the writing of the new configuration fails or confy encounters
+        // an operating system or environment that it does not support."
+        // The config is critical in this app, so it's ok to crash if not available.
         config: RwLock::new(confy::load("coepi").unwrap()),
     });
     let memo_mapper = &MemoMapperImpl {};

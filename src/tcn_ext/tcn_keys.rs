@@ -1,10 +1,10 @@
 use crate::preferences::{Preferences, TckBytesWrapper, TCK_SIZE_IN_BYTES};
+use log::*;
 use std::{io::Cursor, sync::Arc};
 use tcn::{
     Error, MemoType, ReportAuthorizationKey, SignedReport, TemporaryContactKey,
     TemporaryContactNumber,
 };
-use log::*;
 
 pub trait TcnKeys {
     fn create_report(&self, report: Vec<u8>) -> Result<SignedReport, Error>;
@@ -89,7 +89,7 @@ where
         self.preferences
             .tck()
             .map(|tck_bytes| Self::bytes_to_tck(tck_bytes))
-            .unwrap_or({ self.rak().initial_temporary_contact_key() })
+            .unwrap_or_else(|| self.rak().initial_temporary_contact_key())
     }
 
     fn set_tck(&self, tck: TemporaryContactKey) {

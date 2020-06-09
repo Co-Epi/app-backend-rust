@@ -3,10 +3,10 @@ use crate::{
     errors::ServicesError, networking::TcnApi, reports_interval::UnixTime,
     tcn_ext::tcn_keys::TcnKeys,
 };
+use log::*;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, io::Cursor, sync::Arc};
 use tcn::SignedReport;
-use log::*;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct SymptomInputs {
@@ -195,17 +195,17 @@ mod tests {
     use crate::errors::ServicesError::Error;
     use crate::preferences::PreferencesTckMock;
     use crate::reporting::memo::MemoMapperImpl;
+    use crate::simple_logger;
     use crate::{
         networking::TcnApiMock,
         tcn_ext::tcn_keys::{ReportAuthorizationKeyExt, TcnKeysImpl},
     };
     use tcn::{ReportAuthorizationKey, TemporaryContactKey};
-    use crate::simple_logger;
 
     #[test]
     fn test_public_report_with_inputs() {
         let _ = simple_logger::init();
-        
+
         let breathlessness = Breathlessness {
             cause: UserInput::Some(BreathlessnessCause::HurryOrHill),
         };
@@ -351,6 +351,7 @@ mod tests {
         let mut tck = rak.initial_temporary_contact_key(); // tck <- tck_1
                                                            // let mut tcns = Vec::new();
         for _ in 0..index {
+            // unwrap: this function is used only in tests
             tck = tck.ratchet().unwrap();
         }
 
@@ -437,6 +438,7 @@ mod tests {
             Ok(()) => assert!(true),
             Err(errors::ServicesError::Networking(_)) => assert!(false),
             Err(Error(_)) => assert!(false),
+            Err(_) => assert!(false),
         }
     }
 }

@@ -10,14 +10,13 @@ use crate::{
     reports_interval, DB, DB_UNINIT,
 };
 use chrono::Utc;
+use log::*;
 use rayon::prelude::*;
 use reports_interval::{ReportsInterval, UnixTime};
 use serde::Serialize;
-use std::{collections::HashMap, thread};
+use std::collections::HashMap;
 use std::{sync::Arc, time::Instant};
 use tcn::{SignedReport, TemporaryContactNumber};
-use thread::JoinHandle;
-use log::*;
 
 pub trait TcnMatcher {
     fn match_reports(
@@ -72,80 +71,26 @@ impl TcnMatcherRayon {
         observed_tcns_map: &HashMap<[u8; 16], ObservedTcn>,
         report: &SignedReport,
     ) -> Option<MatchedReport> {
-        let mut out: Option<MatchedReport> = None;
-
-        // TODO no unwrap
-        let rep = report.clone().verify().unwrap();
-        for tcn in rep.temporary_contact_numbers() {
-            if let Some(entry) = observed_tcns_map.get(&tcn.0) {
-                out = Some(MatchedReport {
-                    report: report.clone(),
-                    contact_time: entry.time.clone(),
-                });
-                break;
+        let rep = report.clone().verify();
+        match rep {
+            Ok(rep) => {
+                let mut out: Option<MatchedReport> = None;
+                for tcn in rep.temporary_contact_numbers() {
+                    if let Some(entry) = observed_tcns_map.get(&tcn.0) {
+                        out = Some(MatchedReport {
+                            report: report.clone(),
+                            contact_time: entry.time.clone(),
+                        });
+                        break;
+                    }
+                }
+                out
+            }
+            Err(error) => {
+                error!("Report can't be matched. Verification failed: {:?}", error);
+                None
             }
         }
-        out
-    }
-}
-
-pub struct TcnMatcherStdThreadSpawn {}
-
-impl TcnMatcher for TcnMatcherStdThreadSpawn {
-    fn match_reports(
-        &self,
-        tcns: Vec<ObservedTcn>,
-        reports: Vec<SignedReport>,
-    ) -> Result<Vec<MatchedReport>, ServicesError> {
-        Self::match_reports_with(tcns, reports)
-    }
-}
-
-impl TcnMatcherStdThreadSpawn {
-    pub fn match_reports_with(
-        tcns: Vec<ObservedTcn>,
-        reports: Vec<SignedReport>,
-    ) -> Result<Vec<MatchedReport>, ServicesError> {
-        let observed_tcns_map: HashMap<[u8; 16], ObservedTcn> =
-            tcns.into_iter().map(|e| (e.tcn.0, e)).collect();
-
-        let observed_tcns_map = Arc::new(observed_tcns_map);
-
-        let threads: Vec<JoinHandle<Option<MatchedReport>>> = reports
-            .into_iter()
-            .map(|report| {
-                let observed_tcns_map = observed_tcns_map.clone();
-                thread::spawn(move || Self::match_report_with(&observed_tcns_map, report))
-            })
-            .collect();
-
-        let res: Vec<MatchedReport> = threads
-            .into_iter()
-            .map(|t| t.join().unwrap())
-            .filter_map(|option| option) // drop None (reports that didn't match)
-            .collect();
-
-        Ok(res)
-    }
-
-    pub fn match_report_with(
-        observed_tcns_map: &HashMap<[u8; 16], ObservedTcn>,
-        report: SignedReport,
-    ) -> Option<MatchedReport> {
-        let mut out: Option<MatchedReport> = None;
-
-        // TODO no unwrap
-        let rep = report.clone().verify().unwrap();
-        for tcn in rep.temporary_contact_numbers() {
-            if let Some(entry) = observed_tcns_map.get(&tcn.0) {
-                out = Some(MatchedReport {
-                    report,
-                    contact_time: entry.time.clone(),
-                });
-                break;
-            }
-        }
-        out
     }
 }
 
@@ -273,7 +218,8 @@ pub struct ReportsUpdater<'a, T: Preferences, U: TcnDao, V: TcnMatcher, W: TcnAp
 trait SignedReportExt {
     fn with_str(str: &str) -> Option<SignedReport> {
         base64::decode(str)
-            .map(|bytes| SignedReport::read(bytes.as_slice()).unwrap())
+            .map_err(Error::from)
+            .and_then(|bytes| SignedReport::read(bytes.as_slice()).map_err(Error::from))
             .also(|res| {
                 if res.is_err() {
                     print!("error!");
@@ -344,7 +290,7 @@ where
     fn determine_start_interval(&self, time: &UnixTime) -> ReportsInterval {
         self.retrieve_last_completed_interval()
             .map(|interval| interval.next())
-            .unwrap_or(ReportsInterval::create_for_with_default_length(time))
+            .unwrap_or_else(|| ReportsInterval::create_for_with_default_length(time))
     }
 
     fn matching_reports(

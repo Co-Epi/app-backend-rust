@@ -103,6 +103,8 @@ impl BitMapper<bool> for BoolMapper {
     }
 
     fn from_bits_unchecked(&self, bit_vector: BitVector) -> bool {
+        // unwrap: we know that _currently_ bit_vector can't be empty (because of the payload and memo's max length)
+        // TODO safer. Ideally without having to change interface to return Result.
         bit_vector.bits.first().unwrap().to_owned()
     }
 }
