@@ -23,7 +23,7 @@ impl BitVector {
             .map(|chunk| {
                 let bit_string = Self::to_bit_string(chunk);
                 let reversed: String = bit_string.chars().rev().collect(); // Most significant bit first
-                u8::from_str_radix(reversed.as_ref(), 2).unwrap()
+                u8::from_str_radix(reversed.as_ref(), 2).unwrap() // unwrap: we know that the chunks have 8 bits (are not empty) and composed of 1 and 0.
             })
             .collect()
     }
@@ -94,5 +94,17 @@ impl BitVector {
             mut_vec.push(with);
         }
         mut_vec
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn bit_vector_generates_empty_byte_array_if_empty() {
+        let bit_vector = BitVector { bits: vec![] };
+        let u8_array = bit_vector.as_u8_array();
+
+        assert!(u8_array.is_empty());
     }
 }

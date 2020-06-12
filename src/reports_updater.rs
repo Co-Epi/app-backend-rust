@@ -10,13 +10,13 @@ use crate::{
     reports_interval, DB, DB_UNINIT,
 };
 use chrono::Utc;
+use log::*;
 use rayon::prelude::*;
 use reports_interval::{ReportsInterval, UnixTime};
 use serde::Serialize;
-use std::{collections::HashMap, thread};
-use std::{sync::Arc, time::Instant};
+use std::collections::HashMap;
+use std::{io::Cursor, sync::Arc, time::Instant};
 use tcn::{SignedReport, TemporaryContactNumber};
-use thread::JoinHandle;
 
 pub trait TcnMatcher {
     fn match_reports(
@@ -71,80 +71,26 @@ impl TcnMatcherRayon {
         observed_tcns_map: &HashMap<[u8; 16], ObservedTcn>,
         report: &SignedReport,
     ) -> Option<MatchedReport> {
-        let mut out: Option<MatchedReport> = None;
-
-        // TODO no unwrap
-        let rep = report.clone().verify().unwrap();
-        for tcn in rep.temporary_contact_numbers() {
-            if let Some(entry) = observed_tcns_map.get(&tcn.0) {
-                out = Some(MatchedReport {
-                    report: report.clone(),
-                    contact_time: entry.time.clone(),
-                });
-                break;
+        let rep = report.clone().verify();
+        match rep {
+            Ok(rep) => {
+                let mut out: Option<MatchedReport> = None;
+                for tcn in rep.temporary_contact_numbers() {
+                    if let Some(entry) = observed_tcns_map.get(&tcn.0) {
+                        out = Some(MatchedReport {
+                            report: report.clone(),
+                            contact_time: entry.time.clone(),
+                        });
+                        break;
+                    }
+                }
+                out
+            }
+            Err(error) => {
+                error!("Report can't be matched. Verification failed: {:?}", error);
+                None
             }
         }
-        out
-    }
-}
-
-pub struct TcnMatcherStdThreadSpawn {}
-
-impl TcnMatcher for TcnMatcherStdThreadSpawn {
-    fn match_reports(
-        &self,
-        tcns: Vec<ObservedTcn>,
-        reports: Vec<SignedReport>,
-    ) -> Result<Vec<MatchedReport>, ServicesError> {
-        Self::match_reports_with(tcns, reports)
-    }
-}
-
-impl TcnMatcherStdThreadSpawn {
-    pub fn match_reports_with(
-        tcns: Vec<ObservedTcn>,
-        reports: Vec<SignedReport>,
-    ) -> Result<Vec<MatchedReport>, ServicesError> {
-        let observed_tcns_map: HashMap<[u8; 16], ObservedTcn> =
-            tcns.into_iter().map(|e| (e.tcn.0, e)).collect();
-
-        let observed_tcns_map = Arc::new(observed_tcns_map);
-
-        let threads: Vec<JoinHandle<Option<MatchedReport>>> = reports
-            .into_iter()
-            .map(|report| {
-                let observed_tcns_map = observed_tcns_map.clone();
-                thread::spawn(move || Self::match_report_with(&observed_tcns_map, report))
-            })
-            .collect();
-
-        let res: Vec<MatchedReport> = threads
-            .into_iter()
-            .map(|t| t.join().unwrap())
-            .filter_map(|option| option) // drop None (reports that didn't match)
-            .collect();
-
-        Ok(res)
-    }
-
-    pub fn match_report_with(
-        observed_tcns_map: &HashMap<[u8; 16], ObservedTcn>,
-        report: SignedReport,
-    ) -> Option<MatchedReport> {
-        let mut out: Option<MatchedReport> = None;
-
-        // TODO no unwrap
-        let rep = report.clone().verify().unwrap();
-        for tcn in rep.temporary_contact_numbers() {
-            if let Some(entry) = observed_tcns_map.get(&tcn.0) {
-                out = Some(MatchedReport {
-                    report,
-                    contact_time: entry.time.clone(),
-                });
-                break;
-            }
-        }
-        out
     }
 }
 
@@ -190,6 +136,8 @@ where
     T: TcnDao,
 {
     fn save(&self, tcn_str: &str) -> Result<(), ServicesError> {
+        info!("Recording a TCN {:?}", tcn_str);
+
         let bytes_vec: Vec<u8> = hex::decode(tcn_str)?;
         let observed_tcn = ObservedTcn {
             tcn: TemporaryContactNumber(byte_vec_to_16_byte_array(bytes_vec)),
@@ -272,19 +220,21 @@ pub struct ReportsUpdater<'a, T: Preferences, U: TcnDao, V: TcnMatcher, W: TcnAp
 trait SignedReportExt {
     fn with_str(str: &str) -> Option<SignedReport> {
         base64::decode(str)
-            .map(|bytes| SignedReport::read(bytes.as_slice()).unwrap())
             .also(|res| {
-                if res.is_err() {
-                    print!("error!");
+                if let Err(error) = res {
+                    error!("Error: {} decoding (base64) report: {:?}", error, res)
                 }
             })
+            .map_err(Error::from)
+            .and_then(|bytes| SignedReport::read(bytes.as_slice()).map_err(Error::from))
             .map_err(|err| {
-                println!("Error: {}", err);
+                error!("Error decoding or generating report: {}", err);
                 err
             })
             .ok()
     }
 }
+
 impl SignedReportExt for SignedReport {}
 
 impl<'a, T, U, V, W, X> ReportsUpdater<'a, T, U, V, W, X>
@@ -341,9 +291,16 @@ where
     }
 
     fn determine_start_interval(&self, time: &UnixTime) -> ReportsInterval {
-        self.retrieve_last_completed_interval()
-            .map(|interval| interval.next())
-            .unwrap_or(ReportsInterval::create_for_with_default_length(time))
+        let last = self.retrieve_last_completed_interval();
+        debug!(
+            "Determining start reports interval. Last completed interval: {:?}",
+            last
+        );
+        let next = last.map(|interval| interval.next());
+        debug!("Next interval: {:?}", next);
+        let result = next.unwrap_or_else(|| ReportsInterval::create_for_with_default_length(time));
+        debug!("Interval to fetch: {:?}", result);
+        result
     }
 
     fn matching_reports(
@@ -381,7 +338,7 @@ where
                 .filter_map(|report_string| {
                     SignedReport::with_str(&report_string).also(|res| {
                         if res.is_none() {
-                            println!("Failed to convert report string: $it to report");
+                            error!("Failed to convert report string: $it to report");
                         }
                     })
                 })
@@ -421,27 +378,41 @@ where
     ) -> Result<Vec<MatchedReport>, ServicesError> {
         let matching_start_time = Instant::now();
 
-        println!("R Start matching...");
+        info!("R Start matching...");
 
         let tcns = self.tcn_dao.all();
-        println!("R DB TCNs count: {:?}", tcns);
+
+        if let Ok(tcns) = &tcns {
+            let tcns_for_debugging: Vec<String> = tcns
+                .clone()
+                .into_iter()
+                .map(|tcn| hex::encode(tcn.tcn.0))
+                .collect();
+
+            info!("R DB TCNs: {:?}", tcns_for_debugging);
+        }
 
         let matched_reports: Result<Vec<MatchedReport>, ServicesError> =
             tcns.and_then(|tcns| self.tcn_matcher.match_reports(tcns, reports));
 
         let time = matching_start_time.elapsed().as_secs();
-        println!("Took {:?}s to match reports", time);
+        info!("Took {:?}s to match reports", time);
 
         if let Ok(reports) = &matched_reports {
             if !reports.is_empty() {
-                println!("Matches found ({:?}): {:?}", reports.len(), matched_reports);
+                let reports_strings: Vec<String> = reports
+                    .into_iter()
+                    .map(|report| base64::encode(signed_report_to_bytes(report.report.clone())))
+                    .collect();
+
+                info!("Matches found ({:?}): {:?}", reports.len(), reports_strings);
             } else {
-                println!("No matches found");
+                info!("No matches found");
             }
         };
 
         if let Err(error) = &matched_reports {
-            println!("Matching error: ({:?})", error)
+            error!("Matching error: ({:?})", error)
         }
 
         matched_reports
@@ -457,7 +428,11 @@ where
     }
 
     fn store_last_completed_interval(&self, intervals: Vec<ReportsInterval>, now: &UnixTime) {
-        let interval = Self::interval_ending_before(intervals, now);
+        let interval = Self::interval_ending_before(intervals.clone(), now);
+        debug!(
+            "Storing last completed reports interval: {:?}, for intervals: {:?}",
+            interval, intervals
+        );
 
         if let Some(interval) = interval {
             self.preferences.set_last_completed_reports_interval(
@@ -497,13 +472,94 @@ struct SignedReportsChunk {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::reporting::{
-        memo::MemoMapperImpl,
-        public_report::{CoughSeverity, FeverSeverity},
-        symptom_inputs::UserInput,
+    use crate::{
+        networking::TcnApiImpl,
+        preferences::PreferencesImpl,
+        reporting::{
+            memo::MemoMapperImpl,
+            public_report::{CoughSeverity, FeverSeverity},
+            symptom_inputs::UserInput,
+        },
     };
-    use std::io::Cursor;
     use tcn::{MemoType, ReportAuthorizationKey};
+
+    #[test]
+    fn interval_ending_before_if_contained_and_one_interval() {
+        let containing_interval = ReportsInterval {
+            number: 73690,
+            length: 21600,
+        };
+
+        let intervals: Vec<ReportsInterval> = vec![containing_interval];
+
+        let time = UnixTime {
+            value: containing_interval.start() + 2000, // Arbitrary value inside interval
+        };
+
+        let interval_ending_before: Option<ReportsInterval> =
+            ReportsUpdater::<
+                'static,
+                PreferencesImpl,
+                TcnDaoImpl,
+                TcnMatcherRayon,
+                TcnApiImpl,
+                MemoMapperImpl,
+            >::interval_ending_before(intervals, &time);
+
+        // time is contained in the interval, and it's the only interval, so there's no interval ending before of time's interval
+        assert!(interval_ending_before.is_none());
+    }
+
+    #[test]
+    fn interval_ending_before_if_there_is_one() {
+        let containing_interval = ReportsInterval {
+            number: 73690,
+            length: 21600,
+        };
+
+        let interval_before = ReportsInterval {
+            number: containing_interval.number - 1,
+            length: 21600,
+        };
+
+        let intervals: Vec<ReportsInterval> = vec![interval_before, containing_interval];
+
+        let time = UnixTime {
+            value: containing_interval.start() + 2000, // Arbitrary value inside interval
+        };
+
+        let interval_ending_before: Option<ReportsInterval> =
+            ReportsUpdater::<
+                'static,
+                PreferencesImpl,
+                TcnDaoImpl,
+                TcnMatcherRayon,
+                TcnApiImpl,
+                MemoMapperImpl,
+            >::interval_ending_before(intervals, &time);
+
+        assert!(interval_ending_before.is_some());
+        assert_eq!(interval_ending_before.unwrap(), interval_before);
+    }
+
+    #[test]
+    fn interval_ending_before_is_none_if_empty() {
+        let intervals: Vec<ReportsInterval> = vec![];
+
+        let time = UnixTime { value: 1591706000 }; // arbitrary time
+
+        let interval_ending_before: Option<ReportsInterval> =
+            ReportsUpdater::<
+                'static,
+                PreferencesImpl,
+                TcnDaoImpl,
+                TcnMatcherRayon,
+                TcnApiImpl,
+                MemoMapperImpl,
+            >::interval_ending_before(intervals, &time);
+
+        assert!(interval_ending_before.is_none());
+    }
 
     #[test]
     fn tcn_saved_and_restored_from_bytes() {
@@ -526,9 +582,9 @@ mod tests {
     fn _print_tcns_for_report() {
         let report_str = "rOFMgzy3y36MJns34Xj7EZu5Dti9XMhYGRpa/DVznep6q4hMtMYm9sYMg9+sRSHAj0Ff2rHTPXskuzJH0+pZMQEAAgAAFAEAnazaXgAAAAD//////////wMAMFLrKLNOvwUJQSNta9rlzTyjFdpfq25Kv34c6y+ZOoSzRewzNAWsd56Yzm8LUw9cpHB8yyzDUMJ9YTKhD8dADA==";
         let report = SignedReport::with_str(report_str).unwrap();
-        println!("{:?}", report);
+        info!("{:?}", report);
         for tcn in report.verify().unwrap().temporary_contact_numbers() {
-            println!("{}", hex::encode(tcn.0));
+            info!("{}", hex::encode(tcn.0));
         }
     }
 
@@ -573,12 +629,27 @@ mod tests {
         assert_eq!(matches.len(), 1);
 
         let time = matching_start_time.elapsed().as_secs();
-        println!("Took {:?}s to match reports", time);
+        info!("Took {:?}s to match reports", time);
 
         // Short verification that matching is working
         let matched_report_str = base64::encode(signed_report_to_bytes(matches[0].report.clone()));
         assert_eq!(matched_report_str, verification_report_str);
         assert_eq!(matches[0].contact_time, verification_contact_time);
+    }
+
+    #[test]
+    fn test_report_empty_is_none() {
+        assert!(SignedReport::with_str("").is_none())
+    }
+
+    #[test]
+    fn test_report_base64_invalid_is_none() {
+        assert!(SignedReport::with_str("%~=-🥳").is_none())
+    }
+
+    #[test]
+    fn test_report_base64_valid_report_invalid_is_none() {
+        assert!(SignedReport::with_str("slkdjfslfd").is_none())
     }
 
     fn create_test_report() -> SignedReport {
@@ -595,12 +666,13 @@ mod tests {
         rak.create_report(MemoType::CoEpiV1, memo_data.bytes, 1, 10000)
             .unwrap()
     }
+}
 
-    fn signed_report_to_bytes(signed_report: SignedReport) -> Vec<u8> {
-        let mut buf = Vec::new();
-        signed_report
-            .write(Cursor::new(&mut buf))
-            .expect("Couldn't write signed report bytes");
-        buf
-    }
+// Testing / debugging
+fn signed_report_to_bytes(signed_report: SignedReport) -> Vec<u8> {
+    let mut buf = Vec::new();
+    signed_report
+        .write(Cursor::new(&mut buf))
+        .expect("Couldn't write signed report bytes");
+    buf
 }

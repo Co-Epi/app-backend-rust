@@ -1,4 +1,5 @@
 use crate::preferences::{Preferences, TckBytesWrapper, TCK_SIZE_IN_BYTES};
+use log::*;
 use std::{io::Cursor, sync::Arc};
 use tcn::{
     Error, MemoType, ReportAuthorizationKey, SignedReport, TemporaryContactKey,
@@ -47,7 +48,7 @@ where
         if end_index > periods {
             start_index = (end_index - periods) as u16
         }
-        println!("start_index={}, end_index={}", start_index, end_index);
+        debug!("start_index={}, end_index={}", start_index, end_index);
 
         self.rak()
             .create_report(MemoType::CoEpiV1, report, start_index, end_index)
@@ -62,7 +63,7 @@ where
             self.set_tck(new_tck);
         }
 
-        println!("RUST generated tcn: {:?}", tcn);
+        debug!("Generated tcn: {:?}", tcn);
         // TODO: if None, rotate RAK
         tcn
     }
@@ -88,7 +89,7 @@ where
         self.preferences
             .tck()
             .map(|tck_bytes| Self::bytes_to_tck(tck_bytes))
-            .unwrap_or({ self.rak().initial_temporary_contact_key() })
+            .unwrap_or_else(|| self.rak().initial_temporary_contact_key())
     }
 
     fn set_tck(&self, tck: TemporaryContactKey) {
@@ -131,7 +132,7 @@ mod tests {
     fn test_rak() {
         let new_key = ReportAuthorizationKey::new(rand::thread_rng());
         let bytes = TcnKeysImpl::<PreferencesTckMock>::rak_to_bytes(new_key);
-        println!("{:?}", bytes);
+        debug!("{:?}", bytes);
     }
 
     #[test]
@@ -158,7 +159,7 @@ mod tests {
             34, 166, 47, 23, 224, 52, 240, 95, 140, 186, 95, 243, 26, 13, 174, 128, 224, 229, 158,
             248, 117, 7, 118, 110, 108, 57, 67, 206, 129, 22, 84, 13,
         ];
-        println!("count = {}", tck_inner_bytes.len());
+        debug!("count = {}", tck_inner_bytes.len());
 
         let version_bytes: [u8; 2] = [1, 0];
 
@@ -171,7 +172,7 @@ mod tests {
         let tck_bytes_wrapped = TckBytesWrapper::with_bytes(complete_tck_vec);
         let tck = TcnKeysImpl::<PreferencesTckMock>::bytes_to_tck(tck_bytes_wrapped);
 
-        println!("{:#?}", tck);
+        debug!("{:#?}", tck);
     }
 
     #[test]

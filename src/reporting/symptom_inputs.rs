@@ -3,6 +3,7 @@ use crate::{
     errors::ServicesError, networking::TcnApi, reports_interval::UnixTime,
     tcn_ext::tcn_keys::TcnKeys,
 };
+use log::*;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, io::Cursor, sync::Arc};
 use tcn::SignedReport;
@@ -158,15 +159,18 @@ impl<'a, T: MemoMapper, U: TcnKeys, V: TcnApi> SymptomInputsSubmitter<T, U, V>
         let public_report = PublicReport::with_inputs(inputs, UnixTime::now());
 
         if !public_report.should_be_sent() {
-            println!("RUST Public report: {:?} doesn't contain infos relevant to other users. Not sending.", public_report);
+            warn!(
+                "Public report: {:?} doesn't contain infos relevant to other users. Not sending.",
+                public_report
+            );
             return Ok(());
         }
 
-        println!("RUST Created public report: {:?}", public_report);
+        debug!("Created public report: {:?}", public_report);
 
         let memo = self.memo_mapper.to_memo(public_report);
 
-        println!("RUST mapped public report to memo: {:?}", memo.bytes);
+        debug!("mapped public report to memo: {:?}", memo.bytes);
 
         let signed_report = self.tcn_keys.create_report(memo.bytes)?;
 
@@ -194,17 +198,17 @@ mod tests {
     use crate::errors::ServicesError::Error;
     use crate::preferences::PreferencesTckMock;
     use crate::reporting::memo::MemoMapperImpl;
+    use crate::simple_logger;
     use crate::{
         networking::TcnApiMock,
         tcn_ext::tcn_keys::{ReportAuthorizationKeyExt, TcnKeysImpl},
     };
     use tcn::{ReportAuthorizationKey, TemporaryContactKey};
-    use log::{info, warn};
-    use crate::simple_logger;
 
     #[test]
     fn test_public_report_with_inputs() {
-        
+        let _ = simple_logger::init();
+
         let breathlessness = Breathlessness {
             cause: UserInput::Some(BreathlessnessCause::HurryOrHill),
         };
@@ -243,9 +247,7 @@ mod tests {
 
         let public_report = PublicReport::with_inputs(inputs, UnixTime { value: 0 });
 
-        println!("{:#?}", public_report);
-
-        let _ = simple_logger::init();
+        debug!("{:#?}", public_report);
 
         info!(target: "test_events", "Logging PublicReport: {:?}", public_report);
         /*
@@ -306,7 +308,7 @@ mod tests {
             126, 139, 162, 15, 31, 0, 22, 31, 230, 242, 241, 225, 85,
         ];
         let tck = generate_tck_for_index(rak_bytes, 60);
-        println!(">> tck: {:#?}", tck);
+        debug!(">> tck: {:#?}", tck);
         let tck_bytes = TcnKeysImpl::<PreferencesTckMock>::tck_to_bytes(tck);
 
         let preferences = Arc::new(PreferencesTckMock { tck_bytes });
@@ -332,11 +334,11 @@ mod tests {
             .verify()
             .expect("Valid reports should verify correctly");
 
-        println!(">> report: {:#?}", report);
+        debug!(">> report: {:#?}", report);
 
-        println!(">> signed_report: {:#?}", signed_report);
+        debug!(">> signed_report: {:#?}", signed_report);
         let report_str = base64::encode(signed_report_to_bytes(signed_report));
-        println!(">> report_str: {:#?}", report_str);
+        debug!(">> report_str: {:#?}", report_str);
 
         submitter
             .api
@@ -352,6 +354,7 @@ mod tests {
         let mut tck = rak.initial_temporary_contact_key(); // tck <- tck_1
                                                            // let mut tcns = Vec::new();
         for _ in 0..index {
+            // unwrap: this function is used only in tests
             tck = tck.ratchet().unwrap();
         }
 
@@ -409,7 +412,7 @@ mod tests {
             126, 139, 162, 15, 31, 0, 22, 31, 230, 242, 241, 225, 85,
         ];
         let tck = generate_tck_for_index(rak_bytes, 60);
-        println!(">> tck: {:#?}", tck);
+        debug!(">> tck: {:#?}", tck);
         let tck_bytes = TcnKeysImpl::<PreferencesTckMock>::tck_to_bytes(tck);
 
         let preferences = Arc::new(PreferencesTckMock {
@@ -438,6 +441,7 @@ mod tests {
             Ok(()) => assert!(true),
             Err(errors::ServicesError::Networking(_)) => assert!(false),
             Err(Error(_)) => assert!(false),
+            Err(_) => assert!(false),
         }
     }
 }

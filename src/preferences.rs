@@ -3,6 +3,7 @@ use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::option::Option;
+use log::*;
 
 pub const TCK_SIZE_IN_BYTES: usize = 66;
 
@@ -80,7 +81,7 @@ impl Preferences for PreferencesImpl {
         let res = confy::store("myprefs", *config);
 
         if let Err(error) = res {
-            println!("Error storing preferences: {:?}", error)
+            error!("Error storing preferences: {:?}", error)
         }
     }
 
@@ -95,7 +96,7 @@ impl Preferences for PreferencesImpl {
         let res = confy::store("myprefs", *config);
 
         if let Err(error) = res {
-            println!("Error storing preferences: {:?}", error)
+            error!("Error storing preferences: {:?}", error)
         }
     }
 
@@ -110,7 +111,7 @@ impl Preferences for PreferencesImpl {
         let res = confy::store("myprefs", *config);
 
         if let Err(error) = res {
-            println!("Error storing preferences: {:?}", error)
+            error!("Error storing preferences: {:?}", error)
         }
     }
 }
