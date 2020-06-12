@@ -78,3 +78,16 @@ pub fn byte_vec_to_8_byte_array(bytes: Vec<u8>) -> [u8; 8] {
 //     tx.prepare_commit()?.commit()?;
 //     Ok(())
 // }
+
+    use log::*;
+
+    #[test]
+    fn a_0(){
+        //Lets initialize the logger in a test that will be first to run :|
+        let logger = simple_logger::init();
+        info!("Logger:{:?}", logger);
+        warn!("Logger has been initialized: {}", logger.is_ok());
+        assert_eq!(true, logger.is_ok());
+    }
+   
+  
