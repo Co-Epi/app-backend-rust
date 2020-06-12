@@ -20,6 +20,7 @@ pub fn setup_with_level(level: LevelFilter){
 
     // let resulting_level = log::max_level();
     info!("Resulting level : {}", log::max_level());
+    println!("STATIC_MAX_LEVEL : {}", log::STATIC_MAX_LEVEL);
     info!("Trace log level enabled: {}", log_enabled!(Level::Trace));
     info!("Debug log level enabled: {}", log_enabled!(Level::Debug));
 }
@@ -54,7 +55,8 @@ impl SimpleLogger {
 #[cfg(not(test))]
 impl log::Log for SimpleLogger {
     fn enabled(&self, metadata: &Metadata) -> bool {
-        metadata.level() <= Level::Debug
+        // println!("metadata level : {}", metadata.level());
+        metadata.level() <= log::max_level()
     }
 
     fn log(&self, record: &Record) {
@@ -88,12 +90,13 @@ impl log::Log for SimpleLogger {
 #[cfg(test)]
 impl log::Log for SimpleLogger {
     fn enabled(&self, metadata: &Metadata) -> bool {
-        metadata.level() <= Level::Debug
+        // println!("metadata level : {}", metadata.level());
+        metadata.level() <= log::max_level()
     }
 
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
-            println!("{} - {}", record.level(), record.args());          
+            println!("{} : {} - {}", Utc::now().format("%Y-%m-%dT%H:%M:%S.%s"), record.level(), record.args());          
         }
     }
 
@@ -105,10 +108,13 @@ use crate::simple_logger;
 #[test]
 fn verify_test_macros() {
     // std::env::set_var("RUST_LOG", "trace");
-    // simple_logger::setup_with_level(LevelFilter::Trace);
+    simple_logger::setup_with_level(LevelFilter::Debug);
     println!("Resulting level : {}", log::max_level());
+    println!("STATIC_MAX_LEVEL : {}", log::STATIC_MAX_LEVEL);
     info!("first line");
     trace!("trace");
+    // log::log!(Level::Trace, "Uja trace");
+    // log::log!(Level::Debug, "Uja debug");
     debug!("debug");
     info!("info");
     warn!("warn");
