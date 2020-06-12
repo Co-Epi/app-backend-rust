@@ -3,11 +3,29 @@ use crate::ios::ffi_for_sanity_tests::{CoreLogLevel, CoreLogMessageThreadSafe, L
 // use log::{LevelFilter, SetLoggerError};
 use chrono::Utc;
 use log::*;
+use std::sync::Once;
 
 static LOGGER: SimpleLogger = SimpleLogger;
+static INIT: Once = Once::new();
 
 pub fn init() -> Result<(), SetLoggerError> {
     log::set_logger(&LOGGER).map(|()| log::set_max_level(LevelFilter::Trace))
+}
+
+pub fn setup_with_level(level: LevelFilter){
+/// Setup function that is only run once, even if called multiple times.
+    INIT.call_once(|| {
+        log::set_logger(&LOGGER).map(|()| log::set_max_level(level));
+    });
+
+    // let resulting_level = log::max_level();
+    info!("Resulting level : {}", log::max_level());
+    info!("Trace log level enabled: {}", log_enabled!(Level::Trace));
+    info!("Debug log level enabled: {}", log_enabled!(Level::Debug));
+}
+
+pub fn setup(){
+    setup_with_level(LevelFilter::Trace);
 }
 
 pub struct SimpleLogger;
@@ -80,4 +98,20 @@ impl log::Log for SimpleLogger {
     }
 
     fn flush(&self) {}
+}
+
+use crate::simple_logger;
+
+#[test]
+fn verify_test_macros() {
+    // std::env::set_var("RUST_LOG", "trace");
+    // simple_logger::setup_with_level(LevelFilter::Trace);
+    println!("Resulting level : {}", log::max_level());
+    info!("first line");
+    trace!("trace");
+    debug!("debug");
+    info!("info");
+    warn!("warn");
+    error!("error");
+    assert_eq!(1,1)
 }
