@@ -33,6 +33,7 @@ impl SimpleLogger {
     }
 }
 
+#[cfg(not(test))]
 impl log::Log for SimpleLogger {
     fn enabled(&self, metadata: &Metadata) -> bool {
         metadata.level() <= Level::Debug
@@ -50,6 +51,8 @@ impl log::Log for SimpleLogger {
                 Level::Trace => CoreLogLevel::Trace,
             };
 
+            //TODO: compare levels and continue only if required
+
             let lmts = CoreLogMessageThreadSafe {
                 level: lvl,
                 text: arg_string,
@@ -57,6 +60,22 @@ impl log::Log for SimpleLogger {
             };
 
             SimpleLogger::log_message_to_app(lmts);
+        }
+    }
+
+    fn flush(&self) {}
+}
+
+//Impl used for tests
+#[cfg(test)]
+impl log::Log for SimpleLogger {
+    fn enabled(&self, metadata: &Metadata) -> bool {
+        metadata.level() <= Level::Debug
+    }
+
+    fn log(&self, record: &Record) {
+        if self.enabled(record.metadata()) {
+            println!("{} - {}", record.level(), record.args());          
         }
     }
 

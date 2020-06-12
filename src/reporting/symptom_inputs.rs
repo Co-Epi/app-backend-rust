@@ -207,7 +207,7 @@ mod tests {
 
     #[test]
     fn test_public_report_with_inputs() {
-        let _ = simple_logger::init();
+        // let _ = simple_logger::init();
 
         let breathlessness = Breathlessness {
             cause: UserInput::Some(BreathlessnessCause::HurryOrHill),
