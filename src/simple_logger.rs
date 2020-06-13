@@ -1,7 +1,7 @@
 use crate::ios::ffi_for_sanity_tests::{CoreLogLevel, CoreLogMessageThreadSafe, LOG_SENDER};
 // use log::{Level, Metadata, Record};
 // use log::{LevelFilter, SetLoggerError};
-use chrono::Utc;
+use chrono::{Local, Utc};
 use log::*;
 use std::sync::Once;
 
@@ -13,16 +13,17 @@ pub fn init() -> Result<(), SetLoggerError> {
 }
 
 pub fn setup_with_level(level: LevelFilter){
-/// Setup function that is only run once, even if called multiple times.
+    // Guaranteed to be executed only once (even if called multiple times).
     INIT.call_once(|| {
-        log::set_logger(&LOGGER).map(|()| log::set_max_level(level));
+        log::set_logger(&LOGGER).map(|()| log::set_max_level(level)).expect("Logger initialization failed!");
+
     });
 
     // let resulting_level = log::max_level();
-    info!("Resulting level : {}", log::max_level());
-    println!("STATIC_MAX_LEVEL : {}", log::STATIC_MAX_LEVEL);
-    info!("Trace log level enabled: {}", log_enabled!(Level::Trace));
-    info!("Debug log level enabled: {}", log_enabled!(Level::Debug));
+    // info!("Resulting level : {}", log::max_level());
+    // println!("STATIC_MAX_LEVEL : {}", log::STATIC_MAX_LEVEL);
+    // info!("Trace log level enabled: {}", log_enabled!(Level::Trace));
+    // info!("Debug log level enabled: {}", log_enabled!(Level::Debug));
 }
 
 pub fn setup(){
@@ -31,16 +32,8 @@ pub fn setup(){
 
 pub struct SimpleLogger;
 
+#[cfg(not(test))]
 impl SimpleLogger {
-    // fn log_to_app(str: &str) {
-    //     unsafe {
-    //         if let Some(s) = &SENDER {
-    //             s.send(str.to_owned()).expect("Couldn't send");
-    //         } else {
-    //             println!("No SENDER!");
-    //         }
-    //     }
-    // }
     fn log_message_to_app(log_message: CoreLogMessageThreadSafe) {
         unsafe {
             if let Some(s) = &LOG_SENDER {
@@ -96,7 +89,7 @@ impl log::Log for SimpleLogger {
 
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
-            println!("{} : {} - {}", Utc::now().format("%Y-%m-%dT%H:%M:%S.%s"), record.level(), record.args());          
+            println!("{} {} {}:{} - {}", Local::now().format("%H:%M:%S.%s"), record.level(), record.target(), record.line().unwrap_or(0), record.args());          
         }
     }
 

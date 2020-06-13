@@ -101,9 +101,11 @@ impl BitVector {
 mod tests {
     use super::*;
     use log::*;
-    
+    use crate::simple_logger;
+
     #[test]
     fn bit_vector_generates_empty_byte_array_if_empty() {
+        simple_logger::setup();
         let bit_vector = BitVector { bits: vec![] };
         let u8_array = bit_vector.as_u8_array();
         trace!("Array is empty: {}", u8_array.is_empty());

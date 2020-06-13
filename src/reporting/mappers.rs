@@ -4,6 +4,7 @@ use super::{
     symptom_inputs::UserInput,
 };
 use crate::reports_interval::UnixTime;
+use log::*;
 
 pub trait BitMapper<T> {
     fn bit_count(&self) -> usize;
@@ -208,15 +209,19 @@ impl BitVectorMappable for u8 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::simple_logger;
 
     #[test]
     fn version_mapper_maps_10_to_bits() {
+        simple_logger::setup();
         let version_mapper = VersionMapper {};
         let bit_vector = version_mapper.to_bits(10);
 
         let mut bits = vec![false; 16];
         bits[1] = true;
         bits[3] = true;
+
+        debug!("Mapper bits : {:?}", bits);
 
         assert_eq!(bits, bit_vector.bits);
     }
@@ -230,7 +235,7 @@ mod tests {
         bits[3] = true;
 
         let number = version_mapper.from_bits(BitVector { bits });
-
+        debug!("Number : {:?}", number);
         assert_eq!(number, 10);
     }
 }
