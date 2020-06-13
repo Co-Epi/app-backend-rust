@@ -8,8 +8,13 @@ use mpsc::Receiver;
 use std::{
     sync::mpsc::{self, Sender},
     thread,
+    fmt,
+    str::FromStr
 };
 use log::*;
+use log::LevelFilter;
+
+use crate::simple_logger;
 
 
 // Expose an interface for apps (for now only iOS) to test that general FFI is working as expected.
@@ -44,6 +49,12 @@ pub enum CoreLogLevel {
     Error,
 }
 
+impl fmt::Display for CoreLogLevel {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct CoreLogMessage {
@@ -73,7 +84,13 @@ pub struct CoreLogMessageThreadSafe {
     pub time: i64,
 }
 
-
+#[no_mangle]
+pub unsafe extern "C" fn setup_logger(level: CoreLogLevel) -> i32 {
+    let level_string = level.to_string();
+    let filter_level = LevelFilter::from_str(&level_string).expect("Incorrect log level selected!");
+    let _ = simple_logger::setup_with_level(filter_level);
+    level as i32
+}
 
 
 #[no_mangle]

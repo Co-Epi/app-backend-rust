@@ -81,6 +81,8 @@ CFStringRef set_fever_taken_temperature_today(uint8_t c_is_set, uint8_t c_taken)
 
 CFStringRef set_symptom_ids(const char *c_ids);
 
+int32_t setup_logger(CoreLogLevel level);
+
 CFStringRef submit_symptoms(void);
 
 int32_t trigger_callback(const char *my_str);

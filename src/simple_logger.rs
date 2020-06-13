@@ -15,6 +15,7 @@ pub fn init() -> Result<(), SetLoggerError> {
 pub fn setup_with_level(level: LevelFilter){
     // Guaranteed to be executed only once (even if called multiple times).
     INIT.call_once(|| {
+        println!("RUST : Logger level : {}", level);
         log::set_logger(&LOGGER).map(|()| log::set_max_level(level)).expect("Logger initialization failed!");
 
     });
@@ -54,7 +55,7 @@ impl log::Log for SimpleLogger {
 
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
-            println!("{} - {}", record.level(), record.args());
+            // println!("{} - {}", record.level(), record.args());
             let arg_string = format!("{}", record.args());
             let lvl = match record.level() {
                 Level::Debug => CoreLogLevel::Debug,

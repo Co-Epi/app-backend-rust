@@ -23,10 +23,7 @@ pub unsafe extern "C" fn bootstrap_core(db_path: *const c_char) -> CFStringRef {
     let db_path_str = cstring_to_str(&db_path);
 
     println!("Bootstrapping with db path: {:?}", db_path_str);
-    //TODO: Investigate using Box-ed logger
-    //TODO: let app set max_logging_level
-    let _ = simple_logger::init();
-    let result = db_path_str.and_then(|path| init_db(path).map_err(ServicesError::from));
+     let result = db_path_str.and_then(|path| init_db(path).map_err(ServicesError::from));
     info!("Bootstrapping result: {:?}", result);
     return to_result_str(result);
 }
