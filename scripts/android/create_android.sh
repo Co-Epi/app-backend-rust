@@ -29,8 +29,7 @@ mkdir $PATH_TO_ANDROID_MAIN/jniLibs/arm64-v8a
 mkdir $PATH_TO_ANDROID_MAIN/jniLibs/armeabi
 mkdir $PATH_TO_ANDROID_MAIN/jniLibs/x86
 
-ln -s $PATH_TO_LIB_REPO/target/aarch64-linux-android/release/libcoepi_core.so $PATH_TO_ANDROID_MAIN/jniLibs/arm64/libcoepi_core.so
-ln -s $PATH_TO_LIB_REPO/target/aarch64-linux-android/release/libcoepi_core.so $PATH_TO_ANDROID_MAIN/jniLibs/arm64-v8a/libcoepi_core.so
-ln -s $PATH_TO_LIB_REPO/target/i686-linux-android/release/libcoepi_core.so $PATH_TO_ANDROID_MAIN/jniLibs/x86/libcoepi_core.so
-ln -s $PATH_TO_LIB_REPO/target/armv7-linux-androideabi/release/libcoepi_core.so $PATH_TO_ANDROID_MAIN/jniLibs/armeabi/libcoepi_core.so
-
+ln -s $(pwd)/target/aarch64-linux-android/release/libcoepi_core.so $PATH_TO_ANDROID_MAIN/jniLibs/arm64/libcoepi_core.so
+ln -s $(pwd)/target/aarch64-linux-android/release/libcoepi_core.so $PATH_TO_ANDROID_MAIN/jniLibs/arm64-v8a/libcoepi_core.so
+ln -s $(pwd)/target/i686-linux-android/release/libcoepi_core.so $PATH_TO_ANDROID_MAIN/jniLibs/x86/libcoepi_core.so
+ln -s $(pwd)/target/armv7-linux-androideabi/release/libcoepi_core.so $PATH_TO_ANDROID_MAIN/jniLibs/armeabi/libcoepi_core.so
