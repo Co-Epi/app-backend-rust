@@ -4,7 +4,7 @@ use super::{
     symptom_inputs::UserInput,
 };
 use crate::reports_interval::UnixTime;
-use log::*;
+
 
 pub trait BitMapper<T> {
     fn bit_count(&self) -> usize;
@@ -210,6 +210,7 @@ impl BitVectorMappable for u8 {
 mod tests {
     use super::*;
     use crate::simple_logger;
+    use log::*;
 
     #[test]
     fn version_mapper_maps_10_to_bits() {

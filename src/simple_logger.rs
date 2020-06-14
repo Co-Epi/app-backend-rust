@@ -1,37 +1,15 @@
-use crate::ios::ffi_for_sanity_tests::{CoreLogLevel, CoreLogMessageThreadSafe, LOG_SENDER};
-// use log::{Level, Metadata, Record};
-// use log::{LevelFilter, SetLoggerError};
-use chrono::{Local, Utc};
+
+// use chrono::{Local, Utc};
 use log::*;
 use std::sync::Once;
-
-// #[cfg(feature = "std")]
-// use log::set_boxed_logger;
-
-static LOGGER: SimpleLogger = SimpleLogger {
-    coepi_specific_logs_only: false,
-};
-
-static LOGGER_COEPI: SimpleLogger = SimpleLogger {
-    coepi_specific_logs_only: true,
-};
+#[cfg(not(test))]
+use crate::ios::ffi_for_sanity_tests::{CoreLogLevel, CoreLogMessageThreadSafe, LOG_SENDER};
+#[cfg(not(test))]
+use chrono::Utc;
+#[cfg(test)]
+use chrono::Local;
 
 static INIT: Once = Once::new();
-
-pub fn setup_with_level_and_target(level: LevelFilter, coepi_only: bool) {
-    INIT.call_once(|| {
-        println!("RUST : Logger level : {}", level);
-        if coepi_only {
-            log::set_logger(&LOGGER_COEPI)
-                .map(|()| log::set_max_level(level))
-                .expect("Logger initialization failed!");
-        } else {
-            log::set_logger(&LOGGER)
-                .map(|()| log::set_max_level(level))
-                .expect("Logger initialization failed!");
-        }
-    });
-}
 
 //Boxed logger setup
 pub fn setup_boxed(level: LevelFilter, coepi_only: bool) {
@@ -54,23 +32,12 @@ pub fn setup_boxed(level: LevelFilter, coepi_only: bool) {
     })
 }
 //https://github.com/rust-lang/log/blob/efcc39c5217edae4f481b73357ca2f868bfe0a2c/test_max_level_features/main.rs#L10
-fn set_boxed_logger(logger: Box<Log>) -> Result<(), log::SetLoggerError> {
+fn set_boxed_logger(logger: Box<dyn Log>) -> Result<(), log::SetLoggerError> {
     log::set_logger(Box::leak(logger))
 }
 
-pub fn setup_with_level(level: LevelFilter) {
-    // Guaranteed to be executed only once (even if called multiple times).
-
-    INIT.call_once(|| {
-        println!("RUST : Logger level : {}", level);
-        log::set_logger(&LOGGER)
-            .map(|()| log::set_max_level(level))
-            .expect("Logger initialization failed!");
-    });
-}
-
 pub fn setup() {
-    setup_with_level(LevelFilter::Trace);
+    setup_boxed(LevelFilter::Trace, false);
 }
 
 pub struct SimpleLogger {
@@ -93,8 +60,11 @@ impl SimpleLogger {
 #[cfg(not(test))]
 impl log::Log for SimpleLogger {
     fn enabled(&self, metadata: &Metadata) -> bool {
-        // println!("metadata level : {}", metadata.level());
-        metadata.level() <= log::max_level()
+        if self.coepi_specific_logs_only {
+            metadata.level() <= log::max_level() && metadata.target().starts_with("coepi_core::")
+        } else {
+            metadata.level() <= log::max_level()
+        }
     }
 
     fn log(&self, record: &Record) {
@@ -126,19 +96,11 @@ impl log::Log for SimpleLogger {
 #[cfg(test)]
 impl log::Log for SimpleLogger {
     fn enabled(&self, metadata: &Metadata) -> bool {
-        // println!("metadata level : {}", metadata.level());
-        // println!("metadata target : {}", metadata.target());
-        // let tgt = metadata.target();
-        // let mtc = tgt.starts_with("coepi_core::");
-        // println!("Match: {}", mtc);
-        let level_threshhold = metadata.level() <= log::max_level();
 
-        // let sl = SimpleLogger::from(logger());
-
-        if (self.coepi_specific_logs_only) {
-            level_threshhold && metadata.target().starts_with("coepi_core::")
+        if self.coepi_specific_logs_only {
+            metadata.level() <= log::max_level() && metadata.target().starts_with("coepi_core::")
         } else {
-            level_threshhold
+            metadata.level() <= log::max_level()
         }
     }
 
@@ -158,11 +120,11 @@ impl log::Log for SimpleLogger {
     fn flush(&self) {}
 }
 
-use crate::simple_logger;
 
+// use crate::simple_logger;
 #[test]
 fn verify_test_macros() {
-    simple_logger::setup_with_level(LevelFilter::Debug);
+    setup_boxed(LevelFilter::Debug, false);
     println!("Resulting level : {}", log::max_level());
     println!("STATIC_MAX_LEVEL : {}", log::STATIC_MAX_LEVEL);
     trace!("trace");

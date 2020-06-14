@@ -39,6 +39,7 @@ struct MyStruct {
     my_str: String,
     my_u8: u8,
 }
+#[allow(dead_code)]
 #[repr(u8)]
 #[derive(Debug, Clone)]
 pub enum CoreLogLevel {
@@ -85,10 +86,10 @@ pub struct CoreLogMessageThreadSafe {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn setup_logger(level: CoreLogLevel) -> i32 {
+pub unsafe extern "C" fn setup_logger(level: CoreLogLevel, coepi_only: bool) -> i32 {
     let level_string = level.to_string();
     let filter_level = LevelFilter::from_str(&level_string).expect("Incorrect log level selected!");
-    let _ = simple_logger::setup_with_level(filter_level);
+    let _ = simple_logger::setup_boxed(filter_level, coepi_only);
     level as i32
 }
 

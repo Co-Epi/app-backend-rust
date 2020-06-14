@@ -1,6 +1,6 @@
 use crate::reports_updater::ObservedTcnProcessor;
 use crate::tcn_ext::tcn_keys::TcnKeys;
-use crate::{composition_root::COMP_ROOT, errors::ServicesError, networking, simple_logger};
+use crate::{composition_root::COMP_ROOT, errors::ServicesError, networking};
 use crate::{init_db, reporting::symptom_inputs_manager::SymptomInputsProcessor};
 use core_foundation::base::TCFType;
 use core_foundation::string::{CFString, CFStringRef};
