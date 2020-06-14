@@ -1,44 +1,29 @@
 #[macro_use]
-#[cfg(target_os="ios")]
 extern crate serde_big_array;
-#[cfg(target_os="ios")]
-use once_cell::sync::OnceCell;
-#[cfg(target_os="ios")]
-use persy::{Config, Persy, ValueMode};
-#[cfg(target_os="ios")]
-use std::path::Path;
-#[cfg(target_os="ios")]
 use errors::Error;
-#[cfg(target_os="ios")]
-mod networking;
-#[cfg(target_os="ios")]
-mod ios;
-#[cfg(target_os="ios")]
-mod reports_interval;
-#[cfg(target_os="ios")]
-mod reports_updater;
-#[cfg(target_os="ios")]
+use once_cell::sync::OnceCell;
+use persy::{Config, Persy, ValueMode};
+use std::path::Path;
 mod composition_root;
-#[cfg(target_os="ios")]
-mod reporting;
-#[cfg(target_os="ios")]
 mod errors;
-#[cfg(target_os="ios")]
+mod networking;
 mod preferences;
-#[cfg(target_os="ios")]
-mod tcn_ext;
-#[cfg(target_os="ios")]
+mod reporting;
+mod reports_interval;
+mod reports_updater;
 mod simple_logger;
-#[cfg(target_os="android")]
+mod tcn_ext;
+
+#[cfg(target_os = "ios")]
+mod ios;
+
+#[cfg(target_os = "android")]
 mod android;
 
-#[cfg(target_os="ios")]
 pub type Res<T> = Result<T, Error>;
 
-#[cfg(target_os="ios")]
 const CENS_BY_TS: &str = "cens by ts";
 
-#[cfg(target_os="ios")]
 pub fn init_db<P: AsRef<Path>>(p: P) -> Res<()> {
     let db = Persy::open_or_create_with(p, Config::new(), |db| {
         let mut tx = db.begin()?;
@@ -51,36 +36,34 @@ pub fn init_db<P: AsRef<Path>>(p: P) -> Res<()> {
     Ok(())
 }
 
-#[cfg(target_os="ios")]
 const DB_ALREADY_INIT: &str = "DB failed to initalize";
 pub const DB_UNINIT: &str = "DB not initialized";
 
 // TODO since we're using DI put this in a dependency, to be consistent
-#[cfg(target_os="ios")]
 pub static DB: OnceCell<Persy> = OnceCell::new();
 
 // TODO refactor these (byte_vec_to) convertions or better way?
 
 // TODO move to utils file or similar. Consider returning Result instead of panicking.
 pub fn byte_vec_to_16_byte_array(bytes: Vec<u8>) -> [u8; 16] {
-  let mut array = [0; 16];
-  let bytes = &bytes[..array.len()]; // panics if not enough data
-  array.copy_from_slice(bytes); 
-  array
+    let mut array = [0; 16];
+    let bytes = &bytes[..array.len()]; // panics if not enough data
+    array.copy_from_slice(bytes);
+    array
 }
 
 pub fn byte_vec_to_24_byte_array(bytes: Vec<u8>) -> [u8; 24] {
-  let mut array = [0; 24];
-  let bytes = &bytes[..array.len()]; // panics if not enough data
-  array.copy_from_slice(bytes); 
-  array
+    let mut array = [0; 24];
+    let bytes = &bytes[..array.len()]; // panics if not enough data
+    array.copy_from_slice(bytes);
+    array
 }
 
 pub fn byte_vec_to_8_byte_array(bytes: Vec<u8>) -> [u8; 8] {
-  let mut array = [0; 8];
-  let bytes = &bytes[..array.len()]; // panics if not enough data
-  array.copy_from_slice(bytes); 
-  array
+    let mut array = [0; 8];
+    let bytes = &bytes[..array.len()]; // panics if not enough data
+    array.copy_from_slice(bytes);
+    array
 }
 
 // TODO (deleting of TCNs not critical for now)
