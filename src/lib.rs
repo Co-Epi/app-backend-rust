@@ -1,19 +1,25 @@
 #[macro_use]
 extern crate serde_big_array;
+use errors::Error;
 use once_cell::sync::OnceCell;
 use persy::{Config, Persy, ValueMode};
 use std::path::Path;
-use errors::Error;
+mod composition_root;
+mod errors;
 mod networking;
-mod ios;
+mod preferences;
+mod reporting;
 mod reports_interval;
 mod reports_updater;
-mod composition_root;
-mod reporting;
-mod errors;
-mod preferences;
 mod tcn_ext;
+
+#[cfg(target_os = "ios")]
+mod ios;
+#[cfg(target_os = "ios")]
 mod simple_logger;
+
+#[cfg(target_os = "android")]
+mod android;
 
 pub type Res<T> = Result<T, Error>;
 
@@ -41,24 +47,24 @@ pub static DB: OnceCell<Persy> = OnceCell::new();
 
 // TODO move to utils file or similar. Consider returning Result instead of panicking.
 pub fn byte_vec_to_16_byte_array(bytes: Vec<u8>) -> [u8; 16] {
-  let mut array = [0; 16];
-  let bytes = &bytes[..array.len()]; // panics if not enough data
-  array.copy_from_slice(bytes); 
-  array
+    let mut array = [0; 16];
+    let bytes = &bytes[..array.len()]; // panics if not enough data
+    array.copy_from_slice(bytes);
+    array
 }
 
 pub fn byte_vec_to_24_byte_array(bytes: Vec<u8>) -> [u8; 24] {
-  let mut array = [0; 24];
-  let bytes = &bytes[..array.len()]; // panics if not enough data
-  array.copy_from_slice(bytes); 
-  array
+    let mut array = [0; 24];
+    let bytes = &bytes[..array.len()]; // panics if not enough data
+    array.copy_from_slice(bytes);
+    array
 }
 
 pub fn byte_vec_to_8_byte_array(bytes: Vec<u8>) -> [u8; 8] {
-  let mut array = [0; 8];
-  let bytes = &bytes[..array.len()]; // panics if not enough data
-  array.copy_from_slice(bytes); 
-  array
+    let mut array = [0; 8];
+    let bytes = &bytes[..array.len()]; // panics if not enough data
+    array.copy_from_slice(bytes);
+    array
 }
 
 // TODO (deleting of TCNs not critical for now)
