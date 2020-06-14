@@ -1,7 +1,7 @@
 #!/bin/bash
 
-PATH_TO_LIB_REPO="<insert path>"
 PATH_TO_ANDROID_REPO="<insert path>"
+PATH_TO_LIB_REPO="."
 
 PATH_TO_ANDROID_MAIN=$PATH_TO_ANDROID_REPO/app/src/main
 
