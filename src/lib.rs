@@ -11,11 +11,12 @@ mod preferences;
 mod reporting;
 mod reports_interval;
 mod reports_updater;
-mod simple_logger;
 mod tcn_ext;
 
 #[cfg(target_os = "ios")]
 mod ios;
+#[cfg(target_os = "ios")]
+mod simple_logger;
 
 #[cfg(target_os = "android")]
 mod android;

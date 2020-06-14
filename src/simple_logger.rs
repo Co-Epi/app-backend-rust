@@ -1,8 +1,8 @@
-// use crate::ios::ffi_for_sanity_tests::{CoreLogLevel, CoreLogMessageThreadSafe, LOG_SENDER};
-// use log::{Level, Metadata, Record};
-// use log::{LevelFilter, SetLoggerError};
+use crate::ios::ffi_for_sanity_tests::{CoreLogLevel, CoreLogMessageThreadSafe, LOG_SENDER};
 use chrono::Utc;
 use log::*;
+use log::{Level, Metadata, Record};
+use log::{LevelFilter, SetLoggerError};
 
 static LOGGER: SimpleLogger = SimpleLogger;
 
@@ -13,24 +13,24 @@ pub fn init() -> Result<(), SetLoggerError> {
 pub struct SimpleLogger;
 
 impl SimpleLogger {
-    // fn log_to_app(str: &str) {
-    //     unsafe {
-    //         if let Some(s) = &SENDER {
-    //             s.send(str.to_owned()).expect("Couldn't send");
-    //         } else {
-    //             println!("No SENDER!");
-    //         }
-    //     }
-    // }
-    // fn log_message_to_app(log_message: CoreLogMessageThreadSafe) {
-    //     unsafe {
-    //         if let Some(s) = &LOG_SENDER {
-    //             s.send(log_message).expect("Couldn't send");
-    //         } else {
-    //             println!("No SENDER!");
-    //         }
-    //     }
-    // }
+    fn log_to_app(str: &str) {
+        unsafe {
+            if let Some(s) = &SENDER {
+                s.send(str.to_owned()).expect("Couldn't send");
+            } else {
+                println!("No SENDER!");
+            }
+        }
+    }
+    fn log_message_to_app(log_message: CoreLogMessageThreadSafe) {
+        unsafe {
+            if let Some(s) = &LOG_SENDER {
+                s.send(log_message).expect("Couldn't send");
+            } else {
+                println!("No SENDER!");
+            }
+        }
+    }
 }
 
 impl log::Log for SimpleLogger {
@@ -42,21 +42,21 @@ impl log::Log for SimpleLogger {
         if self.enabled(record.metadata()) {
             println!("{} - {}", record.level(), record.args());
             let arg_string = format!("{}", record.args());
-            // let lvl = match record.level() {
-            //     Level::Debug => CoreLogLevel::Debug,
-            //     Level::Error => CoreLogLevel::Error,
-            //     Level::Info => CoreLogLevel::Info,
-            //     Level::Warn => CoreLogLevel::Warn,
-            //     Level::Trace => CoreLogLevel::Trace,
-            // };
+            let lvl = match record.level() {
+                Level::Debug => CoreLogLevel::Debug,
+                Level::Error => CoreLogLevel::Error,
+                Level::Info => CoreLogLevel::Info,
+                Level::Warn => CoreLogLevel::Warn,
+                Level::Trace => CoreLogLevel::Trace,
+            };
 
-            // let lmts = CoreLogMessageThreadSafe {
-            //     level: lvl,
-            //     text: arg_string,
-            //     time: Utc::now().timestamp(),
-            // };
+            let lmts = CoreLogMessageThreadSafe {
+                level: lvl,
+                text: arg_string,
+                time: Utc::now().timestamp(),
+            };
 
-            // SimpleLogger::log_message_to_app(lmts);
+            SimpleLogger::log_message_to_app(lmts);
         }
     }
 
