@@ -142,7 +142,7 @@ mod tests {
     #[test]
     #[ignore] 
     fn get_reports_is_ok() {
-        simple_logger::setup_logger(LevelFilter::Debug, false);
+        simple_logger::setup_logger(LevelFilter::Trace, false);
         warn!("Making actual GET request! Will fail if there is no internet connectivity.");
         let api = TcnApiImpl {};
         let res = api.get_reports(73673, 21600);

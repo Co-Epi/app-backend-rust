@@ -37,7 +37,7 @@ typedef struct {
   int64_t time;
 } CoreLogMessage;
 
-CFStringRef bootstrap_core(const char *db_path);
+CFStringRef bootstrap_core(const char *db_path, CoreLogLevel level, bool coepi_only);
 
 int32_t call_callback(void (*callback)(int32_t, bool, CFStringRef));
 

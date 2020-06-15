@@ -1,13 +1,11 @@
-
-use log::*;
-use std::sync::Once;
 #[cfg(not(test))]
 use crate::ios::ios_interface::{CoreLogLevel, CoreLogMessageThreadSafe, LOG_SENDER};
-#[cfg(not(test))]
-use chrono::Utc;
 #[cfg(test)]
 use chrono::Local;
-
+#[cfg(not(test))]
+use chrono::Utc;
+use log::*;
+use std::sync::Once;
 
 static INIT: Once = Once::new();
 
@@ -15,11 +13,16 @@ static INIT: Once = Once::new();
 pub fn setup_logger(level: LevelFilter, coepi_only: bool) {
     INIT.call_once(|| {
         println!("RUST : Logger level : {}", level);
-        set_boxed_logger(Box::new(SimpleLogger {
-            coepi_specific_logs_only: coepi_only,
-        }))
-        .map(|()| log::set_max_level(level))
-        .expect("Logger initialization failed!");
+        if coepi_only {
+            println!("RUST : CoEpi logs only",);
+            set_boxed_logger(Box::new(CoEpiLogger {}))
+                .map(|()| log::set_max_level(level))
+                .expect("Logger initialization failed!");
+        } else {
+            set_boxed_logger(Box::new(SimpleLogger {}))
+                .map(|()| log::set_max_level(level))
+                .expect("Logger initialization failed!");
+        }
     })
 }
 //https://github.com/rust-lang/log/blob/efcc39c5217edae4f481b73357ca2f868bfe0a2c/test_max_level_features/main.rs#L10
@@ -31,9 +34,55 @@ pub fn setup() {
     setup_logger(LevelFilter::Trace, false);
 }
 
-pub struct SimpleLogger {
-    coepi_specific_logs_only: bool,
+//Logs everything
+pub struct SimpleLogger {}
+//Logs CoEpi specific messages only
+pub struct CoEpiLogger {}
+
+
+impl log::Log for CoEpiLogger {
+    fn enabled(&self, metadata: &Metadata) -> bool {
+        metadata.level() <= log::max_level() && metadata.target().starts_with("coepi_core::")
+    }
+    #[cfg(not(test))]
+    fn log(&self, record: &Record) {
+        if self.enabled(record.metadata()) {
+            let arg_string = format!("{}", record.args());
+            let lvl = match record.level() {
+                Level::Debug => CoreLogLevel::Debug,
+                Level::Error => CoreLogLevel::Error,
+                Level::Info => CoreLogLevel::Info,
+                Level::Warn => CoreLogLevel::Warn,
+                Level::Trace => CoreLogLevel::Trace,
+            };
+
+            let lmts = CoreLogMessageThreadSafe {
+                level: lvl,
+                text: arg_string,
+                time: Utc::now().timestamp(),
+            };
+
+            SimpleLogger::log_message_to_app(lmts);
+        }
+    }
+    #[cfg(test)]
+    fn log(&self, record: &Record) {
+        if self.enabled(record.metadata()) {
+            println!(
+                "{} {} {}:{} - {}",
+                Local::now().format("%H:%M:%S.%s"),
+                record.level(),
+                record.target(),
+                record.line().unwrap_or(0),
+                record.args()
+            );
+        }
+    }
+
+    fn flush(&self) {}
 }
+
+
 
 #[cfg(not(test))]
 impl SimpleLogger {
@@ -48,19 +97,14 @@ impl SimpleLogger {
     }
 }
 
-#[cfg(not(test))]
+
 impl log::Log for SimpleLogger {
     fn enabled(&self, metadata: &Metadata) -> bool {
-        if self.coepi_specific_logs_only {
-            metadata.level() <= log::max_level() && metadata.target().starts_with("coepi_core::")
-        } else {
-            metadata.level() <= log::max_level()
-        }
+        metadata.level() <= log::max_level()
     }
-
+    #[cfg(not(test))]
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
-            // println!("{} - {}", record.level(), record.args());
             let arg_string = format!("{}", record.args());
             let lvl = match record.level() {
                 Level::Debug => CoreLogLevel::Debug,
@@ -80,21 +124,7 @@ impl log::Log for SimpleLogger {
         }
     }
 
-    fn flush(&self) {}
-}
-
-//Impl used for tests
-#[cfg(test)]
-impl log::Log for SimpleLogger {
-    fn enabled(&self, metadata: &Metadata) -> bool {
-
-        if self.coepi_specific_logs_only {
-            metadata.level() <= log::max_level() && metadata.target().starts_with("coepi_core::")
-        } else {
-            metadata.level() <= log::max_level()
-        }
-    }
-
+    #[cfg(test)]
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
             println!(
