@@ -142,7 +142,7 @@ mod tests {
     #[test]
     #[ignore] 
     fn get_reports_is_ok() {
-        simple_logger::setup_boxed(LevelFilter::Debug, false);
+        simple_logger::setup_logger(LevelFilter::Debug, false);
         warn!("Making actual GET request! Will fail if there is no internet connectivity.");
         let api = TcnApiImpl {};
         let res = api.get_reports(73673, 21600);
@@ -152,7 +152,7 @@ mod tests {
     #[test]
     #[ignore] 
     fn post_report_is_ok() {
-        simple_logger::setup_boxed(LevelFilter::Trace, false);
+        simple_logger::setup_logger(LevelFilter::Trace, false);
         warn!("Making actual POST request! Will fail if there is no internet connectivity.");
         let api = TcnApiImpl {};
         let res = api.post_report("rSqWpM3ZQm7hfQ3q2x2llnFHiNhyRrUQPKEtJ33VKQcwT7Ly6e4KGaj5ZzjWt0m4c0v5n/VH5HO9UXbPXvsQTgEAQQAALFVtMVdNbHBZU1hOSlJYaDJZek5OWjJJeVdXZFpXRUozV2xoU2NHUkhWVDA9jn0pZAeME6ZBRHJOlfIikyfS0Pjg6l0txhhz6hz4exTxv8ryA3/Z26OebSRwzRfRgLdWBfohaOwOcSaynKqVCg==".to_owned());

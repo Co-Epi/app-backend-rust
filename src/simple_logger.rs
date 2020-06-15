@@ -1,5 +1,4 @@
 
-// use chrono::{Local, Utc};
 use log::*;
 use std::sync::Once;
 #[cfg(not(test))]
@@ -13,23 +12,14 @@ use chrono::Local;
 static INIT: Once = Once::new();
 
 //Boxed logger setup
-pub fn setup_boxed(level: LevelFilter, coepi_only: bool) {
+pub fn setup_logger(level: LevelFilter, coepi_only: bool) {
     INIT.call_once(|| {
         println!("RUST : Logger level : {}", level);
-        if coepi_only {
-            println!("RUST : CoEpi Logs Only");
-            set_boxed_logger(Box::new(SimpleLogger {
-                coepi_specific_logs_only: true,
-            }))
-            .map(|()| log::set_max_level(level))
-            .expect("Logger initialization failed!");
-        } else {
-            set_boxed_logger(Box::new(SimpleLogger {
-                coepi_specific_logs_only: false,
-            }))
-            .map(|()| log::set_max_level(level))
-            .expect("Logger initialization failed!");
-        }
+        set_boxed_logger(Box::new(SimpleLogger {
+            coepi_specific_logs_only: coepi_only,
+        }))
+        .map(|()| log::set_max_level(level))
+        .expect("Logger initialization failed!");
     })
 }
 //https://github.com/rust-lang/log/blob/efcc39c5217edae4f481b73357ca2f868bfe0a2c/test_max_level_features/main.rs#L10
@@ -38,7 +28,7 @@ fn set_boxed_logger(logger: Box<dyn Log>) -> Result<(), log::SetLoggerError> {
 }
 
 pub fn setup() {
-    setup_boxed(LevelFilter::Trace, false);
+    setup_logger(LevelFilter::Trace, false);
 }
 
 pub struct SimpleLogger {
@@ -122,10 +112,9 @@ impl log::Log for SimpleLogger {
 }
 
 
-// use crate::simple_logger;
 #[test]
 fn verify_test_macros() {
-    setup_boxed(LevelFilter::Debug, false);
+    setup_logger(LevelFilter::Debug, false);
     println!("Resulting level : {}", log::max_level());
     println!("STATIC_MAX_LEVEL : {}", log::STATIC_MAX_LEVEL);
     trace!("trace");
@@ -133,5 +122,4 @@ fn verify_test_macros() {
     info!("info");
     warn!("warn");
     error!("error");
-    assert_eq!(1, 1)
 }

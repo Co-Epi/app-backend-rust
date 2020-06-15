@@ -11,8 +11,8 @@ use std::os::raw::c_char;
 use std::fmt;
 use std::thread;
 use std::sync::mpsc::{self, Sender, Receiver};
-use std::str::FromStr;
 // use mpsc::Receiver;
+use std::str::FromStr;
 use crate::simple_logger;
 
 // Generic struct to return results to app
@@ -29,14 +29,17 @@ struct LibResult<T> {
 pub unsafe extern "C" fn setup_logger(level: CoreLogLevel, coepi_only: bool) -> i32 {
     let level_string = level.to_string();
     let filter_level = LevelFilter::from_str(&level_string).expect("Incorrect log level selected!");
-    let _ = simple_logger::setup_boxed(filter_level, coepi_only);
+    let _ = simple_logger::setup_logger(filter_level, coepi_only);
     level as i32
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn bootstrap_core(db_path: *const c_char) -> CFStringRef {
-    let db_path_str = cstring_to_str(&db_path);
+pub unsafe extern "C" fn bootstrap_core(db_path: *const c_char, level: CoreLogLevel, coepi_only: bool) -> CFStringRef {
+    let level_string = level.to_string();
+    let filter_level = LevelFilter::from_str(&level_string).expect("Incorrect log level selected!");
+    let _ = simple_logger::setup_logger(filter_level, coepi_only);
 
+    let db_path_str = cstring_to_str(&db_path);
     println!("Bootstrapping with db path: {:?}", db_path_str);
      let result = db_path_str.and_then(|path| init_db(path).map_err(ServicesError::from));
     info!("Bootstrapping result: {:?}", result);
