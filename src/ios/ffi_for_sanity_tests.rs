@@ -8,13 +8,12 @@ use mpsc::Receiver;
 use std::{
     sync::mpsc::{self, Sender},
     thread,
-    fmt,
-    str::FromStr
+    // fmt,
+    // str::FromStr
 };
 use log::*;
-use log::LevelFilter;
 
-use crate::simple_logger;
+// use crate::simple_logger;
 
 
 // Expose an interface for apps (for now only iOS) to test that general FFI is working as expected.
@@ -39,59 +38,7 @@ struct MyStruct {
     my_str: String,
     my_u8: u8,
 }
-#[allow(dead_code)]
-#[repr(u8)]
-#[derive(Debug, Clone)]
-pub enum CoreLogLevel {
-    Trace,
-    Debug,
-    Info,
-    Warn,
-    Error,
-}
 
-impl fmt::Display for CoreLogLevel {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
-#[repr(C)]
-#[derive(Debug, Clone)]
-pub struct CoreLogMessage {
-    level: CoreLogLevel,
-    text: CFStringRef,
-    time: i64,
-}
-
-
-impl From<CoreLogMessageThreadSafe> for CoreLogMessage{
-    fn from(lts: CoreLogMessageThreadSafe) -> Self {
-        let cf_string = CFString::new(&lts.text);
-        let cf_string_ref = cf_string.as_concrete_TypeRef();
-        ::std::mem::forget(cf_string);
-        CoreLogMessage{
-            level: lts.level,
-            text: cf_string_ref,
-            time: lts.time
-        }
-    }
-}
-
-pub struct CoreLogMessageThreadSafe {
-    //TODO: hide fields
-    pub level: CoreLogLevel,
-    pub text: String,
-    pub time: i64,
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn setup_logger(level: CoreLogLevel, coepi_only: bool) -> i32 {
-    let level_string = level.to_string();
-    let filter_level = LevelFilter::from_str(&level_string).expect("Incorrect log level selected!");
-    let _ = simple_logger::setup_boxed(filter_level, coepi_only);
-    level as i32
-}
 
 
 #[no_mangle]
@@ -168,20 +115,6 @@ impl Callback for unsafe extern "C" fn(i32, bool, CFStringRef) {
 }
 
 
-pub trait LogCallback {
-    fn call(&self, log_message: CoreLogMessage);
-}
-
-impl LogCallback for unsafe extern "C" fn(CoreLogMessage) {
-    fn call(&self, log_message: CoreLogMessage) {
-        unsafe {
-            self(log_message);
-        }
-    }
-}
-
-
-
 #[no_mangle]
 pub extern "C" fn call_callback(callback: unsafe extern "C" fn(i32, bool, CFStringRef)) -> i32 {
     let cf_string = CFString::new(&"hi!".to_owned());
@@ -192,7 +125,7 @@ pub extern "C" fn call_callback(callback: unsafe extern "C" fn(i32, bool, CFStri
 }
 
 pub static mut SENDER: Option<Sender<String>> = None;
-pub static mut LOG_SENDER: Option<Sender<CoreLogMessageThreadSafe>> = None;
+
 
 #[no_mangle]
 pub unsafe extern "C" fn register_callback(
@@ -200,14 +133,6 @@ pub unsafe extern "C" fn register_callback(
 ) -> i32 {
     register_callback_internal(Box::new(callback));
     1
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn register_log_callback(
-    log_callback: unsafe extern "C" fn(CoreLogMessage),
-) -> i32 {
-    register_log_callback_internal(Box::new(log_callback));
-    2
 }
 
 #[no_mangle]
@@ -251,34 +176,3 @@ fn register_callback_internal(callback: Box<dyn Callback>) {
     });
 }
 
-fn register_log_callback_internal(callback: Box<dyn LogCallback>) {
-    // Make callback implement Send (marker for thread safe, basically) https://doc.rust-lang.org/std/marker/trait.Send.html
-    let log_callback =
-        unsafe { std::mem::transmute::<Box<dyn LogCallback>, Box<dyn LogCallback + Send>>(callback) };
-
-    // Create channel
-    let (tx, rx): (Sender<CoreLogMessageThreadSafe>, Receiver<CoreLogMessageThreadSafe>) = mpsc::channel();
-
-    // Save the sender in a static variable, which will be used to push elements to the callback
-    unsafe {
-        LOG_SENDER = Some(tx);
-    }
-
-    // Thread waits for elements pushed to SENDER and calls the callback
-    thread::spawn(move || {
-        for log_entry in rx.iter() {
-             log_callback.call(log_entry.into());
-        }
-    });
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn trigger_logging_macros() -> i32 {
-    debug!(target: "test_events", "CoEpi debug");
-    trace!(target: "test_events", "CoEpi trace");
-    info!(target: "test_events", "CoEpi info");
-    warn!(target: "test_events", "CoEpi warn");
-    error!(target: "test_events", "CoEpi error");
-    
-    1
-}

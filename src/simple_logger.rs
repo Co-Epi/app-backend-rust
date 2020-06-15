@@ -3,11 +3,12 @@
 use log::*;
 use std::sync::Once;
 #[cfg(not(test))]
-use crate::ios::ffi_for_sanity_tests::{CoreLogLevel, CoreLogMessageThreadSafe, LOG_SENDER};
+use crate::ios::ios_interface::{CoreLogLevel, CoreLogMessageThreadSafe, LOG_SENDER};
 #[cfg(not(test))]
 use chrono::Utc;
 #[cfg(test)]
 use chrono::Local;
+
 
 static INIT: Once = Once::new();
 
