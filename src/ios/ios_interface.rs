@@ -263,7 +263,7 @@ pub unsafe fn cstring_to_str<'a>(cstring: &'a *const c_char) -> Result<&str, Ser
     }
 }
 
-
+//Supress warnings when compilint in test configuration (CoreLogLevel is not used in tests)
 #[allow(dead_code)]
 #[repr(u8)]
 #[derive(Debug, Clone)]
