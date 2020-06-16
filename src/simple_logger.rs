@@ -88,38 +88,10 @@ impl log::Log for CoEpiLogger {
     #[cfg(not(test))]
     fn log(&self, record: &Record) {
         log_prod!(self, record);
-        // if self.enabled(record.metadata()) {
-        //     let arg_string = format!("{}", record.args());
-        //     let lvl = match record.level() {
-        //         Level::Debug => CoreLogLevel::Debug,
-        //         Level::Error => CoreLogLevel::Error,
-        //         Level::Info => CoreLogLevel::Info,
-        //         Level::Warn => CoreLogLevel::Warn,
-        //         Level::Trace => CoreLogLevel::Trace,
-        //     };
-
-        //     let lmts = CoreLogMessageThreadSafe {
-        //         level: lvl,
-        //         text: arg_string,
-        //         time: Utc::now().timestamp(),
-        //     };
-
-        //     SimpleLogger::log_message_to_app(lmts);
-        // }
     }
     #[cfg(test)]
     fn log(&self, record: &Record) {
         log_test!(self, record);
-        // if self.enabled(record.metadata()) {
-        //     println!(
-        //         "{} {} {}:{} - {}",
-        //         Local::now().format("%H:%M:%S.%s"),
-        //         record.level(),
-        //         record.target(),
-        //         record.line().unwrap_or(0),
-        //         record.args()
-        //     );
-        // }
     }
 
     fn flush(&self) {}
@@ -148,39 +120,11 @@ impl log::Log for SimpleLogger {
     #[cfg(not(test))]
     fn log(&self, record: &Record) {
         log_prod!(self, record);
-        // if self.enabled(record.metadata()) {
-        //     let arg_string = format!("{}", record.args());
-        //     let lvl = match record.level() {
-        //         Level::Debug => CoreLogLevel::Debug,
-        //         Level::Error => CoreLogLevel::Error,
-        //         Level::Info => CoreLogLevel::Info,
-        //         Level::Warn => CoreLogLevel::Warn,
-        //         Level::Trace => CoreLogLevel::Trace,
-        //     };
-
-        //     let lmts = CoreLogMessageThreadSafe {
-        //         level: lvl,
-        //         text: arg_string,
-        //         time: Utc::now().timestamp(),
-        //     };
-
-        //     SimpleLogger::log_message_to_app(lmts);
-        // }
     }
 
     #[cfg(test)]
     fn log(&self, record: &Record) {
         log_test!(self, record);
-        // if self.enabled(record.metadata()) {
-        //     println!(
-        //         "{} {} {}:{} - {}",
-        //         Local::now().format("%H:%M:%S.%s"),
-        //         record.level(),
-        //         record.target(),
-        //         record.line().unwrap_or(0),
-        //         record.args()
-        //     );
-        // }
     }
 
     fn flush(&self) {}
