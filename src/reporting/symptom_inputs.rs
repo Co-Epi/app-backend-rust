@@ -207,7 +207,7 @@ mod tests {
 
     #[test]
     fn test_public_report_with_inputs() {
-        let _ = simple_logger::init();
+        simple_logger::setup();
 
         let breathlessness = Breathlessness {
             cause: UserInput::Some(BreathlessnessCause::HurryOrHill),
@@ -247,7 +247,7 @@ mod tests {
 
         let public_report = PublicReport::with_inputs(inputs, UnixTime { value: 0 });
 
-        debug!("{:#?}", public_report);
+        debug!("{:?}", public_report);
 
         info!(target: "test_events", "Logging PublicReport: {:?}", public_report);
         /*
@@ -308,7 +308,7 @@ mod tests {
             126, 139, 162, 15, 31, 0, 22, 31, 230, 242, 241, 225, 85,
         ];
         let tck = generate_tck_for_index(rak_bytes, 60);
-        debug!(">> tck: {:#?}", tck);
+        debug!(">> tck: {:?}", tck);
         let tck_bytes = TcnKeysImpl::<PreferencesTckMock>::tck_to_bytes(tck);
 
         let preferences = Arc::new(PreferencesTckMock { tck_bytes });
@@ -334,11 +334,11 @@ mod tests {
             .verify()
             .expect("Valid reports should verify correctly");
 
-        debug!(">> report: {:#?}", report);
+        debug!(">> report: {:?}", report);
 
-        debug!(">> signed_report: {:#?}", signed_report);
+        debug!(">> signed_report: {:?}", signed_report);
         let report_str = base64::encode(signed_report_to_bytes(signed_report));
-        debug!(">> report_str: {:#?}", report_str);
+        debug!(">> report_str: {:?}", report_str);
 
         submitter
             .api
@@ -412,7 +412,7 @@ mod tests {
             126, 139, 162, 15, 31, 0, 22, 31, 230, 242, 241, 225, 85,
         ];
         let tck = generate_tck_for_index(rak_bytes, 60);
-        debug!(">> tck: {:#?}", tck);
+        debug!(">> tck: {:?}", tck);
         let tck_bytes = TcnKeysImpl::<PreferencesTckMock>::tck_to_bytes(tck);
 
         let preferences = Arc::new(PreferencesTckMock {

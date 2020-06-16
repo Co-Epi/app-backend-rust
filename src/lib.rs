@@ -13,10 +13,11 @@ mod reports_interval;
 mod reports_updater;
 mod tcn_ext;
 
-#[cfg(target_os = "ios")]
+// #[cfg(any(target_os = "ios", target_os = "macos"))]
 mod ios;
-#[cfg(target_os = "ios")]
-mod simple_logger;
+
+// #[cfg(any(target_os = "ios", target_os = "macos"))]
+mod simple_logger; 
 
 #[cfg(target_os = "android")]
 mod android;
@@ -84,3 +85,5 @@ pub fn byte_vec_to_8_byte_array(bytes: Vec<u8>) -> [u8; 8] {
 //     tx.prepare_commit()?.commit()?;
 //     Ok(())
 // }
+
+  

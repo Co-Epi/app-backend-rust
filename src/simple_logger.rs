@@ -1,48 +1,52 @@
-use crate::ios::ffi_for_sanity_tests::{CoreLogLevel, CoreLogMessageThreadSafe, LOG_SENDER};
+#[cfg(not(test))]
+use crate::ios::ios_interface::{CoreLogLevel, CoreLogMessageThreadSafe, LOG_SENDER};
+#[cfg(test)]
+use chrono::Local;
+#[cfg(not(test))]
 use chrono::Utc;
 use log::*;
-use log::{Level, Metadata, Record};
-use log::{LevelFilter, SetLoggerError};
+use std::sync::Once;
 
-static LOGGER: SimpleLogger = SimpleLogger;
+static INIT: Once = Once::new();
 
-pub fn init() -> Result<(), SetLoggerError> {
-    log::set_logger(&LOGGER).map(|()| log::set_max_level(LevelFilter::Trace))
+//Boxed logger setup
+pub fn setup_logger(level: LevelFilter, coepi_only: bool) {
+    INIT.call_once(|| {
+        println!("RUST : Logger level : {}", level);
+        if coepi_only {
+            println!("RUST : CoEpi logs only",);
+            set_boxed_logger(Box::new(CoEpiLogger {}))
+                .map(|()| log::set_max_level(level))
+                .expect("Logger initialization failed!");
+        } else {
+            set_boxed_logger(Box::new(SimpleLogger {}))
+                .map(|()| log::set_max_level(level))
+                .expect("Logger initialization failed!");
+        }
+    })
+}
+//https://github.com/rust-lang/log/blob/efcc39c5217edae4f481b73357ca2f868bfe0a2c/test_max_level_features/main.rs#L10
+fn set_boxed_logger(logger: Box<dyn Log>) -> Result<(), log::SetLoggerError> {
+    log::set_logger(Box::leak(logger))
 }
 
-pub struct SimpleLogger;
-
-impl SimpleLogger {
-    fn log_to_app(str: &str) {
-        unsafe {
-            if let Some(s) = &SENDER {
-                s.send(str.to_owned()).expect("Couldn't send");
-            } else {
-                println!("No SENDER!");
-            }
-        }
-    }
-    fn log_message_to_app(log_message: CoreLogMessageThreadSafe) {
-        unsafe {
-            if let Some(s) = &LOG_SENDER {
-                s.send(log_message).expect("Couldn't send");
-            } else {
-                println!("No SENDER!");
-            }
-        }
-    }
+//Convenience fn
+#[cfg(test)]
+pub fn setup() {
+    setup_logger(LevelFilter::Trace, false);
 }
 
-impl log::Log for SimpleLogger {
-    fn enabled(&self, metadata: &Metadata) -> bool {
-        metadata.level() <= Level::Debug
-    }
+//Logs everything
+pub struct SimpleLogger {}
+//Logs CoEpi specific messages only
+pub struct CoEpiLogger {}
 
-    fn log(&self, record: &Record) {
-        if self.enabled(record.metadata()) {
-            println!("{} - {}", record.level(), record.args());
-            let arg_string = format!("{}", record.args());
-            let lvl = match record.level() {
+#[cfg(not(test))]
+macro_rules! log_prod {
+    ($sel: ident, $record: ident) => {{
+        if $sel.enabled($record.metadata()) {
+            let arg_string = format!("{}", $record.args());
+            let lvl = match $record.level() {
                 Level::Debug => CoreLogLevel::Debug,
                 Level::Error => CoreLogLevel::Error,
                 Level::Info => CoreLogLevel::Info,
@@ -58,7 +62,83 @@ impl log::Log for SimpleLogger {
 
             SimpleLogger::log_message_to_app(lmts);
         }
+    }};
+}
+
+#[cfg(test)]
+macro_rules! log_test {
+    ($sel: ident, $record: ident)  => {
+        if $sel.enabled($record.metadata()) {
+            println!(
+                "{} {} {}:{} - {}",
+                Local::now().format("%H:%M:%S.%s"),
+                $record.level(),
+                $record.target(),
+                $record.line().unwrap_or(0),
+                $record.args()
+            );
+        }
+    };
+}
+
+impl log::Log for CoEpiLogger {
+    fn enabled(&self, metadata: &Metadata) -> bool {
+        metadata.level() <= log::max_level() && metadata.target().starts_with("coepi_core::")
+    }
+    #[cfg(not(test))]
+    fn log(&self, record: &Record) {
+        log_prod!(self, record);
+    }
+    #[cfg(test)]
+    fn log(&self, record: &Record) {
+        log_test!(self, record);
     }
 
     fn flush(&self) {}
+}
+
+
+
+#[cfg(not(test))]
+impl SimpleLogger {
+    fn log_message_to_app(log_message: CoreLogMessageThreadSafe) {
+        unsafe {
+            if let Some(s) = &LOG_SENDER {
+                s.send(log_message).expect("Couldn't send");
+            } else {
+                println!("No SENDER!");
+            }
+        }
+    }
+}
+
+
+impl log::Log for SimpleLogger {
+    fn enabled(&self, metadata: &Metadata) -> bool {
+        metadata.level() <= log::max_level()
+    }
+    #[cfg(not(test))]
+    fn log(&self, record: &Record) {
+        log_prod!(self, record);
+    }
+
+    #[cfg(test)]
+    fn log(&self, record: &Record) {
+        log_test!(self, record);
+    }
+
+    fn flush(&self) {}
+}
+
+
+#[test]
+fn verify_test_macros() {
+    setup_logger(LevelFilter::Debug, false);
+    println!("Resulting level : {}", log::max_level());
+    println!("STATIC_MAX_LEVEL : {}", log::STATIC_MAX_LEVEL);
+    trace!("trace");
+    debug!("debug");
+    info!("info");
+    warn!("warn");
+    error!("error");
 }

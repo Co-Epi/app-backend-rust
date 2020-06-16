@@ -37,7 +37,7 @@ typedef struct {
   int64_t time;
 } CoreLogMessage;
 
-CFStringRef bootstrap_core(const char *db_path);
+CFStringRef bootstrap_core(const char *db_path, CoreLogLevel level, bool coepi_only);
 
 int32_t call_callback(void (*callback)(int32_t, bool, CFStringRef));
 
@@ -61,6 +61,14 @@ int32_t register_log_callback(void (*log_callback)(CoreLogMessage));
 
 FFIReturnStruct return_struct(void);
 
+#if defined(TARGET_OS_ANDROID)
+char *rust_greeting(const char *to);
+#endif
+
+#if defined(TARGET_OS_ANDROID)
+char *rust_greeting2(const char *to);
+#endif
+
 CFStringRef set_breathlessness_cause(const char *c_cause);
 
 CFStringRef set_cough_days(uint8_t c_is_set, uint32_t c_days);
@@ -80,6 +88,8 @@ CFStringRef set_fever_taken_temperature_spot(const char *c_cause);
 CFStringRef set_fever_taken_temperature_today(uint8_t c_is_set, uint8_t c_taken);
 
 CFStringRef set_symptom_ids(const char *c_ids);
+
+int32_t setup_logger(CoreLogLevel level, bool coepi_only);
 
 CFStringRef submit_symptoms(void);
 

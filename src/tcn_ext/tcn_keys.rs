@@ -172,7 +172,7 @@ mod tests {
         let tck_bytes_wrapped = TckBytesWrapper::with_bytes(complete_tck_vec);
         let tck = TcnKeysImpl::<PreferencesTckMock>::bytes_to_tck(tck_bytes_wrapped);
 
-        debug!("{:#?}", tck);
+        debug!("{:?}", tck);
     }
 
     #[test]
@@ -190,5 +190,8 @@ mod tests {
             tcns.push(tck.temporary_contact_number());
             tck = tck.ratchet().unwrap();
         }
+
+        info!("Number of generated TCNS: {}", tcns.len());
+        assert_eq!(100, tcns.len(), "Expected 100 TCNs");
     }
 }
