@@ -30,6 +30,8 @@ fn set_boxed_logger(logger: Box<dyn Log>) -> Result<(), log::SetLoggerError> {
     log::set_logger(Box::leak(logger))
 }
 
+//Convenience fn
+#[cfg(test)]
 pub fn setup() {
     setup_logger(LevelFilter::Trace, false);
 }
@@ -39,16 +41,12 @@ pub struct SimpleLogger {}
 //Logs CoEpi specific messages only
 pub struct CoEpiLogger {}
 
-
-impl log::Log for CoEpiLogger {
-    fn enabled(&self, metadata: &Metadata) -> bool {
-        metadata.level() <= log::max_level() && metadata.target().starts_with("coepi_core::")
-    }
-    #[cfg(not(test))]
-    fn log(&self, record: &Record) {
-        if self.enabled(record.metadata()) {
-            let arg_string = format!("{}", record.args());
-            let lvl = match record.level() {
+#[cfg(not(test))]
+macro_rules! log_prod {
+    ($sel: ident, $record: ident) => {{
+        if $sel.enabled($record.metadata()) {
+            let arg_string = format!("{}", $record.args());
+            let lvl = match $record.level() {
                 Level::Debug => CoreLogLevel::Debug,
                 Level::Error => CoreLogLevel::Error,
                 Level::Info => CoreLogLevel::Info,
@@ -64,19 +62,64 @@ impl log::Log for CoEpiLogger {
 
             SimpleLogger::log_message_to_app(lmts);
         }
-    }
-    #[cfg(test)]
-    fn log(&self, record: &Record) {
-        if self.enabled(record.metadata()) {
+    }};
+}
+
+#[cfg(test)]
+macro_rules! log_test {
+    ($sel: ident, $record: ident)  => {
+        if $sel.enabled($record.metadata()) {
             println!(
                 "{} {} {}:{} - {}",
                 Local::now().format("%H:%M:%S.%s"),
-                record.level(),
-                record.target(),
-                record.line().unwrap_or(0),
-                record.args()
+                $record.level(),
+                $record.target(),
+                $record.line().unwrap_or(0),
+                $record.args()
             );
         }
+    };
+}
+
+impl log::Log for CoEpiLogger {
+    fn enabled(&self, metadata: &Metadata) -> bool {
+        metadata.level() <= log::max_level() && metadata.target().starts_with("coepi_core::")
+    }
+    #[cfg(not(test))]
+    fn log(&self, record: &Record) {
+        log_prod!(self, record);
+        // if self.enabled(record.metadata()) {
+        //     let arg_string = format!("{}", record.args());
+        //     let lvl = match record.level() {
+        //         Level::Debug => CoreLogLevel::Debug,
+        //         Level::Error => CoreLogLevel::Error,
+        //         Level::Info => CoreLogLevel::Info,
+        //         Level::Warn => CoreLogLevel::Warn,
+        //         Level::Trace => CoreLogLevel::Trace,
+        //     };
+
+        //     let lmts = CoreLogMessageThreadSafe {
+        //         level: lvl,
+        //         text: arg_string,
+        //         time: Utc::now().timestamp(),
+        //     };
+
+        //     SimpleLogger::log_message_to_app(lmts);
+        // }
+    }
+    #[cfg(test)]
+    fn log(&self, record: &Record) {
+        log_test!(self, record);
+        // if self.enabled(record.metadata()) {
+        //     println!(
+        //         "{} {} {}:{} - {}",
+        //         Local::now().format("%H:%M:%S.%s"),
+        //         record.level(),
+        //         record.target(),
+        //         record.line().unwrap_or(0),
+        //         record.args()
+        //     );
+        // }
     }
 
     fn flush(&self) {}
@@ -104,38 +147,40 @@ impl log::Log for SimpleLogger {
     }
     #[cfg(not(test))]
     fn log(&self, record: &Record) {
-        if self.enabled(record.metadata()) {
-            let arg_string = format!("{}", record.args());
-            let lvl = match record.level() {
-                Level::Debug => CoreLogLevel::Debug,
-                Level::Error => CoreLogLevel::Error,
-                Level::Info => CoreLogLevel::Info,
-                Level::Warn => CoreLogLevel::Warn,
-                Level::Trace => CoreLogLevel::Trace,
-            };
+        log_prod!(self, record);
+        // if self.enabled(record.metadata()) {
+        //     let arg_string = format!("{}", record.args());
+        //     let lvl = match record.level() {
+        //         Level::Debug => CoreLogLevel::Debug,
+        //         Level::Error => CoreLogLevel::Error,
+        //         Level::Info => CoreLogLevel::Info,
+        //         Level::Warn => CoreLogLevel::Warn,
+        //         Level::Trace => CoreLogLevel::Trace,
+        //     };
 
-            let lmts = CoreLogMessageThreadSafe {
-                level: lvl,
-                text: arg_string,
-                time: Utc::now().timestamp(),
-            };
+        //     let lmts = CoreLogMessageThreadSafe {
+        //         level: lvl,
+        //         text: arg_string,
+        //         time: Utc::now().timestamp(),
+        //     };
 
-            SimpleLogger::log_message_to_app(lmts);
-        }
+        //     SimpleLogger::log_message_to_app(lmts);
+        // }
     }
 
     #[cfg(test)]
     fn log(&self, record: &Record) {
-        if self.enabled(record.metadata()) {
-            println!(
-                "{} {} {}:{} - {}",
-                Local::now().format("%H:%M:%S.%s"),
-                record.level(),
-                record.target(),
-                record.line().unwrap_or(0),
-                record.args()
-            );
-        }
+        log_test!(self, record);
+        // if self.enabled(record.metadata()) {
+        //     println!(
+        //         "{} {} {}:{} - {}",
+        //         Local::now().format("%H:%M:%S.%s"),
+        //         record.level(),
+        //         record.target(),
+        //         record.line().unwrap_or(0),
+        //         record.args()
+        //     );
+        // }
     }
 
     fn flush(&self) {}
