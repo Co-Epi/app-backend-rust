@@ -6,3 +6,8 @@
 language = "C"
 sys_includes = ["CoreFoundation/CoreFoundation.h"]
 no_includes = true
+
+[defines]
+"target_os=android" = "TARGET_OS_ANDROID"
+"target_os = ios" = "TARGET_OS_IOS"
+"target_os = macos" = "TARGET_OS_MACOS"

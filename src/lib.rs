@@ -13,14 +13,11 @@ mod reports_interval;
 mod reports_updater;
 mod tcn_ext;
 
-#[cfg(target_os = "ios")]
+// #[cfg(any(target_os = "ios", target_os = "macos"))]
 mod ios;
-#[cfg(target_os = "macos")]
-mod ios;
-#[cfg(target_os = "ios")]
+
+// #[cfg(any(target_os = "ios", target_os = "macos"))]
 mod simple_logger; 
-#[cfg(target_os = "macos")]
-mod simple_logger;
 
 #[cfg(target_os = "android")]
 mod android;

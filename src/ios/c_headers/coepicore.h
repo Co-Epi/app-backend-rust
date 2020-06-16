@@ -61,6 +61,14 @@ int32_t register_log_callback(void (*log_callback)(CoreLogMessage));
 
 FFIReturnStruct return_struct(void);
 
+#if defined(TARGET_OS_ANDROID)
+char *rust_greeting(const char *to);
+#endif
+
+#if defined(TARGET_OS_ANDROID)
+char *rust_greeting2(const char *to);
+#endif
+
 CFStringRef set_breathlessness_cause(const char *c_cause);
 
 CFStringRef set_cough_days(uint8_t c_is_set, uint32_t c_days);
