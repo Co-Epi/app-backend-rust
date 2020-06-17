@@ -658,8 +658,13 @@ mod tests {
             report_time: UnixTime { value: 1589209754 },
             earliest_symptom_time: UserInput::Some(UnixTime { value: 1589209754 }),
             fever_severity: FeverSeverity::Serious,
-            breathlessness: true,
             cough_severity: CoughSeverity::Existing,
+            breathlessness: true,
+            muscle_aches: true,
+            loss_smell_or_taste: false,
+            diarrhea: false,
+            runny_nose: true,
+            other: false,
         };
         let rak = ReportAuthorizationKey::new(rand::thread_rng());
         let memo_data = memo_mapper.to_memo(public_report);
