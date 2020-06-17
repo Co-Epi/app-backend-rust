@@ -30,7 +30,7 @@ pub unsafe extern "C" fn setup_logger(level: CoreLogLevel, coepi_only: bool) -> 
     let level_string = level.to_string();
     let filter_level = LevelFilter::from_str(&level_string).expect("Incorrect log level selected!");
     let _ = simple_logger::setup_logger(filter_level, coepi_only);
-    level as i32
+    log::max_level() as i32
 }
 
 #[no_mangle]
