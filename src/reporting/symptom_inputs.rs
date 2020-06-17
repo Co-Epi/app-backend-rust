@@ -156,21 +156,22 @@ impl<'a, T: MemoMapper, U: TcnKeys, V: TcnApi> SymptomInputsSubmitter<T, U, V>
     for SymptomInputsSubmitterImpl<'a, T, U, V>
 {
     fn submit_inputs(&self, inputs: SymptomInputs) -> Result<(), ServicesError> {
-        let public_report = PublicReport::with_inputs(inputs, UnixTime::now());
-
-        if !public_report.should_be_sent() {
-            warn!(
-                "Public report: {:?} doesn't contain infos relevant to other users. Not sending.",
-                public_report
-            );
-            return Ok(());
+        if let Some(report) = PublicReport::with_inputs(inputs, UnixTime::now()) {
+            self.send_report(report)
+        } else {
+            debug!("Nothing to send.");
+            Ok(())
         }
+    }
+}
 
-        debug!("Created public report: {:?}", public_report);
+impl<'a, T: MemoMapper, U: TcnKeys, V: TcnApi> SymptomInputsSubmitterImpl<'a, T, U, V> {
+    fn send_report(&self, report: PublicReport) -> Result<(), ServicesError> {
+        debug!("Will send public report: {:?}", report);
 
-        let memo = self.memo_mapper.to_memo(public_report);
+        let memo = self.memo_mapper.to_memo(report);
 
-        debug!("mapped public report to memo: {:?}", memo.bytes);
+        debug!("Mapped public report to memo: {:?}", memo.bytes);
 
         let signed_report = self.tcn_keys.create_report(memo.bytes)?;
 
@@ -245,7 +246,7 @@ mod tests {
             earliest_symptom,
         };
 
-        let public_report = PublicReport::with_inputs(inputs, UnixTime { value: 0 });
+        let public_report = PublicReport::with_inputs(inputs, UnixTime { value: 0 }).unwrap();
 
         debug!("{:?}", public_report);
 
@@ -269,31 +270,6 @@ mod tests {
     }
 
     #[test]
-    fn test_public_report_should_be_sent() {
-        assert_eq!(1, 1);
-
-        let report_which_should_be_sent = PublicReport {
-            report_time: UnixTime { value: 0 },
-            earliest_symptom_time: UserInput::Some(UnixTime { value: 1590356601 }),
-            fever_severity: FeverSeverity::Mild,
-            cough_severity: CoughSeverity::Dry,
-            breathlessness: true,
-        };
-
-        assert_eq!(true, report_which_should_be_sent.should_be_sent());
-
-        let report_which_should_not_be_sent = PublicReport {
-            report_time: UnixTime { value: 0 },
-            earliest_symptom_time: UserInput::Some(UnixTime { value: 1590356601 }),
-            fever_severity: FeverSeverity::None,
-            cough_severity: CoughSeverity::None,
-            breathlessness: false,
-        };
-
-        assert_eq!(false, report_which_should_not_be_sent.should_be_sent());
-    }
-
-    #[test]
     fn test_public_report_to_signed_report() {
         let report_which_should_be_sent = PublicReport {
             report_time: UnixTime { value: 0 },
@@ -301,6 +277,11 @@ mod tests {
             fever_severity: FeverSeverity::Mild,
             cough_severity: CoughSeverity::Dry,
             breathlessness: true,
+            muscle_aches: true,
+            loss_smell_or_taste: false,
+            diarrhea: false,
+            runny_nose: true,
+            other: false,
         };
 
         let rak_bytes = [

@@ -38,6 +38,11 @@ impl MemoMapper for MemoMapperImpl {
             Self::COUGH_SEVERITY_MAPPER.to_bits(report.cough_severity),
             Self::FEVER_SEVERITY_MAPPER.to_bits(report.fever_severity),
             Self::BOOLEAN_MAPPER.to_bits(report.breathlessness),
+            Self::BOOLEAN_MAPPER.to_bits(report.muscle_aches),
+            Self::BOOLEAN_MAPPER.to_bits(report.loss_smell_or_taste),
+            Self::BOOLEAN_MAPPER.to_bits(report.diarrhea),
+            Self::BOOLEAN_MAPPER.to_bits(report.runny_nose),
+            Self::BOOLEAN_MAPPER.to_bits(report.other),
         ];
 
         Memo {
@@ -69,6 +74,11 @@ impl MemoMapper for MemoMapperImpl {
         let fever_severity =
             extract(&bits, &Self::FEVER_SEVERITY_MAPPER, next).value(|v| next += v);
         let breathlessness = extract(&bits, &Self::BOOLEAN_MAPPER, next).value(|v| next += v);
+        let muscle_aches = extract(&bits, &Self::BOOLEAN_MAPPER, next).value(|v| next += v);
+        let loss_smell_or_taste = extract(&bits, &Self::BOOLEAN_MAPPER, next).value(|v| next += v);
+        let diarrhea = extract(&bits, &Self::BOOLEAN_MAPPER, next).value(|v| next += v);
+        let runny_nose = extract(&bits, &Self::BOOLEAN_MAPPER, next).value(|v| next += v);
+        let other = extract(&bits, &Self::BOOLEAN_MAPPER, next).value(|v| next += v);
 
         PublicReport {
             report_time,
@@ -76,6 +86,11 @@ impl MemoMapper for MemoMapperImpl {
             fever_severity,
             cough_severity,
             breathlessness,
+            muscle_aches,
+            loss_smell_or_taste,
+            diarrhea,
+            runny_nose,
+            other,
         }
     }
 }
@@ -120,8 +135,13 @@ mod tests {
             report_time: UnixTime { value: 1589209754 },
             earliest_symptom_time: UserInput::None,
             fever_severity: FeverSeverity::None,
-            breathlessness: false,
             cough_severity: CoughSeverity::None,
+            breathlessness: false,
+            muscle_aches: false,
+            loss_smell_or_taste: false,
+            diarrhea: false,
+            runny_nose: false,
+            other: false,
         };
 
         let memo: Memo = memo_mapper.to_memo(report.clone());
@@ -138,8 +158,13 @@ mod tests {
             report_time: UnixTime { value: 0 },
             earliest_symptom_time: UserInput::Some(UnixTime { value: 1589209754 }),
             fever_severity: FeverSeverity::Serious,
-            breathlessness: true,
             cough_severity: CoughSeverity::Existing,
+            breathlessness: true,
+            muscle_aches: true,
+            loss_smell_or_taste: false,
+            diarrhea: false,
+            runny_nose: true,
+            other: false,
         };
 
         let memo: Memo = memo_mapper.to_memo(report.clone());
