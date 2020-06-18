@@ -82,7 +82,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_passStruct(
         .expect("Couldn't create java string!");
 
     let a = JValue::from(JObject::from(output2));
-    env.call_method(callback, "log", "(Ljava/lang/String;)V", &[a])
+    env.call_method(callback, "call", "(Ljava/lang/String;)V", &[a])
         .unwrap();
 
     let my_struct = FFIParameterStruct {
@@ -98,7 +98,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_passStruct(
         .expect("Couldn't create java string!");
 
     let a2 = JValue::from(JObject::from(output3));
-    env.call_method(callback, "log", "(Ljava/lang/String;)V", &[a2])
+    env.call_method(callback, "call", "(Ljava/lang/String;)V", &[a2])
         .unwrap();
 
     1
@@ -143,7 +143,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_callCallback(
     let str = env.new_string("hi!").expect("Couldn't create java string!");
 
     let callback_arg = JValue::from(JObject::from(str));
-    env.call_method(callback, "log", "(Ljava/lang/String;)V", &[callback_arg])
+    env.call_method(callback, "call", "(Ljava/lang/String;)V", &[callback_arg])
         .unwrap();
     1
 }
@@ -169,14 +169,17 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_registerCallback(
 pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_triggerCallback(
     env: JNIEnv,
     _: JClass,
-    my_int: jint,
+    string: JString,
 ) -> jint {
-    let my_int = my_int as i32;
+    let string: String = env
+        .get_string(string)
+        .expect("Couldn't create java string")
+        .into();
+
     match &SENDER {
         // Push element to SENDER.
         Some(s) => {
-            println!(">>> my_int: {}", my_int);
-            s.send(my_int).expect("Couldn't send");
+            s.send(string).expect("Couldn't send");
             1
         }
 
@@ -187,10 +190,10 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_triggerCallback(
     }
 }
 
-pub static mut SENDER: Option<Sender<i32>> = None;
+pub static mut SENDER: Option<Sender<String>> = None;
 
 trait MyCallback {
-    fn call(&self, par: i32);
+    fn call(&self, par: String);
 }
 
 struct MyCallbackImpl {
@@ -199,10 +202,18 @@ struct MyCallbackImpl {
 }
 
 impl MyCallback for MyCallbackImpl {
-    fn call(&self, par: i32) {
-        let par_j_value = JValue::from(par);
+    fn call(&self, par: String) {
         let env = self.java_vm.attach_current_thread().unwrap();
-        env.call_method(self.callback.as_obj(), "call", "(I)V", &[par_j_value]);
+
+        let str = env.new_string(par).expect("Couldn't create java string!");
+        let str_j_value = JValue::from(JObject::from(str));
+
+        env.call_method(
+            self.callback.as_obj(),
+            "call",
+            "(Ljava/lang/String;)V",
+            &[str_j_value],
+        );
     }
 }
 
@@ -212,7 +223,7 @@ fn register_callback_internal(callback: Box<dyn MyCallback>) {
         unsafe { std::mem::transmute::<Box<dyn MyCallback>, Box<dyn MyCallback + Send>>(callback) };
 
     // Create channel
-    let (tx, rx): (Sender<i32>, Receiver<i32>) = mpsc::channel();
+    let (tx, rx): (Sender<String>, Receiver<String>) = mpsc::channel();
 
     // Save the sender in a static variable, which will be used to push elements to the callback
     unsafe {
@@ -221,8 +232,8 @@ fn register_callback_internal(callback: Box<dyn MyCallback>) {
 
     // Thread waits for elements pushed to SENDER and calls the callback
     thread::spawn(move || {
-        for par in rx.iter() {
-            my_callback.call(par)
+        for string in rx.iter() {
+            my_callback.call(format!("{} world!", string))
         }
     });
 }
