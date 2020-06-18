@@ -19,7 +19,7 @@ pub struct FFIParameterStruct {
 
 #[derive(Debug)]
 pub struct FFINestedParameterStruct {
-    my_u8: u8,
+    my_u8: i32,
 }
 
 #[no_mangle]
@@ -89,7 +89,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_passStruct(
         my_int,
         my_str: my_str.to_owned(),
         my_nested: FFINestedParameterStruct {
-            my_u8: my_nested_struct_my_u8 as u8,
+            my_u8: my_nested_struct_my_u8 as i32,
         },
     };
 
@@ -213,7 +213,8 @@ impl MyCallback for MyCallbackImpl {
             "call",
             "(Ljava/lang/String;)V",
             &[str_j_value],
-        );
+        )
+        .expect("Couldn't call callback");
     }
 }
 
