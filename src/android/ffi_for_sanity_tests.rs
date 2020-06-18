@@ -42,58 +42,6 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_sendReceiveString(
     output.into_inner()
 }
 
-// #[no_mangle]
-// pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_postReport(
-//     env: JNIEnv,
-//     _: JClass,
-//     java_c_report: JString,
-//     callback: JObject,
-// ) -> jstring {
-//     let str_parameter = env
-//         .new_string("my string parameter")
-//         .expect("Couldn't create java string!");
-
-//     // Our Java companion code might pass-in "world" as a string, hence the name.
-//     let world = rust_greeting2(
-//         env.get_string(java_c_report)
-//             .expect("invalid pattern string")
-//             .as_ptr(),
-//     );
-//     // Retake pointer so that we can use it below and allow memory to be freed when it goes out of scope.
-//     let world_ptr = CString::from_raw(world);
-//     let output = env
-//         .new_string(world_ptr.to_str().unwrap())
-//         .expect("Couldn't create java string!");
-
-//     let cls = env.find_class("org/coepi/android/api/FFIParameterStruct");
-//     // let cls2 = env.find_class("org/coepi/android/api/Callback");
-
-//     // let cls2_as_str = format!("{:?}", cls2.is_ok());
-
-//     // let method_id = env.get_method_id(cls2.unwrap().clone(), "call", "(I)V");
-
-//     // let res = format!("{:?}, {:?}", cls2_as_str, method_id.is_ok());
-
-//     let number: jint = 123;
-//     let numberAsJValue: JValue = number.into();
-//     // env.call_method(callback, "call", "(I)V", &[numberAsJValue])
-//     //     .unwrap();
-
-//     let res: jint = 123;
-
-//     let res = env.call_method(callback, "call", "(I)V", &[numberAsJValue]);
-//     // .unwrap();
-
-//     println!("res: {:?}", res);
-
-//     // env.call_method(obj, name, sig, args)
-
-//     // let output2 = env.new_string("???").expect("Couldn't create java string!");
-
-//     // output2.into_inner()
-//     str_parameter.into_inner()
-// }
-
 #[no_mangle]
 pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_passStruct(
     env: JNIEnv,
@@ -205,54 +153,14 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_registerCallback(
     env: JNIEnv,
     _: JClass,
     callback: jobject,
-    // callback2: jobject,
 ) -> jint {
     let str = env.new_string("hi!").expect("Couldn't create java string!");
-
-    // let callback_arg = JValue::from(JObject::from(str));
-    // env.call_method(callback, "log", "(Ljava/lang/String;)V", &[callback_arg])
-    //     .unwrap();
-
-    // let foo = env.get_java_vm();
-
-    // let mut java_vm: *mut JavaVM = ::std::ptr::null_mut();
-    // let ret = unsafe { env.get_java_vm().unwrap()(env, &mut java_vm) };
-    // assert_eq!(0, ret, "get_java_vm failed");
-
-    // let global_callback_obj = unsafe { env.NewGlobalRef.unwrap()(env, callback) };
-    // assert!(!global_callback_obj.is_null());
-
-    // let foo: Result<JavaVM, jni::errors::Error> = env.get_java_vm();
 
     let my_callback = MyCallbackImpl {
         java_vm: env.get_java_vm().unwrap(),
         callback: env.new_global_ref(callback).unwrap(),
     };
     register_callback_internal(Box::new(my_callback));
-
-    // let number: jint = 123;
-    // let numberAsJValue: JValue = number.into();
-    // let call_callback_res = my_callback
-    //     .env
-    //     .call_method(
-    //         JObject::from(my_callback.callback),
-    //         "call",
-    //         "(I)V",
-    //         &[numberAsJValue],
-    //     )
-    //     .unwrap();
-
-    // let output = env
-    //     .new_string(format!("call_callback_res: {:?}", call_callback_res))
-    //     .expect("Couldn't create java string!");
-    // let output_as_jvalue = JValue::from(JObject::from(output));
-    // env.call_method(
-    //     JObject::from(callback2),
-    //     "log",
-    //     "(Ljava/lang/String;)V",
-    //     &[output_as_jvalue],
-    // )
-    // .unwrap();
 
     1
 }
@@ -294,7 +202,6 @@ impl MyCallback for MyCallbackImpl {
     fn call(&self, par: i32) {
         let par_j_value = JValue::from(par);
         let env = self.java_vm.attach_current_thread().unwrap();
-        // env.call_method(JObject::from(self.callback), "call", "(I)V", &[par_j_value]);
         env.call_method(self.callback.as_obj(), "call", "(I)V", &[par_j_value]);
     }
 }
@@ -315,8 +222,6 @@ fn register_callback_internal(callback: Box<dyn MyCallback>) {
     // Thread waits for elements pushed to SENDER and calls the callback
     thread::spawn(move || {
         for par in rx.iter() {
-            println!(">>> receiver received par: {}", par);
-
             my_callback.call(par)
         }
     });
