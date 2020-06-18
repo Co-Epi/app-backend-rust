@@ -29,6 +29,7 @@ pub struct PublicReport {
     pub diarrhea: bool,
     pub runny_nose: bool,
     pub other: bool,
+    pub no_symptoms: bool, // https://github.com/Co-Epi/app-ios/issues/268#issuecomment-645583717
 }
 
 impl PublicReport {
@@ -43,6 +44,7 @@ impl PublicReport {
         let diarrhea = inputs.ids.contains(&SymptomId::Diarrhea).clone();
         let runny_nose = inputs.ids.contains(&SymptomId::RunnyNose).clone();
         let other = inputs.ids.contains(&SymptomId::Other).clone();
+        let no_symptoms = inputs.ids.contains(&SymptomId::None).clone();
 
         if fever_severity != FeverSeverity::None
             || cough_severity != CoughSeverity::None
@@ -52,6 +54,7 @@ impl PublicReport {
             || diarrhea
             || runny_nose
             || other
+            || no_symptoms
         {
             Some(PublicReport {
                 report_time,
@@ -64,6 +67,7 @@ impl PublicReport {
                 diarrhea,
                 runny_nose,
                 other,
+                no_symptoms,
             })
         } else {
             info!(

@@ -665,6 +665,7 @@ mod tests {
             diarrhea: false,
             runny_nose: true,
             other: false,
+            no_symptoms: true,
         };
         let rak = ReportAuthorizationKey::new(rand::thread_rng());
         let memo_data = memo_mapper.to_memo(public_report);

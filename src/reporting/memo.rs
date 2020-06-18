@@ -43,6 +43,7 @@ impl MemoMapper for MemoMapperImpl {
             Self::BOOLEAN_MAPPER.to_bits(report.diarrhea),
             Self::BOOLEAN_MAPPER.to_bits(report.runny_nose),
             Self::BOOLEAN_MAPPER.to_bits(report.other),
+            Self::BOOLEAN_MAPPER.to_bits(report.no_symptoms),
         ];
 
         Memo {
@@ -79,6 +80,7 @@ impl MemoMapper for MemoMapperImpl {
         let diarrhea = extract(&bits, &Self::BOOLEAN_MAPPER, next).value(|v| next += v);
         let runny_nose = extract(&bits, &Self::BOOLEAN_MAPPER, next).value(|v| next += v);
         let other = extract(&bits, &Self::BOOLEAN_MAPPER, next).value(|v| next += v);
+        let no_symptoms = extract(&bits, &Self::BOOLEAN_MAPPER, next).value(|v| next += v);
 
         PublicReport {
             report_time,
@@ -91,6 +93,7 @@ impl MemoMapper for MemoMapperImpl {
             diarrhea,
             runny_nose,
             other,
+            no_symptoms,
         }
     }
 }
@@ -128,7 +131,7 @@ mod tests {
     use crate::reports_interval::UnixTime;
 
     #[test]
-    fn maps_no_symptoms() {
+    fn maps_nothing_set() {
         let memo_mapper = MemoMapperImpl {};
 
         let report = PublicReport {
@@ -142,6 +145,7 @@ mod tests {
             diarrhea: false,
             runny_nose: false,
             other: false,
+            no_symptoms: false,
         };
 
         let memo: Memo = memo_mapper.to_memo(report.clone());
@@ -165,6 +169,7 @@ mod tests {
             diarrhea: false,
             runny_nose: true,
             other: false,
+            no_symptoms: true,
         };
 
         let memo: Memo = memo_mapper.to_memo(report.clone());
