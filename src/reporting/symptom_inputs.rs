@@ -282,6 +282,7 @@ mod tests {
             diarrhea: false,
             runny_nose: true,
             other: false,
+            no_symptoms: true,
         };
 
         let rak_bytes = [
