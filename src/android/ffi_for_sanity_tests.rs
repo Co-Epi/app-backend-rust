@@ -47,7 +47,6 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_passStruct(
     env: JNIEnv,
     _: JClass,
     my_struct: JObject,
-    callback: JObject,
 ) -> jint {
     let my_int_j_value_res = env.get_field(my_struct, "myInt", "I");
     let my_int: i32 = my_int_j_value_res.unwrap().i().unwrap();
@@ -74,17 +73,6 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_passStruct(
 
     let my_nested_struct_my_u8 = my_nested_struct_my_u8_j_value.i().unwrap();
 
-    let output2 = env
-        .new_string(format!(
-            "my_nested_struct_my_u8: {:?}",
-            my_nested_struct_my_u8
-        ))
-        .expect("Couldn't create java string!");
-
-    let a = JValue::from(JObject::from(output2));
-    env.call_method(callback, "call", "(Ljava/lang/String;)V", &[a])
-        .unwrap();
-
     let my_struct = FFIParameterStruct {
         my_int,
         my_str: my_str.to_owned(),
@@ -93,14 +81,6 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_passStruct(
         },
     };
 
-    let output3 = env
-        .new_string(format!("my_struct: {:?}", my_struct))
-        .expect("Couldn't create java string!");
-
-    let a2 = JValue::from(JObject::from(output3));
-    env.call_method(callback, "call", "(Ljava/lang/String;)V", &[a2])
-        .unwrap();
-
     1
 }
 
@@ -108,7 +88,6 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_passStruct(
 pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_returnStruct(
     env: JNIEnv,
     _: JClass,
-    callback: JObject,
 ) -> jobject {
     let cls = env.find_class("org/coepi/android/api/FFIParameterStruct");
 
