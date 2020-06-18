@@ -197,8 +197,16 @@ trait MyCallback {
 }
 
 struct MyCallbackImpl {
-    java_vm: JavaVM,
+    // The callback passed from Android is a local reference: only valid during the method call.
+    // To store it, we need to put it in a global reference.
+    // See https://developer.android.com/training/articles/perf-jni#local-and-global-references
     callback: GlobalRef,
+
+    // We need JNIEnv to call the callback.
+    // JNIEnv is valid only in the same thread, so we have to store the vm instead, and use it to get
+    // a JNIEnv for the current thread.
+    // See https://developer.android.com/training/articles/perf-jni#javavm-and-jnienvb
+    java_vm: JavaVM,
 }
 
 impl MyCallback for MyCallbackImpl {
