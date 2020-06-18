@@ -33,8 +33,6 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_sendReceiveString(
         .expect("Couldn't create java string")
         .into();
 
-    println!("Got string: {}", string);
-
     let output = env
         .new_string(format!("Hello {}!", string))
         .expect("Couldn't create java string");
