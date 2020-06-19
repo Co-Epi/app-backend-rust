@@ -221,7 +221,6 @@ fn jni_obj_result(
 
     let obj = env.new_object(
         cls,
-        // "(ILjava/lang/String;Lorg/coepi/android/api/JniAlert;)V",
         format!("(ILjava/lang/String;{})V", inner_class),
         &[status_j_value, msg_j_value, JValue::from(obj)],
     );
