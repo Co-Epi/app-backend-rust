@@ -7,13 +7,13 @@ use core_foundation::string::{CFString, CFStringRef};
 use log::*;
 use networking::TcnApi;
 use serde::Serialize;
-use std::os::raw::c_char;
-use std::fmt;
+use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
-use std::sync::mpsc::{self, Sender, Receiver};
 // use mpsc::Receiver;
-use std::str::FromStr;
 use crate::simple_logger;
+use simple_logger::{CoreLogLevel, CoreLogMessageThreadSafe, IOS_LOG_SENDER};
+use std::os::raw::c_char;
+use std::str::FromStr;
 
 // Generic struct to return results to app
 // For convenience, status will be HTTP status codes
@@ -24,7 +24,6 @@ struct LibResult<T> {
     error_message: Option<String>,
 }
 
-
 #[no_mangle]
 pub unsafe extern "C" fn setup_logger(level: CoreLogLevel, coepi_only: bool) -> i32 {
     let level_string = level.to_string();
@@ -34,14 +33,18 @@ pub unsafe extern "C" fn setup_logger(level: CoreLogLevel, coepi_only: bool) -> 
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn bootstrap_core(db_path: *const c_char, level: CoreLogLevel, coepi_only: bool) -> CFStringRef {
+pub unsafe extern "C" fn bootstrap_core(
+    db_path: *const c_char,
+    level: CoreLogLevel,
+    coepi_only: bool,
+) -> CFStringRef {
     let level_string = level.to_string();
     let filter_level = LevelFilter::from_str(&level_string).expect("Incorrect log level selected!");
     let _ = simple_logger::setup_logger(filter_level, coepi_only);
 
     let db_path_str = cstring_to_str(&db_path);
     println!("Bootstrapping with db path: {:?}", db_path_str);
-     let result = db_path_str.and_then(|path| init_db(path).map_err(ServicesError::from));
+    let result = db_path_str.and_then(|path| init_db(path).map_err(ServicesError::from));
     info!("Bootstrapping result: {:?}", result);
     return to_result_str(result);
 }
@@ -263,24 +266,6 @@ pub unsafe fn cstring_to_str<'a>(cstring: &'a *const c_char) -> Result<&str, Ser
     }
 }
 
-//Supress warnings when compiling in test configuration (CoreLogLevel is not used in tests)
-#[allow(dead_code)]
-#[repr(u8)]
-#[derive(Debug, Clone)]
-pub enum CoreLogLevel {
-    Trace,
-    Debug,
-    Info,
-    Warn,
-    Error,
-}
-
-impl fmt::Display for CoreLogLevel {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct CoreLogMessage {
@@ -289,25 +274,17 @@ pub struct CoreLogMessage {
     time: i64,
 }
 
-
-impl From<CoreLogMessageThreadSafe> for CoreLogMessage{
+impl From<CoreLogMessageThreadSafe> for CoreLogMessage {
     fn from(lts: CoreLogMessageThreadSafe) -> Self {
         let cf_string = CFString::new(&lts.text);
         let cf_string_ref = cf_string.as_concrete_TypeRef();
         ::std::mem::forget(cf_string);
-        CoreLogMessage{
+        CoreLogMessage {
             level: lts.level,
             text: cf_string_ref,
-            time: lts.time
+            time: lts.time,
         }
     }
-}
-
-pub struct CoreLogMessageThreadSafe {
-    //TODO: hide fields
-    pub level: CoreLogLevel,
-    pub text: String,
-    pub time: i64,
 }
 
 pub trait LogCallback {
@@ -322,25 +299,27 @@ impl LogCallback for unsafe extern "C" fn(CoreLogMessage) {
     }
 }
 
-pub static mut LOG_SENDER: Option<Sender<CoreLogMessageThreadSafe>> = None;
-
 fn register_log_callback_internal(callback: Box<dyn LogCallback>) {
     // Make callback implement Send (marker for thread safe, basically) https://doc.rust-lang.org/std/marker/trait.Send.html
-    let log_callback =
-        unsafe { std::mem::transmute::<Box<dyn LogCallback>, Box<dyn LogCallback + Send>>(callback) };
+    let log_callback = unsafe {
+        std::mem::transmute::<Box<dyn LogCallback>, Box<dyn LogCallback + Send>>(callback)
+    };
 
     // Create channel
-    let (tx, rx): (Sender<CoreLogMessageThreadSafe>, Receiver<CoreLogMessageThreadSafe>) = mpsc::channel();
+    let (tx, rx): (
+        Sender<CoreLogMessageThreadSafe>,
+        Receiver<CoreLogMessageThreadSafe>,
+    ) = mpsc::channel();
 
     // Save the sender in a static variable, which will be used to push elements to the callback
     unsafe {
-        LOG_SENDER = Some(tx);
+        IOS_LOG_SENDER = Some(tx);
     }
 
     // Thread waits for elements pushed to SENDER and calls the callback
     thread::spawn(move || {
         for log_entry in rx.iter() {
-             log_callback.call(log_entry.into());
+            log_callback.call(log_entry.into());
         }
     });
 }
@@ -352,7 +331,7 @@ pub unsafe extern "C" fn trigger_logging_macros() -> i32 {
     info!(target: "test_events", "CoEpi info");
     warn!(target: "test_events", "CoEpi warn");
     error!(target: "test_events", "CoEpi error");
-    
+
     1
 }
 
