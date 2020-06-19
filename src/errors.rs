@@ -76,4 +76,13 @@ impl From<hex::FromHexError> for ServicesError {
     }
 }
 
+impl From<std::str::Utf8Error> for ServicesError {
+    fn from(error: std::str::Utf8Error) -> Self {
+        ServicesError::Error(Box::new(StdError::new(
+            ErrorKind::Other,
+            format!("{}", error),
+        )))
+    }
+}
+
 impl error::Error for ServicesError {}

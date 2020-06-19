@@ -204,9 +204,9 @@ impl ByteArrayMappable for u64 {
 // Ideally these types would be separated (e.g. in an own module)
 #[derive(Debug, Serialize)]
 pub struct Alert {
-    id: String,
-    report: PublicReport,
-    contact_time: u64,
+    pub id: String,
+    pub report: PublicReport,
+    pub contact_time: u64,
 }
 
 pub struct ReportsUpdater<'a, T: Preferences, U: TcnDao, V: TcnMatcher, W: TcnApi, X: MemoMapper> {
