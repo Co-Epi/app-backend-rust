@@ -8,7 +8,7 @@ use crate::{
     reports_updater::Alert,
 };
 use jni::{
-    objects::{JClass, JObject, JValue},
+    objects::{JClass, JObject},
     sys::{jobject, jobjectArray},
     JNIEnv,
 };
