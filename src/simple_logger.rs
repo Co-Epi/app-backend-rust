@@ -9,18 +9,18 @@ use std::sync::{mpsc::Sender, Once};
 
 static INIT: Once = Once::new();
 
-pub static mut IOS_LOG_SENDER: Option<Sender<CoreLogMessageThreadSafe>> = None;
+pub static mut SENDER: Option<Sender<CoreLogMessageThreadSafe>> = None;
 
 //Supress warnings when compiling in test configuration (CoreLogLevel is not used in tests)
 #[allow(dead_code)]
 #[repr(u8)]
 #[derive(Debug, Clone)]
 pub enum CoreLogLevel {
-    Trace,
-    Debug,
-    Info,
-    Warn,
-    Error,
+    Trace = 0,
+    Debug = 1,
+    Info = 2,
+    Warn = 3,
+    Error = 4,
 }
 
 impl fmt::Display for CoreLogLevel {
@@ -128,7 +128,7 @@ impl log::Log for CoEpiLogger {
 impl SimpleLogger {
     fn log_message_to_app(log_message: CoreLogMessageThreadSafe) {
         unsafe {
-            if let Some(s) = &IOS_LOG_SENDER {
+            if let Some(s) = &SENDER {
                 s.send(log_message).expect("Couldn't send");
             } else {
                 println!("No SENDER!");

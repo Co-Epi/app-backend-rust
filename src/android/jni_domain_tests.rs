@@ -1,3 +1,4 @@
+use super::android_interface::{jni_obj_result, jni_void_result};
 use crate::{
     composition_root::COMP_ROOT,
     errors::ServicesError,
@@ -182,48 +183,4 @@ fn alert_to_jobject(alert: Alert, env: &JNIEnv) -> jobject {
     )
     .unwrap()
     .into_inner()
-}
-
-fn jni_void_result(status: i32, message: Option<&str>, env: &JNIEnv) -> jobject {
-    let cls = env.find_class("org/coepi/android/api/JniVoidResult");
-
-    let status_j_value = JValue::from(status);
-
-    let msg = message.unwrap_or("");
-    let msg_j_string = env.new_string(msg).unwrap();
-    let msg_j_value = JValue::from(msg_j_string);
-
-    let obj = env.new_object(
-        cls.unwrap(),
-        "(ILjava/lang/String;)V",
-        &[status_j_value, msg_j_value],
-    );
-
-    obj.unwrap().into_inner()
-}
-
-fn jni_obj_result(
-    status: i32,
-    message: Option<&str>,
-    obj: JObject,
-    outer_class: &str,
-    inner_class: &str,
-    env: &JNIEnv,
-) -> jobject {
-    let cls = env.find_class(outer_class).unwrap();
-
-    let status_j_value = JValue::from(status);
-
-    let msg = message.unwrap_or("");
-
-    let msg_j_string = env.new_string(msg).unwrap();
-    let msg_j_value = JValue::from(msg_j_string);
-
-    let obj = env.new_object(
-        cls,
-        format!("(ILjava/lang/String;{})V", inner_class),
-        &[status_j_value, msg_j_value, JValue::from(obj)],
-    );
-
-    obj.unwrap().into_inner()
 }

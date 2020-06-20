@@ -11,7 +11,7 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 // use mpsc::Receiver;
 use crate::simple_logger;
-use simple_logger::{CoreLogLevel, CoreLogMessageThreadSafe, IOS_LOG_SENDER};
+use simple_logger::{CoreLogLevel, CoreLogMessageThreadSafe, SENDER};
 use std::os::raw::c_char;
 use std::str::FromStr;
 
@@ -313,7 +313,7 @@ fn register_log_callback_internal(callback: Box<dyn LogCallback>) {
 
     // Save the sender in a static variable, which will be used to push elements to the callback
     unsafe {
-        IOS_LOG_SENDER = Some(tx);
+        SENDER = Some(tx);
     }
 
     // Thread waits for elements pushed to SENDER and calls the callback
