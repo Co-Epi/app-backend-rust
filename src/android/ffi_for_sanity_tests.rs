@@ -5,7 +5,7 @@ use std::{
 extern crate jni;
 use self::jni::JNIEnv;
 use jni::objects::{GlobalRef, JClass, JObject, JString, JValue};
-use jni::sys::{jint, jobject, jstring};
+use jni::sys::{jfloat, jint, jobject, jstring};
 use jni::JavaVM;
 use log::warn;
 use mpsc::Receiver;
@@ -41,6 +41,18 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_sendReceiveString(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_testPassAndReturnFloat(
+    _env: JNIEnv,
+    _: JClass,
+    my_float: jfloat,
+) -> jfloat {
+    println!("Passed jfloat: {}", my_float);
+    let f = my_float as f32;
+    println!("f32: {}", f);
+    f
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_passStruct(
     env: JNIEnv,
     _: JClass,
@@ -71,7 +83,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_passStruct(
 
     let my_nested_struct_my_u8 = my_nested_struct_my_u8_j_value.i().unwrap();
 
-    let my_struct = FFIParameterStruct {
+    let _my_struct = FFIParameterStruct {
         my_int,
         my_str: my_str.to_owned(),
         my_nested: FFINestedParameterStruct {
@@ -89,23 +101,22 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_returnStruct(
 ) -> jobject {
     let cls = env.find_class("org/coepi/android/api/FFIParameterStruct");
 
-    let my_int = JValue::from(123);
+    let my_int_j_value = JValue::from(123);
+
     let str_parameter = env
         .new_string("my string parameter")
         .expect("Couldn't create java string!");
-
     let str_parameter_j_value = JValue::from(JObject::from(str_parameter));
 
     let nested = env.find_class("org/coepi/android/api/FFINestedParameterStruct");
     let my_int_nested = JValue::from(123);
-
     let nested_obj = env.new_object(nested.unwrap(), "(I)V", &[my_int_nested]);
     let nested_obj_val = JValue::from(nested_obj.unwrap());
 
     let obj = env.new_object(
         cls.unwrap(),
         "(ILjava/lang/String;Lorg/coepi/android/api/FFINestedParameterStruct;)V",
-        &[my_int, str_parameter_j_value, nested_obj_val],
+        &[my_int_j_value, str_parameter_j_value, nested_obj_val],
     );
 
     obj.unwrap().into_inner()
@@ -131,7 +142,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_registerCallback(
     _: JClass,
     callback: jobject,
 ) -> jint {
-    let str = env.new_string("hi!").expect("Couldn't create java string!");
+    let _str = env.new_string("hi!").expect("Couldn't create java string!");
 
     let my_callback = MyCallbackImpl {
         java_vm: env.get_java_vm().unwrap(),

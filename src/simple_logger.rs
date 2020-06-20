@@ -1,13 +1,40 @@
 #[cfg(not(test))]
-use crate::ios::ios_interface::{CoreLogLevel, CoreLogMessageThreadSafe, LOG_SENDER};
 #[cfg(test)]
 use chrono::Local;
 #[cfg(not(test))]
 use chrono::Utc;
 use log::*;
-use std::sync::Once;
+use std::fmt;
+use std::sync::{mpsc::Sender, Once};
 
 static INIT: Once = Once::new();
+
+pub static mut IOS_LOG_SENDER: Option<Sender<CoreLogMessageThreadSafe>> = None;
+
+//Supress warnings when compiling in test configuration (CoreLogLevel is not used in tests)
+#[allow(dead_code)]
+#[repr(u8)]
+#[derive(Debug, Clone)]
+pub enum CoreLogLevel {
+    Trace,
+    Debug,
+    Info,
+    Warn,
+    Error,
+}
+
+impl fmt::Display for CoreLogLevel {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+pub struct CoreLogMessageThreadSafe {
+    //TODO: hide fields
+    pub level: CoreLogLevel,
+    pub text: String,
+    pub time: i64,
+}
 
 //Boxed logger setup
 pub fn setup_logger(level: LevelFilter, coepi_only: bool) {
@@ -67,7 +94,7 @@ macro_rules! log_prod {
 
 #[cfg(test)]
 macro_rules! log_test {
-    ($sel: ident, $record: ident)  => {
+    ($sel: ident, $record: ident) => {
         if $sel.enabled($record.metadata()) {
             println!(
                 "{} {} {}:{} - {}",
@@ -97,13 +124,11 @@ impl log::Log for CoEpiLogger {
     fn flush(&self) {}
 }
 
-
-
 #[cfg(not(test))]
 impl SimpleLogger {
     fn log_message_to_app(log_message: CoreLogMessageThreadSafe) {
         unsafe {
-            if let Some(s) = &LOG_SENDER {
+            if let Some(s) = &IOS_LOG_SENDER {
                 s.send(log_message).expect("Couldn't send");
             } else {
                 println!("No SENDER!");
@@ -111,7 +136,6 @@ impl SimpleLogger {
         }
     }
 }
-
 
 impl log::Log for SimpleLogger {
     fn enabled(&self, metadata: &Metadata) -> bool {
@@ -129,7 +153,6 @@ impl log::Log for SimpleLogger {
 
     fn flush(&self) {}
 }
-
 
 #[test]
 fn verify_test_macros() {
