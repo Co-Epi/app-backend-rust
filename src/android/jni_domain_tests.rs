@@ -20,32 +20,6 @@ use log::{info, LevelFilter};
 use std::str::FromStr;
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_testBootstrapCore(
-    env: JNIEnv,
-    _: JClass,
-    db_path_j_string: JString,
-    level_j_string: JString,
-    coepi_only: jboolean,
-) -> jobject {
-    let db_path_java_str = env.get_string(db_path_j_string).unwrap();
-    let db_path_str = db_path_java_str.to_str().map_err(ServicesError::from);
-
-    let level_java_str = env.get_string(level_j_string).unwrap();
-    let level_str = level_java_str.to_str().unwrap();
-
-    let coepi_only = coepi_only != 0;
-
-    let filter_level = LevelFilter::from_str(&level_str).expect("Incorrect log level selected!");
-    let _ = simple_logger::setup_logger(filter_level, coepi_only);
-
-    println!("Bootstrapping with db path: {:?}", db_path_str);
-    let result = db_path_str.and_then(|path| init_db(path).map_err(ServicesError::from));
-    info!("Bootstrapping result: {:?}", result);
-
-    jni_void_result(1, None, &env)
-}
-
-#[no_mangle]
 pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_testReturnAnAlert(
     env: JNIEnv,
     _: JClass,
