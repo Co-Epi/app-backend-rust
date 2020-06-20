@@ -1,9 +1,9 @@
 use crate::reports_interval::ReportsInterval;
+use log::*;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::option::Option;
-use log::*;
 
 pub const TCK_SIZE_IN_BYTES: usize = 66;
 
@@ -152,4 +152,27 @@ impl Preferences for PreferencesTckMock {
     fn set_tck(&self, _value: TckBytesWrapper) {
         return;
     }
+}
+
+// TODO remove
+#[derive(Clone)]
+pub struct PreferencesNoopMock {}
+impl Preferences for PreferencesNoopMock {
+    fn last_completed_reports_interval(&self, _: PreferencesKey) -> Option<ReportsInterval> {
+        Option::None
+    }
+
+    fn set_last_completed_reports_interval(&self, _: PreferencesKey, _: ReportsInterval) {}
+
+    fn authorization_key(&self) -> std::option::Option<[u8; 32]> {
+        Option::None
+    }
+
+    fn set_autorization_key(&self, _value: [u8; 32]) {}
+
+    fn tck(&self) -> std::option::Option<TckBytesWrapper> {
+        Option::None
+    }
+
+    fn set_tck(&self, _value: TckBytesWrapper) {}
 }
