@@ -1,4 +1,15 @@
-use crate::{errors::ServicesError, init_db, simple_logger};
+use crate::{
+    composition_root::COMP_ROOT,
+    errors::ServicesError,
+    init_db,
+    reporting::{
+        public_report::{CoughSeverity, FeverSeverity, PublicReport},
+        symptom_inputs::UserInput,
+    },
+    reports_interval::UnixTime,
+    reports_updater::Alert,
+    simple_logger,
+};
 use jni::{
     objects::{GlobalRef, JClass, JObject, JString, JValue},
     sys::{jboolean, jobject},
@@ -31,6 +42,46 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_bootstrapCore(
     info!("Bootstrapping result: {:?}", db_result);
 
     jni_void_result(1, None, &env)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_fetchNewReports(
+    env: JNIEnv,
+    _: JClass,
+) -> jobject {
+    info!("Updating reports");
+    // TODO error handling https://github.com/Co-Epi/app-backend-rust/issues/79
+    let result = COMP_ROOT.reports_updater.fetch_new_reports().unwrap();
+    info!("New reports: {:?}", result);
+
+    let alerts_j_objects: Vec<jobject> = result
+        .into_iter()
+        .map(|alert| alert_to_jobject(alert, &env))
+        .collect();
+
+    let placeholder_alert_j_object = alert_to_jobject(placeholder_alert(), &env);
+
+    let alerts_array = env
+        .new_object_array(
+            alerts_j_objects.len() as i32,
+            "org/coepi/android/api/JniAlert",
+            placeholder_alert_j_object,
+        )
+        .unwrap();
+
+    for (index, alert_j_object) in alerts_j_objects.into_iter().enumerate() {
+        env.set_object_array_element(alerts_array, index as i32, alert_j_object)
+            .unwrap();
+    }
+
+    jni_obj_result(
+        1,
+        None,
+        JObject::from(alerts_array),
+        "org/coepi/android/api/JniAlertsArrayResult",
+        "[Lorg/coepi/android/api/JniAlert;",
+        &env,
+    )
 }
 
 fn init_log(env: &JNIEnv, level_j_string: JString, coepi_only: jboolean, callback: jobject) -> i32 {
@@ -152,4 +203,101 @@ fn register_callback_internal(callback: Box<dyn LogCallbackWrapper>) {
             log_callback.call(log_entry.level, log_entry.text.into());
         }
     });
+}
+
+// To prefill the JNI array (TODO can this be skipped?)
+fn placeholder_alert() -> Alert {
+    let report = PublicReport {
+        report_time: UnixTime { value: 0 },
+        earliest_symptom_time: UserInput::Some(UnixTime { value: 0 }),
+        fever_severity: FeverSeverity::None,
+        cough_severity: CoughSeverity::None,
+        breathlessness: false,
+        muscle_aches: false,
+        loss_smell_or_taste: false,
+        diarrhea: false,
+        runny_nose: false,
+        other: false,
+        no_symptoms: false,
+    };
+
+    Alert {
+        id: "0".to_owned(),
+        report,
+        contact_time: 0,
+    }
+}
+
+pub fn alert_to_jobject(alert: Alert, env: &JNIEnv) -> jobject {
+    let jni_public_report_class = env
+        .find_class("org/coepi/android/api/JniPublicReport")
+        .unwrap();
+
+    let report_time_j_value = JValue::from(alert.report.report_time.value as i64);
+
+    let earliest_time = match &alert.report.earliest_symptom_time {
+        UserInput::Some(time) => time.value as i64,
+        UserInput::None => -1,
+    };
+    let earliest_time_j_value = JValue::from(earliest_time);
+
+    let fever_severity = match &alert.report.fever_severity {
+        FeverSeverity::None => 0,
+        FeverSeverity::Mild => 1,
+        FeverSeverity::Serious => 2,
+    };
+    let fever_severity_j_value = JValue::from(fever_severity);
+
+    let cough_severity = match &alert.report.cough_severity {
+        CoughSeverity::None => 0,
+        CoughSeverity::Existing => 1,
+        CoughSeverity::Wet => 2,
+        CoughSeverity::Dry => 3,
+    };
+    let cough_severity_j_value = JValue::from(cough_severity);
+
+    let breathlessness_j_value = JValue::from(alert.report.breathlessness);
+    let muscle_aches_j_value = JValue::from(alert.report.muscle_aches);
+    let loss_smell_or_taste_j_value = JValue::from(alert.report.loss_smell_or_taste);
+    let diarrhea_j_value = JValue::from(alert.report.diarrhea);
+    let runny_nose_j_value = JValue::from(alert.report.runny_nose);
+    let other_j_value = JValue::from(alert.report.other);
+    let no_symptoms_j_value = JValue::from(alert.report.no_symptoms);
+
+    let jni_public_report_obj = env.new_object(
+        jni_public_report_class,
+        "(JJIIZZZZZZZ)V",
+        &[
+            report_time_j_value,
+            earliest_time_j_value,
+            fever_severity_j_value,
+            cough_severity_j_value,
+            breathlessness_j_value,
+            muscle_aches_j_value,
+            loss_smell_or_taste_j_value,
+            diarrhea_j_value,
+            runny_nose_j_value,
+            other_j_value,
+            no_symptoms_j_value,
+        ],
+    );
+
+    let jni_alert_class = env.find_class("org/coepi/android/api/JniAlert").unwrap();
+
+    let id_j_string = env.new_string(alert.id).unwrap();
+    let id_j_value = JValue::from(JObject::from(id_j_string));
+
+    let earliest_time_j_value = JValue::from(alert.contact_time as i64);
+
+    env.new_object(
+        jni_alert_class,
+        "(Ljava/lang/String;Lorg/coepi/android/api/JniPublicReport;J)V",
+        &[
+            id_j_value,
+            JValue::from(jni_public_report_obj.unwrap()),
+            earliest_time_j_value,
+        ],
+    )
+    .unwrap()
+    .into_inner()
 }
