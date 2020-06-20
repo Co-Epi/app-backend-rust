@@ -1,23 +1,17 @@
-use super::android_interface::{jni_obj_result, jni_void_result};
+use super::android_interface::jni_obj_result;
 use crate::{
-    composition_root::COMP_ROOT,
-    errors::ServicesError,
-    init_db,
     reporting::{
         public_report::{CoughSeverity, FeverSeverity, PublicReport},
         symptom_inputs::UserInput,
     },
     reports_interval::UnixTime,
     reports_updater::Alert,
-    simple_logger,
 };
 use jni::{
-    objects::{JClass, JObject, JString, JValue},
-    sys::{jboolean, jobject, jobjectArray},
+    objects::{JClass, JObject, JValue},
+    sys::{jobject, jobjectArray},
     JNIEnv,
 };
-use log::{info, LevelFilter};
-use std::str::FromStr;
 
 #[no_mangle]
 pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_testReturnAnAlert(

@@ -1,4 +1,4 @@
-use crate::{composition_root::COMP_ROOT, errors::ServicesError, init_db, simple_logger};
+use crate::{errors::ServicesError, init_db, simple_logger};
 use jni::{
     objects::{GlobalRef, JClass, JObject, JString, JValue},
     sys::{jboolean, jobject},
