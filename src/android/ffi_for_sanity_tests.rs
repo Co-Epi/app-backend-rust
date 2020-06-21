@@ -142,14 +142,11 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_registerCallback(
     _: JClass,
     callback: jobject,
 ) -> jint {
-    let _str = env.new_string("hi!").expect("Couldn't create java string!");
-
     let my_callback = MyCallbackImpl {
         java_vm: env.get_java_vm().unwrap(),
         callback: env.new_global_ref(callback).unwrap(),
     };
     register_callback_internal(Box::new(my_callback));
-
     1
 }
 

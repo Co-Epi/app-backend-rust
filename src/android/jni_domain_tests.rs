@@ -1,48 +1,17 @@
+use super::android_interface::jni_obj_result;
 use crate::{
-    composition_root::COMP_ROOT,
-    errors::ServicesError,
-    init_db,
     reporting::{
         public_report::{CoughSeverity, FeverSeverity, PublicReport},
         symptom_inputs::UserInput,
     },
     reports_interval::UnixTime,
     reports_updater::Alert,
-    simple_logger,
 };
 use jni::{
-    objects::{JClass, JObject, JString, JValue},
-    sys::{jboolean, jobject, jobjectArray},
+    objects::{JClass, JObject, JValue},
+    sys::{jobject, jobjectArray},
     JNIEnv,
 };
-use log::{info, LevelFilter};
-use std::str::FromStr;
-
-#[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_testBootstrapCore(
-    env: JNIEnv,
-    _: JClass,
-    db_path_j_string: JString,
-    level_j_string: JString,
-    coepi_only: jboolean,
-) -> jobject {
-    let db_path_java_str = env.get_string(db_path_j_string).unwrap();
-    let db_path_str = db_path_java_str.to_str().map_err(ServicesError::from);
-
-    let level_java_str = env.get_string(level_j_string).unwrap();
-    let level_str = level_java_str.to_str().unwrap();
-
-    let coepi_only = coepi_only != 0;
-
-    let filter_level = LevelFilter::from_str(&level_str).expect("Incorrect log level selected!");
-    let _ = simple_logger::setup_logger(filter_level, coepi_only);
-
-    println!("Bootstrapping with db path: {:?}", db_path_str);
-    let result = db_path_str.and_then(|path| init_db(path).map_err(ServicesError::from));
-    info!("Bootstrapping result: {:?}", result);
-
-    jni_void_result(1, None, &env)
-}
 
 #[no_mangle]
 pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_testReturnAnAlert(
@@ -182,48 +151,4 @@ fn alert_to_jobject(alert: Alert, env: &JNIEnv) -> jobject {
     )
     .unwrap()
     .into_inner()
-}
-
-fn jni_void_result(status: i32, message: Option<&str>, env: &JNIEnv) -> jobject {
-    let cls = env.find_class("org/coepi/android/api/JniVoidResult");
-
-    let status_j_value = JValue::from(status);
-
-    let msg = message.unwrap_or("");
-    let msg_j_string = env.new_string(msg).unwrap();
-    let msg_j_value = JValue::from(msg_j_string);
-
-    let obj = env.new_object(
-        cls.unwrap(),
-        "(ILjava/lang/String;)V",
-        &[status_j_value, msg_j_value],
-    );
-
-    obj.unwrap().into_inner()
-}
-
-fn jni_obj_result(
-    status: i32,
-    message: Option<&str>,
-    obj: JObject,
-    outer_class: &str,
-    inner_class: &str,
-    env: &JNIEnv,
-) -> jobject {
-    let cls = env.find_class(outer_class).unwrap();
-
-    let status_j_value = JValue::from(status);
-
-    let msg = message.unwrap_or("");
-
-    let msg_j_string = env.new_string(msg).unwrap();
-    let msg_j_value = JValue::from(msg_j_string);
-
-    let obj = env.new_object(
-        cls,
-        format!("(ILjava/lang/String;{})V", inner_class),
-        &[status_j_value, msg_j_value, JValue::from(obj)],
-    );
-
-    obj.unwrap().into_inner()
 }
