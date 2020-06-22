@@ -54,7 +54,14 @@ where
     A: SymptomInputsManager,
 {
     fn set_symptom_ids(&self, ids: &str) -> Result<(), ServicesError> {
-        let inputs: Vec<&str> = serde_json::from_str(ids)?;
+        let res: Result<Vec<&str>, _> = serde_json::from_str(ids);
+        if let Err(error) = &res {
+            error!(
+                "Couldn't deserialize symptom ids: {}, error: {}",
+                ids, error
+            )
+        }
+        let inputs = res?;
 
         let mut symptom_ids = HashSet::new();
         for str_id in inputs {
@@ -68,7 +75,10 @@ where
                 "runny_nose" => SymptomId::RunnyNose,
                 "other" => SymptomId::Other,
                 "none" => SymptomId::None,
-                _ => Err(format!("Not supported: {}", str_id))?,
+                _ => {
+                    error!("Not supported symptom id: {}", str_id);
+                    Err(format!("Not supported symptom id: {}", str_id))?
+                }
             };
             symptom_ids.insert(symptom_id);
         }
