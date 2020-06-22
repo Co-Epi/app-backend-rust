@@ -1,3 +1,6 @@
+use crate::expect_log;
+#[cfg(target_os = "android")]
+use log::error;
 use std::{convert::TryInto, u64};
 
 pub struct BitVector {
@@ -33,29 +36,20 @@ impl BitVector {
     }
 
     pub fn as_u8(&self) -> u8 {
-        let arr: [u8; 1] = self
-            .as_u8_array()
-            .as_slice()
-            .try_into()
-            .expect("Unexpected size");
+        let res: Result<[u8; 1], _> = self.as_u8_array().as_slice().try_into();
+        let arr = expect_log!(res, "Unexpected size");
         unsafe { std::mem::transmute::<[u8; 1], u8>(arr) }
     }
 
     pub fn as_u16(&self) -> u16 {
-        let arr: [u8; 2] = self
-            .as_u8_array()
-            .as_slice()
-            .try_into()
-            .expect("Unexpected size");
+        let res: Result<[u8; 2], _> = self.as_u8_array().as_slice().try_into();
+        let arr = expect_log!(res, "Unexpected size");
         unsafe { std::mem::transmute::<[u8; 2], u16>(arr) }
     }
 
     pub fn as_u64(&self) -> u64 {
-        let arr: [u8; 8] = self
-            .as_u8_array()
-            .as_slice()
-            .try_into()
-            .expect("Unexpected size");
+        let res: Result<[u8; 8], _> = self.as_u8_array().as_slice().try_into();
+        let arr = expect_log!(res, "Unexpected size");
         unsafe { std::mem::transmute::<[u8; 8], u64>(arr) }
     }
 
@@ -84,7 +78,10 @@ impl BitVector {
             false,
         )
         .chunks(8)
-        .map(|x| x.try_into().expect("Chunk doesn't have 8 bits"))
+        .map(|x| {
+            let res = x.try_into();
+            expect_log!(res, "Chunk doesn't have 8 bits")
+        })
         .collect()
     }
 
@@ -100,8 +97,8 @@ impl BitVector {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use log::*;
     use crate::simple_logger;
+    use log::*;
 
     #[test]
     fn bit_vector_generates_empty_byte_array_if_empty() {

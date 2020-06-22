@@ -17,13 +17,13 @@ serde = "1.0"
 log = "0.4.8"
 base64 = "0.12.1"
 chrono = "0.4"
-confy = "0.4.0"
 parking_lot = "0.10.2"
 uuid = { version = "0.8.1", features = ["v4"] }
 rand = "0.7"
 hex = "0.4.2"
 serde-big-array = "0.3.0"
 rayon = "1.1"
+rusqlite = {version = "0.23.1", features = ["bundled"]}
 
 [dependencies.reqwest]
 default-features = false # do not include the default features, and optionally

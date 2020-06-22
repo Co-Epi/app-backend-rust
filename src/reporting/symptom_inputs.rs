@@ -1,6 +1,6 @@
 use super::{memo::MemoMapper, public_report::*};
 use crate::{
-    errors::ServicesError, networking::TcnApi, reports_interval::UnixTime,
+    errors::ServicesError, expect_log, networking::TcnApi, reports_interval::UnixTime,
     tcn_ext::tcn_keys::TcnKeys,
 };
 use log::*;
@@ -185,9 +185,8 @@ impl<'a, T: MemoMapper, U: TcnKeys, V: TcnApi> SymptomInputsSubmitterImpl<'a, T,
 
 fn signed_report_to_bytes(signed_report: SignedReport) -> Vec<u8> {
     let mut buf = Vec::new();
-    signed_report
-        .write(Cursor::new(&mut buf))
-        .expect("Couldn't write signed report bytes");
+    let res = signed_report.write(Cursor::new(&mut buf));
+    expect_log!(res, "Couldn't write signed report bytes");
     buf
 }
 

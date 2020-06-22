@@ -1,7 +1,11 @@
+use crate::reporting::symptom_inputs_manager::SymptomInputsProcessor;
 use crate::reports_updater::ObservedTcnProcessor;
 use crate::tcn_ext::tcn_keys::TcnKeys;
-use crate::{composition_root::COMP_ROOT, errors::ServicesError, networking};
-use crate::{init_db, reporting::symptom_inputs_manager::SymptomInputsProcessor};
+use crate::{
+    composition_root::{bootstrap, dependencies, COMP_ROOT},
+    errors::ServicesError,
+    networking,
+};
 use core_foundation::base::TCFType;
 use core_foundation::string::{CFString, CFStringRef};
 use log::*;
@@ -44,7 +48,7 @@ pub unsafe extern "C" fn bootstrap_core(
 
     let db_path_str = cstring_to_str(&db_path);
     println!("Bootstrapping with db path: {:?}", db_path_str);
-    let result = db_path_str.and_then(|path| init_db(path).map_err(ServicesError::from));
+    let result = db_path_str.and_then(|path| bootstrap(path).map_err(ServicesError::from));
     info!("Bootstrapping result: {:?}", result);
     return to_result_str(result);
 }
@@ -53,7 +57,7 @@ pub unsafe extern "C" fn bootstrap_core(
 pub unsafe extern "C" fn fetch_new_reports() -> CFStringRef {
     info!("Updating reports");
 
-    let result = COMP_ROOT.reports_updater.fetch_new_reports();
+    let result = dependencies().reports_updater.fetch_new_reports();
 
     info!("New reports: {:?}", result);
 
@@ -63,7 +67,7 @@ pub unsafe extern "C" fn fetch_new_reports() -> CFStringRef {
 #[no_mangle]
 pub unsafe extern "C" fn record_tcn(c_tcn: *const c_char) -> CFStringRef {
     let tcn_str = cstring_to_str(&c_tcn);
-    let result = tcn_str.and_then(|tcn_str| COMP_ROOT.observed_tcn_processor.save(tcn_str));
+    let result = tcn_str.and_then(|tcn_str| dependencies().observed_tcn_processor.save(tcn_str));
     info!("Recording TCN result {:?}", result);
     return to_result_str(result);
 }
@@ -72,7 +76,14 @@ pub unsafe extern "C" fn record_tcn(c_tcn: *const c_char) -> CFStringRef {
 #[no_mangle]
 pub unsafe extern "C" fn generate_tcn() -> CFStringRef {
     // TODO hex encoding in component, or send byte array directly?
-    let tcn_hex = hex::encode(COMP_ROOT.tcn_keys.generate_tcn().0);
+    let tcn_hex = hex::encode(
+        COMP_ROOT
+            .get()
+            .expect("Not bootstrapped")
+            .tcn_keys
+            .generate_tcn()
+            .0,
+    );
     info!("Generated TCN: {:?}", tcn_hex);
 
     let cf_string = CFString::new(&tcn_hex);
@@ -123,8 +134,11 @@ fn fallback_error_result_str<T: Serialize>() -> String {
 pub unsafe extern "C" fn set_symptom_ids(c_ids: *const c_char) -> CFStringRef {
     debug!("Setting symptom ids: {:?}", c_ids);
     let ids_str = cstring_to_str(&c_ids);
-    let result =
-        ids_str.and_then(|ids_str| COMP_ROOT.symptom_inputs_processor.set_symptom_ids(ids_str));
+    let result = ids_str.and_then(|ids_str| {
+        dependencies()
+            .symptom_inputs_processor
+            .set_symptom_ids(ids_str)
+    });
     return to_result_str(result);
 }
 
@@ -133,7 +147,7 @@ pub unsafe extern "C" fn set_cough_type(c_cough_type: *const c_char) -> CFString
     debug!("Setting cough type: {:?}", c_cough_type);
     let cough_type_str = cstring_to_str(&c_cough_type);
     let result = cough_type_str.and_then(|cough_type_str| {
-        COMP_ROOT
+        dependencies()
             .symptom_inputs_processor
             .set_cough_type(cough_type_str)
     });
@@ -142,7 +156,7 @@ pub unsafe extern "C" fn set_cough_type(c_cough_type: *const c_char) -> CFString
 
 #[no_mangle]
 pub unsafe extern "C" fn set_cough_days(c_is_set: u8, c_days: u32) -> CFStringRef {
-    let result = COMP_ROOT
+    let result = dependencies()
         .symptom_inputs_processor
         .set_cough_days(c_is_set == 1, c_days);
     return to_result_str(result);
@@ -153,7 +167,7 @@ pub unsafe extern "C" fn set_cough_status(c_status: *const c_char) -> CFStringRe
     info!("Setting cough status: {:?}", c_status);
     let status_str = cstring_to_str(&c_status);
     let result = status_str.and_then(|status_str| {
-        COMP_ROOT
+        dependencies()
             .symptom_inputs_processor
             .set_cough_status(status_str)
     });
@@ -165,7 +179,7 @@ pub unsafe extern "C" fn set_breathlessness_cause(c_cause: *const c_char) -> CFS
     debug!("Setting breathlessness cause: {:?}", c_cause);
     let cause_str = cstring_to_str(&c_cause);
     let result = cause_str.and_then(|cause_str| {
-        COMP_ROOT
+        dependencies()
             .symptom_inputs_processor
             .set_breathlessness_cause(cause_str)
     });
@@ -174,7 +188,7 @@ pub unsafe extern "C" fn set_breathlessness_cause(c_cause: *const c_char) -> CFS
 
 #[no_mangle]
 pub unsafe extern "C" fn set_fever_days(c_is_set: u8, c_days: u32) -> CFStringRef {
-    let result = COMP_ROOT
+    let result = dependencies()
         .symptom_inputs_processor
         .set_fever_days(c_is_set == 1, c_days);
     return to_result_str(result);
@@ -185,7 +199,7 @@ pub unsafe extern "C" fn set_fever_taken_temperature_today(
     c_is_set: u8,
     c_taken: u8,
 ) -> CFStringRef {
-    let result = COMP_ROOT
+    let result = dependencies()
         .symptom_inputs_processor
         .set_fever_taken_temperature_today(c_is_set == 1, c_taken == 1);
     return to_result_str(result);
@@ -196,7 +210,7 @@ pub unsafe extern "C" fn set_fever_taken_temperature_spot(c_cause: *const c_char
     debug!("Setting temperature spot cause: {:?}", c_cause);
     let spot_str = cstring_to_str(&c_cause);
     let result = spot_str.and_then(|spot_str| {
-        COMP_ROOT
+        dependencies()
             .symptom_inputs_processor
             .set_fever_taken_temperature_spot(spot_str)
     });
@@ -208,7 +222,7 @@ pub unsafe extern "C" fn set_fever_highest_temperature_taken(
     c_is_set: u8,
     c_temp: f32,
 ) -> CFStringRef {
-    let result = COMP_ROOT
+    let result = dependencies()
         .symptom_inputs_processor
         .set_fever_highest_temperature_taken(c_is_set == 1, c_temp);
     return to_result_str(result);
@@ -219,7 +233,7 @@ pub unsafe extern "C" fn set_earliest_symptom_started_days_ago(
     c_is_set: u8,
     c_days: u32,
 ) -> CFStringRef {
-    let result = COMP_ROOT
+    let result = dependencies()
         .symptom_inputs_processor
         .set_earliest_symptom_started_days_ago(c_is_set == 1, c_days);
     return to_result_str(result);
@@ -227,13 +241,13 @@ pub unsafe extern "C" fn set_earliest_symptom_started_days_ago(
 
 #[no_mangle]
 pub unsafe extern "C" fn clear_symptoms() -> CFStringRef {
-    let result = COMP_ROOT.symptom_inputs_processor.clear();
+    let result = dependencies().symptom_inputs_processor.clear();
     return to_result_str(result);
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn submit_symptoms() -> CFStringRef {
-    let result = COMP_ROOT.symptom_inputs_processor.submit();
+    let result = dependencies().symptom_inputs_processor.submit();
     return to_result_str(result);
 }
 
@@ -244,7 +258,7 @@ pub unsafe extern "C" fn post_report(c_report: *const c_char) -> CFStringRef {
     let report = cstring_to_str(&c_report);
 
     let result = report.and_then(|report| {
-        COMP_ROOT
+        dependencies()
             .api
             .post_report(report.to_owned())
             .map_err(ServicesError::from)
