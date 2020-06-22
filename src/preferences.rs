@@ -85,7 +85,7 @@ impl PreferencesDao {
             "insert or replace into preferences(key, value) values(?1, ?2)",
             params![key, value],
         );
-        assert!(res.is_ok(), "Couldn't insert preference: {:?}", res);
+        expect_log!(res, "Couldn't insert preference");
     }
 
     pub fn new(db: Arc<Database>) -> PreferencesDao {
@@ -239,7 +239,6 @@ impl Preferences for PreferencesTckMock {
     }
 }
 
-// TODO remove
 #[derive(Clone)]
 pub struct PreferencesNoopMock {}
 impl Preferences for PreferencesNoopMock {
