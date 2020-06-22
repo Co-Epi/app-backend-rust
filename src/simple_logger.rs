@@ -1,4 +1,3 @@
-#[cfg(not(test))]
 #[cfg(test)]
 use chrono::Local;
 #[cfg(not(test))]
