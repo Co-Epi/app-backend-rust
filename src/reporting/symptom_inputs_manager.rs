@@ -6,7 +6,7 @@ use super::{
     },
 };
 use crate::{
-    errors::ServicesError, networking::TcnApiImpl, preferences::PreferencesNoopMock,
+    errors::ServicesError, networking::TcnApiImpl, preferences::PreferencesImpl,
     reports_interval::UnixTime, tcn_ext::tcn_keys::TcnKeysImpl,
 };
 use chrono::{Duration, Utc};
@@ -247,7 +247,7 @@ pub trait SymptomInputsManager {
 pub struct SymptomInputsManagerImpl<T>
 where
     // TODO no concrete types here?
-    T: SymptomInputsSubmitter<MemoMapperImpl, TcnKeysImpl<PreferencesNoopMock>, TcnApiImpl>,
+    T: SymptomInputsSubmitter<MemoMapperImpl, TcnKeysImpl<PreferencesImpl>, TcnApiImpl>,
 {
     pub inputs: Arc<RwLock<SymptomInputs>>,
     pub inputs_submitter: T,
@@ -256,7 +256,7 @@ where
 impl<T> SymptomInputsManagerImpl<T>
 where
     // TODO no concrete types here?
-    T: SymptomInputsSubmitter<MemoMapperImpl, TcnKeysImpl<PreferencesNoopMock>, TcnApiImpl>,
+    T: SymptomInputsSubmitter<MemoMapperImpl, TcnKeysImpl<PreferencesImpl>, TcnApiImpl>,
 {
     fn print_current_state(&self) {
         debug!("Symptom inputs state: {:?}", self.inputs);
@@ -266,7 +266,7 @@ where
 impl<T> SymptomInputsManager for SymptomInputsManagerImpl<T>
 where
     // TODO no concrete types here?
-    T: SymptomInputsSubmitter<MemoMapperImpl, TcnKeysImpl<PreferencesNoopMock>, TcnApiImpl>,
+    T: SymptomInputsSubmitter<MemoMapperImpl, TcnKeysImpl<PreferencesImpl>, TcnApiImpl>,
 {
     fn select_symptom_ids(&self, ids: HashSet<SymptomId>) {
         self.inputs.write().ids = ids;

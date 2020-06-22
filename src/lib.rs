@@ -24,7 +24,7 @@ pub type Res<T> = Result<T, Error>;
 
 const CENS_BY_TS: &str = "cens by ts";
 
-pub fn init_db<P: AsRef<Path>>(p: P) -> Res<()> {
+pub fn init_persy<P: AsRef<Path>>(p: P) -> Res<()> {
     let db = Persy::open_or_create_with(p, Config::new(), |db| {
         let mut tx = db.begin()?;
         tx.create_segment("tcn")?;
@@ -61,6 +61,13 @@ pub fn byte_vec_to_24_byte_array(bytes: Vec<u8>) -> [u8; 24] {
 
 pub fn byte_vec_to_8_byte_array(bytes: Vec<u8>) -> [u8; 8] {
     let mut array = [0; 8];
+    let bytes = &bytes[..array.len()]; // panics if not enough data
+    array.copy_from_slice(bytes);
+    array
+}
+
+pub fn byte_vec_to_32_byte_array(bytes: Vec<u8>) -> [u8; 32] {
+    let mut array = [0; 32];
     let bytes = &bytes[..array.len()]; // panics if not enough data
     array.copy_from_slice(bytes);
     array

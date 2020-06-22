@@ -8,6 +8,7 @@ pub enum ServicesError {
     Networking(NetworkingError),
     Error(Error),
     FFIParameters(String),
+    General(String),
 }
 
 impl fmt::Display for ServicesError {
@@ -78,6 +79,15 @@ impl From<hex::FromHexError> for ServicesError {
 
 impl From<std::str::Utf8Error> for ServicesError {
     fn from(error: std::str::Utf8Error) -> Self {
+        ServicesError::Error(Box::new(StdError::new(
+            ErrorKind::Other,
+            format!("{}", error),
+        )))
+    }
+}
+
+impl From<rusqlite::Error> for ServicesError {
+    fn from(error: rusqlite::Error) -> Self {
         ServicesError::Error(Box::new(StdError::new(
             ErrorKind::Other,
             format!("{}", error),

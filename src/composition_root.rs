@@ -4,7 +4,9 @@ use crate::reports_updater::{
     TcnMatcherRayon,
 };
 use crate::{
-    preferences::{Preferences, PreferencesNoopMock},
+    errors::ServicesError,
+    init_persy,
+    preferences::{Database, Preferences, PreferencesDao, PreferencesImpl},
     reporting::{
         memo::{MemoMapper, MemoMapperImpl},
         symptom_inputs::{SymptomInputs, SymptomInputsSubmitterImpl},
@@ -14,9 +16,9 @@ use crate::{
     },
     tcn_ext::tcn_keys::{TcnKeys, TcnKeysImpl},
 };
-use log::info;
-use once_cell::sync::Lazy;
+use once_cell::sync::OnceCell;
 use parking_lot::RwLock;
+use rusqlite::Connection;
 use std::sync::Arc;
 
 #[allow(dead_code)]
@@ -38,9 +40,9 @@ where
     pub tcn_keys: Arc<I>,
 }
 
-pub static COMP_ROOT: Lazy<
+pub static COMP_ROOT: OnceCell<
     CompositionRoot<
-        PreferencesNoopMock,
+        PreferencesImpl,
         TcnDaoImpl,
         TcnMatcherRayon,
         TcnApiImpl,
@@ -48,20 +50,37 @@ pub static COMP_ROOT: Lazy<
             SymptomInputsManagerImpl<
                 SymptomInputsSubmitterImpl<
                     MemoMapperImpl,
-                    TcnKeysImpl<PreferencesNoopMock>,
+                    TcnKeysImpl<PreferencesImpl>,
                     TcnApiImpl,
                 >,
             >,
         >,
         ObservedTcnProcessorImpl<TcnDaoImpl>,
         MemoMapperImpl,
-        TcnKeysImpl<PreferencesNoopMock>,
+        TcnKeysImpl<PreferencesImpl>,
     >,
-> = Lazy::new(|| create_comp_root());
+> = OnceCell::new();
 
-fn create_comp_root() -> CompositionRoot<
+pub fn bootstrap(db_path: &str) -> Result<(), ServicesError> {
+    println!("Bootstrapping with db path: {:?}", db_path);
+
+    // TODO should be in a dependency
+    let persy_path = format!("{}/db.persy", db_path);
+    init_persy(persy_path).map_err(ServicesError::from)?;
+
+    let sqlite_path = format!("{}/db.sqlite", db_path);
+    if let Err(_) = COMP_ROOT.set(create_comp_root(sqlite_path.as_ref())) {
+        return Err(ServicesError::General(
+            "Couldn't initialize dependencies".to_owned(),
+        ));
+    };
+
+    Ok(())
+}
+
+pub fn dependencies() -> &'static CompositionRoot<
     'static,
-    PreferencesNoopMock,
+    PreferencesImpl,
     TcnDaoImpl,
     TcnMatcherRayon,
     TcnApiImpl,
@@ -70,26 +89,50 @@ fn create_comp_root() -> CompositionRoot<
             SymptomInputsSubmitterImpl<
                 'static,
                 MemoMapperImpl,
-                TcnKeysImpl<PreferencesNoopMock>,
+                TcnKeysImpl<PreferencesImpl>,
                 TcnApiImpl,
             >,
         >,
     >,
     ObservedTcnProcessorImpl<'static, TcnDaoImpl>,
     MemoMapperImpl,
-    TcnKeysImpl<PreferencesNoopMock>,
+    TcnKeysImpl<PreferencesImpl>,
+> {
+    COMP_ROOT.get().expect("Not bootstrapped")
+}
+
+fn create_comp_root(
+    sqlite_path: &str,
+) -> CompositionRoot<
+    'static,
+    PreferencesImpl,
+    TcnDaoImpl,
+    TcnMatcherRayon,
+    TcnApiImpl,
+    SymptomInputsProcessorImpl<
+        SymptomInputsManagerImpl<
+            SymptomInputsSubmitterImpl<
+                'static,
+                MemoMapperImpl,
+                TcnKeysImpl<PreferencesImpl>,
+                TcnApiImpl,
+            >,
+        >,
+    >,
+    ObservedTcnProcessorImpl<'static, TcnDaoImpl>,
+    MemoMapperImpl,
+    TcnKeysImpl<PreferencesImpl>,
 > {
     let api = &TcnApiImpl {};
 
-    // TODO confy seems not to work on Android
-    // let preferences = Arc::new(PreferencesImpl {
-    //     // unwrap: "Errors that are returned from this function are I/O related,
-    //     // for example if the writing of the new configuration fails or confy encounters
-    //     // an operating system or environment that it does not support."
-    //     // The config is critical in this app, so it's ok to crash if not available.
-    //     config: RwLock::new(confy::load("coepi")),
-    // });
-    let preferences = Arc::new(PreferencesNoopMock {});
+    let database = Arc::new(Database::new(
+        Connection::open(sqlite_path).expect("Couldn't create database!"),
+    ));
+
+    let preferences_dao = PreferencesDao::new(database);
+    let preferences = Arc::new(PreferencesImpl {
+        dao: preferences_dao,
+    });
 
     let memo_mapper = &MemoMapperImpl {};
 

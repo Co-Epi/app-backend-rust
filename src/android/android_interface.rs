@@ -2,9 +2,8 @@ use crate::reporting::symptom_inputs_manager::SymptomInputsProcessor;
 use crate::reports_updater::ObservedTcnProcessor;
 use crate::tcn_ext::tcn_keys::TcnKeys;
 use crate::{
-    composition_root::COMP_ROOT,
+    composition_root::{bootstrap, dependencies},
     errors::ServicesError,
-    init_db,
     reporting::{
         public_report::{CoughSeverity, FeverSeverity, PublicReport},
         symptom_inputs::UserInput,
@@ -41,7 +40,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_bootstrapCore(
     let db_path_java_str = env.get_string(db_path_j_string).unwrap();
     let db_path_str = db_path_java_str.to_str().map_err(ServicesError::from);
     info!("Bootstrapping with db path: {:?}", db_path_str);
-    let db_result = db_path_str.and_then(|path| init_db(path).map_err(ServicesError::from));
+    let db_result = db_path_str.and_then(|path| bootstrap(path).map_err(ServicesError::from));
     info!("Bootstrapping result: {:?}", db_result);
 
     jni_void_result(1, None, &env)
@@ -54,7 +53,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_fetchNewReports(
 ) -> jobject {
     info!("Updating reports");
     // TODO error handling https://github.com/Co-Epi/app-backend-rust/issues/79
-    let result = COMP_ROOT.reports_updater.fetch_new_reports().unwrap();
+    let result = dependencies().reports_updater.fetch_new_reports().unwrap();
     info!("New reports: {:?}", result);
 
     let alerts_j_objects: Vec<jobject> = result
@@ -96,7 +95,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_recordTcn(
     let tcn_java_str = env.get_string(tcn).unwrap();
     let tcn_str = tcn_java_str.to_str().map_err(ServicesError::from);
 
-    let result = tcn_str.and_then(|tcn_str| COMP_ROOT.observed_tcn_processor.save(tcn_str));
+    let result = tcn_str.and_then(|tcn_str| dependencies().observed_tcn_processor.save(tcn_str));
     info!("Recording TCN result {:?}", result);
     jni_void_result(1, None, &env)
 }
@@ -108,7 +107,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_generateTcn(
     _: JClass,
 ) -> jstring {
     // TODO hex encoding in component, or send byte array directly?
-    let tcn_hex = hex::encode(COMP_ROOT.tcn_keys.generate_tcn().0);
+    let tcn_hex = hex::encode(dependencies().tcn_keys.generate_tcn().0);
     info!("Generated TCN: {:?}", tcn_hex);
 
     let output = env
@@ -129,8 +128,11 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_setSymptomIds(
 
     debug!("Setting symptom ids: {:?}", ids_str);
 
-    let result =
-        ids_str.and_then(|ids_str| COMP_ROOT.symptom_inputs_processor.set_symptom_ids(ids_str));
+    let result = ids_str.and_then(|ids_str| {
+        dependencies()
+            .symptom_inputs_processor
+            .set_symptom_ids(ids_str)
+    });
     jni_void_result(1, None, &env)
 }
 
@@ -145,7 +147,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_setCoughType(
 
     debug!("Setting cough type: {:?}", str);
     let result = str.and_then(|cough_type_str| {
-        COMP_ROOT
+        dependencies()
             .symptom_inputs_processor
             .set_cough_type(cough_type_str)
     });
@@ -159,7 +161,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_setCoughDays(
     is_set: jint,
     days: jint,
 ) -> jobject {
-    let result = COMP_ROOT
+    let result = dependencies()
         .symptom_inputs_processor
         .set_cough_days(is_set == 1, days as u32);
     jni_void_result(1, None, &env)
@@ -176,7 +178,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_setCoughStatus(
 
     info!("Setting cough status: {:?}", str);
     let result = str.and_then(|status_str| {
-        COMP_ROOT
+        dependencies()
             .symptom_inputs_processor
             .set_cough_status(status_str)
     });
@@ -194,7 +196,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_setBreathlessnessC
 
     debug!("Setting breathlessness cause: {:?}", str);
     let result = str.and_then(|cause_str| {
-        COMP_ROOT
+        dependencies()
             .symptom_inputs_processor
             .set_breathlessness_cause(cause_str)
     });
@@ -210,7 +212,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_setFeverDays(
 ) -> jobject {
     // TODO is_set jboolean
     // TODO assert is_set / days etc. in type's bounds, also iOS
-    let result = COMP_ROOT
+    let result = dependencies()
         .symptom_inputs_processor
         .set_fever_days(is_set == 1, days as u32);
     jni_void_result(1, None, &env)
@@ -223,7 +225,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_setFeverTakenTempe
     is_set: jint,
     taken: jint,
 ) -> jobject {
-    let result = COMP_ROOT
+    let result = dependencies()
         .symptom_inputs_processor
         .set_fever_taken_temperature_today(is_set == 1, taken == 1);
     jni_void_result(1, None, &env)
@@ -240,7 +242,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_setFeverTakenTempe
 
     debug!("Setting temperature spot cause: {:?}", str);
     let result = str.and_then(|spot_str| {
-        COMP_ROOT
+        dependencies()
             .symptom_inputs_processor
             .set_fever_taken_temperature_spot(spot_str)
     });
@@ -254,7 +256,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_setFeverHighestTem
     is_set: jint,
     temp: jfloat,
 ) -> jobject {
-    let result = COMP_ROOT
+    let result = dependencies()
         .symptom_inputs_processor
         .set_fever_highest_temperature_taken(is_set == 1, temp as f32);
     jni_void_result(1, None, &env)
@@ -267,7 +269,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_setEarliestSymptom
     is_set: jint,
     days: jint,
 ) -> jobject {
-    let result = COMP_ROOT
+    let result = dependencies()
         .symptom_inputs_processor
         .set_earliest_symptom_started_days_ago(is_set == 1, days as u32);
     jni_void_result(1, None, &env)
@@ -278,7 +280,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_clearSymptoms(
     env: JNIEnv,
     _: JClass,
 ) -> jobject {
-    let result = COMP_ROOT.symptom_inputs_processor.clear();
+    let result = dependencies().symptom_inputs_processor.clear();
     jni_void_result(1, None, &env)
 }
 
@@ -287,7 +289,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_submitSymptoms(
     env: JNIEnv,
     _: JClass,
 ) -> jobject {
-    let result = COMP_ROOT.symptom_inputs_processor.submit();
+    let result = dependencies().symptom_inputs_processor.submit();
     jni_void_result(1, None, &env)
 }
 

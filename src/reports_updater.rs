@@ -2,7 +2,7 @@ use crate::{
     byte_vec_to_16_byte_array, byte_vec_to_24_byte_array, byte_vec_to_8_byte_array,
     errors::{Error, ServicesError},
     networking::{NetworkingError, TcnApi},
-    preferences::{Preferences, PreferencesKey},
+    preferences::Preferences,
     reporting::{
         memo::{Memo, MemoMapper},
         public_report::PublicReport,
@@ -286,8 +286,7 @@ where
     }
 
     fn retrieve_last_completed_interval(&self) -> Option<ReportsInterval> {
-        self.preferences
-            .last_completed_reports_interval(PreferencesKey::LastCompletedReportsInterval)
+        self.preferences.last_completed_reports_interval()
     }
 
     fn determine_start_interval(&self, time: &UnixTime) -> ReportsInterval {
@@ -435,10 +434,8 @@ where
         );
 
         if let Some(interval) = interval {
-            self.preferences.set_last_completed_reports_interval(
-                PreferencesKey::LastCompletedReportsInterval,
-                interval,
-            );
+            self.preferences
+                .set_last_completed_reports_interval(interval);
         }
     }
 }
