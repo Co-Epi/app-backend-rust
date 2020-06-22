@@ -1,4 +1,4 @@
-use crate::{byte_vec_to_32_byte_array, reports_interval::ReportsInterval};
+use crate::{byte_vec_to_32_byte_array, expect_log, reports_interval::ReportsInterval};
 use log::*;
 use rusqlite::{params, Connection, Row, ToSql};
 use serde::{Deserialize, Serialize};
@@ -63,7 +63,8 @@ impl PreferencesDao {
             "select value from preferences where key=?1",
             &[key],
             |row| {
-                let value: String = row.get(0).expect("Invalid row");
+                let res = row.get(0);
+                let value: String = expect_log!(res, "Invalid row");
                 Ok(value)
             },
         );
@@ -93,15 +94,14 @@ impl PreferencesDao {
     }
 
     fn create_table_if_not_exists(db: &Arc<Database>) {
-        let _ = db
-            .execute_sql(
-                "create table preferences(
+        let res = db.execute_sql(
+            "create table if not exists preferences(
                     key text primary key,
                     value text not null
                 )",
-                params![],
-            )
-            .expect("Couldn't create preferences table");
+            params![],
+        );
+        expect_log!(res, "Couldn't create preferences table");
     }
 }
 
@@ -117,7 +117,9 @@ impl Database {
         P: IntoIterator,
         P::Item: ToSql,
     {
-        self.conn.lock().unwrap().execute(sql, pars)
+        let res = self.conn.lock();
+        let conn = expect_log!(res, "Couldn't lock mutex");
+        conn.execute(sql, pars)
     }
 
     pub fn query_row<T, P, F>(&self, sql: &str, params: P, f: F) -> Result<T, rusqlite::Error>
@@ -126,7 +128,9 @@ impl Database {
         P::Item: ToSql,
         F: FnOnce(&Row<'_>) -> Result<T, rusqlite::Error>,
     {
-        self.conn.lock().unwrap().query_row(sql, params, f)
+        let res = self.conn.lock();
+        let conn = expect_log!(res, "Couldn't lock mutex");
+        conn.query_row(sql, params, f)
     }
 
     pub fn new(conn: Connection) -> Database {
@@ -155,21 +159,25 @@ pub struct PreferencesImpl {
 impl Preferences for PreferencesImpl {
     fn last_completed_reports_interval(&self) -> Option<ReportsInterval> {
         let str = self.dao.load("last_completed_reports_interval");
-        str.map(|str| serde_json::from_str(str.as_ref()).expect("Invalid interval str"))
+        str.map(|str| {
+            let res = serde_json::from_str(str.as_ref());
+            expect_log!(res, "Invalid interval str")
+        })
     }
 
     fn set_last_completed_reports_interval(&self, value: ReportsInterval) {
-        self.dao.save(
-            "last_completed_reports_interval",
-            serde_json::to_string(&value)
-                .expect("Couldn't serialize interval")
-                .as_ref(),
-        )
+        let res = serde_json::to_string(&value);
+        let str = expect_log!(res, "Couldn't serialize interval");
+        self.dao
+            .save("last_completed_reports_interval", str.as_ref())
     }
 
     fn authorization_key(&self) -> Option<[u8; 32]> {
         let str = self.dao.load("authorization_key");
-        let bytes = str.map(|str| hex::decode(str).expect("Invalid interval str"));
+        let bytes = str.map(|str| {
+            let res = hex::decode(str);
+            expect_log!(res, "Invalid interval str")
+        });
         bytes.map(|bytes| byte_vec_to_32_byte_array(bytes))
     }
 
@@ -180,16 +188,16 @@ impl Preferences for PreferencesImpl {
 
     fn tck(&self) -> Option<TckBytesWrapper> {
         let str = self.dao.load("tck");
-        str.map(|str| serde_json::from_str(str.as_ref()).expect("Invalid tck wrapper str"))
+        str.map(|str| {
+            let res = serde_json::from_str(str.as_ref());
+            expect_log!(res, "Invalid tck wrapper str")
+        })
     }
 
     fn set_tck(&self, value: TckBytesWrapper) {
-        self.dao.save(
-            "tck",
-            serde_json::to_string(&value)
-                .expect("Couldn't serialize tck wrapper")
-                .as_ref(),
-        )
+        let res = serde_json::to_string(&value);
+        let str = expect_log!(res, "Couldn't serialize tck wrapper");
+        self.dao.save("tck", str.as_ref())
     }
 }
 

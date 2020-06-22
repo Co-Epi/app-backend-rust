@@ -1,9 +1,11 @@
 use super::ios_interface::cstring_to_str;
+use crate::expect_log;
 use core_foundation::{
     base::TCFType,
     string::{CFString, CFStringRef},
 };
 use libc::c_char;
+use log::*;
 use mpsc::Receiver;
 use std::{
     sync::mpsc::{self, Sender},
@@ -11,10 +13,8 @@ use std::{
     // fmt,
     // str::FromStr
 };
-use log::*;
 
 // use crate::simple_logger;
-
 
 // Expose an interface for apps (for now only iOS) to test that general FFI is working as expected.
 // i.e. assumptions on which the actual FFI interface relies.
@@ -38,8 +38,6 @@ struct MyStruct {
     my_str: String,
     my_u8: u8,
 }
-
-
 
 #[no_mangle]
 pub unsafe extern "C" fn pass_struct(par: *const FFIParameterStruct) -> i32 {
@@ -114,7 +112,6 @@ impl Callback for unsafe extern "C" fn(i32, bool, CFStringRef) {
     }
 }
 
-
 #[no_mangle]
 pub extern "C" fn call_callback(callback: unsafe extern "C" fn(i32, bool, CFStringRef)) -> i32 {
     let cf_string = CFString::new(&"hi!".to_owned());
@@ -125,7 +122,6 @@ pub extern "C" fn call_callback(callback: unsafe extern "C" fn(i32, bool, CFStri
 }
 
 pub static mut SENDER: Option<Sender<String>> = None;
-
 
 #[no_mangle]
 pub unsafe extern "C" fn register_callback(
@@ -141,7 +137,8 @@ pub unsafe extern "C" fn trigger_callback(my_str: *const c_char) -> i32 {
     match &SENDER {
         // Push element to SENDER.
         Some(s) => {
-            s.send(str.to_owned()).expect("Couldn't send");
+            let res = s.send(str.to_owned());
+            expect_log!(res, "Couldn't send");
             1
         }
 
@@ -175,4 +172,3 @@ fn register_callback_internal(callback: Box<dyn Callback>) {
         }
     });
 }
-

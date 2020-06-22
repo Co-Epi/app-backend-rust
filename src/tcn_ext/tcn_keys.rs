@@ -1,4 +1,7 @@
-use crate::preferences::{Preferences, TckBytesWrapper, TCK_SIZE_IN_BYTES};
+use crate::{
+    expect_log,
+    preferences::{Preferences, TckBytesWrapper, TCK_SIZE_IN_BYTES},
+};
 use log::*;
 use std::{io::Cursor, sync::Arc};
 use tcn::{
@@ -13,7 +16,8 @@ pub trait TcnKeys {
 
 pub trait ReportAuthorizationKeyExt {
     fn with_bytes(bytes: [u8; 32]) -> ReportAuthorizationKey {
-        ReportAuthorizationKey::read(Cursor::new(&bytes)).expect("Couldn't read RAK bytes")
+        let res = ReportAuthorizationKey::read(Cursor::new(&bytes));
+        expect_log!(res, "Couldn't read RAK bytes")
     }
 }
 
@@ -98,8 +102,8 @@ where
 
     fn rak_to_bytes(rak: ReportAuthorizationKey) -> [u8; 32] {
         let mut buf = Vec::new();
-        rak.write(Cursor::new(&mut buf))
-            .expect("Couldn't write RAK bytes");
+        let res = rak.write(Cursor::new(&mut buf));
+        expect_log!(res, "Couldn't write RAK bytes");
         Self::byte_vec_to_32_byte_array(buf)
     }
 
@@ -112,14 +116,15 @@ where
 
     pub fn tck_to_bytes(tck: TemporaryContactKey) -> TckBytesWrapper {
         let mut buf = Vec::new();
-        tck.write(Cursor::new(&mut buf))
-            .expect("Couldn't write TCK bytes");
+        let res = tck.write(Cursor::new(&mut buf));
+        expect_log!(res, "Couldn't write TCK bytes");
         // Self::byte_vec_to_tck_byte_wrapper(buf)
         TckBytesWrapper::with_bytes(buf)
     }
 
     fn bytes_to_tck(tck: TckBytesWrapper) -> TemporaryContactKey {
-        TemporaryContactKey::read(Cursor::new(&tck)).expect("Couldn't read TCK bytes")
+        let res = TemporaryContactKey::read(Cursor::new(&tck));
+        expect_log!(res, "Couldn't read TCK bytes")
     }
 }
 

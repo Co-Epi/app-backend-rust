@@ -4,10 +4,12 @@ use std::{
 };
 extern crate jni;
 use self::jni::JNIEnv;
+use crate::expect_log;
 use jni::objects::{GlobalRef, JClass, JObject, JString, JValue};
 use jni::sys::{jfloat, jint, jobject, jstring};
 use jni::JavaVM;
-use log::warn;
+use log::error;
+use log::{debug, warn};
 use mpsc::Receiver;
 
 #[derive(Debug)]
@@ -28,14 +30,11 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_sendReceiveString(
     _: JClass,
     string: JString,
 ) -> jstring {
-    let string: String = env
-        .get_string(string)
-        .expect("Couldn't create java string")
-        .into();
+    let res = env.get_string(string);
+    let string: String = expect_log!(res, "Couldn't create java string").into();
 
-    let output = env
-        .new_string(format!("Hello {}!", string))
-        .expect("Couldn't create java string");
+    let output_res = env.new_string(format!("Hello {}!", string));
+    let output = expect_log!(output_res, "Couldn't create java string");
 
     output.into_inner()
 }
@@ -46,9 +45,9 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_testPassAndReturnF
     _: JClass,
     my_float: jfloat,
 ) -> jfloat {
-    println!("Passed jfloat: {}", my_float);
+    debug!("Passed jfloat: {}", my_float);
     let f = my_float as f32;
-    println!("f32: {}", f);
+    debug!("f32: {}", f);
     f
 }
 
@@ -103,9 +102,8 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_returnStruct(
 
     let my_int_j_value = JValue::from(123);
 
-    let str_parameter = env
-        .new_string("my string parameter")
-        .expect("Couldn't create java string!");
+    let str_parameter_res = env.new_string("my string parameter");
+    let str_parameter = expect_log!(str_parameter_res, "Couldn't create java string!");
     let str_parameter_j_value = JValue::from(JObject::from(str_parameter));
 
     let nested = env.find_class("org/coepi/android/api/FFINestedParameterStruct");
@@ -128,7 +126,8 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_callCallback(
     _: JClass,
     callback: JObject,
 ) -> jint {
-    let str = env.new_string("hi!").expect("Couldn't create java string!");
+    let str_res = env.new_string("hi!");
+    let str = expect_log!(str_res, "Couldn't create java string!");
 
     let callback_arg = JValue::from(JObject::from(str));
     env.call_method(callback, "call", "(Ljava/lang/String;)V", &[callback_arg])
@@ -156,15 +155,14 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_triggerCallback(
     _: JClass,
     string: JString,
 ) -> jint {
-    let string: String = env
-        .get_string(string)
-        .expect("Couldn't create java string")
-        .into();
+    let string_res = env.get_string(string);
+    let string = expect_log!(string_res, "Couldn't create java string").into();
 
     match &SENDER {
         // Push element to SENDER.
         Some(s) => {
-            s.send(string).expect("Couldn't send");
+            let res = s.send(string);
+            expect_log!(res, "Couldn't send");
             1
         }
 
@@ -198,16 +196,17 @@ impl MyCallback for MyCallbackImpl {
     fn call(&self, par: String) {
         let env = self.java_vm.attach_current_thread().unwrap();
 
-        let str = env.new_string(par).expect("Couldn't create java string!");
+        let str_res = env.new_string(par);
+        let str = expect_log!(str_res, "Couldn't create java string!");
         let str_j_value = JValue::from(JObject::from(str));
 
-        env.call_method(
+        let res = env.call_method(
             self.callback.as_obj(),
             "call",
             "(Ljava/lang/String;)V",
             &[str_j_value],
-        )
-        .expect("Couldn't call callback");
+        );
+        expect_log!(res, "Couldn't call callback");
     }
 }
 

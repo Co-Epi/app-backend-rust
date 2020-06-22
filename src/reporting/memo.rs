@@ -6,6 +6,9 @@ use super::{
     },
     public_report::PublicReport,
 };
+use crate::expect_log;
+#[cfg(target_os = "android")]
+use log::error;
 use std::convert::TryInto;
 
 pub struct Memo {
@@ -113,9 +116,8 @@ impl<T> ExtractResult<T> {
 
 fn extract<T>(bits: &Vec<bool>, mapper: &dyn BitMapper<T>, start: usize) -> ExtractResult<T> {
     let end = mapper.bit_count() + start;
-    let sub_bits: Vec<bool> = bits[start..end]
-        .try_into()
-        .expect("Couldn't convert bits into vector");
+    let sub_bits_res = bits[start..end].try_into();
+    let sub_bits: Vec<bool> = expect_log!(sub_bits_res, "Couldn't convert bits into vector");
 
     ExtractResult {
         value: mapper.from_bits(BitVector { bits: sub_bits }),

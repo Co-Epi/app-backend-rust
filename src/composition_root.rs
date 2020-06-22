@@ -5,7 +5,7 @@ use crate::reports_updater::{
 };
 use crate::{
     errors::ServicesError,
-    init_persy,
+    expect_log, init_persy,
     preferences::{Database, Preferences, PreferencesDao, PreferencesImpl},
     reporting::{
         memo::{MemoMapper, MemoMapperImpl},
@@ -16,6 +16,7 @@ use crate::{
     },
     tcn_ext::tcn_keys::{TcnKeys, TcnKeysImpl},
 };
+use log::*;
 use once_cell::sync::OnceCell;
 use parking_lot::RwLock;
 use rusqlite::Connection;
@@ -62,13 +63,16 @@ pub static COMP_ROOT: OnceCell<
 > = OnceCell::new();
 
 pub fn bootstrap(db_path: &str) -> Result<(), ServicesError> {
-    println!("Bootstrapping with db path: {:?}", db_path);
+    info!("Bootstrapping with db path: {:?}", db_path);
 
     // TODO should be in a dependency
     let persy_path = format!("{}/db.persy", db_path);
+    debug!("Persy path: {:?}", persy_path);
     init_persy(persy_path).map_err(ServicesError::from)?;
 
     let sqlite_path = format!("{}/db.sqlite", db_path);
+    debug!("Sqlite path: {:?}", sqlite_path);
+
     if let Err(_) = COMP_ROOT.set(create_comp_root(sqlite_path.as_ref())) {
         return Err(ServicesError::General(
             "Couldn't initialize dependencies".to_owned(),
@@ -98,7 +102,13 @@ pub fn dependencies() -> &'static CompositionRoot<
     MemoMapperImpl,
     TcnKeysImpl<PreferencesImpl>,
 > {
-    COMP_ROOT.get().expect("Not bootstrapped")
+    let res = COMP_ROOT
+        .get()
+        .ok_or(ServicesError::General("COMP_ROOT not set".to_owned()));
+
+    // Note that the error message here is unlikely to appear on Android, as if COMP_ROOT is not set
+    // most likely bootstrap hasn't been executed (which initializes the logger)
+    expect_log!(res, "COMP_ROOT not set. Maybe app didn't call bootstrap?")
 }
 
 fn create_comp_root(
@@ -125,9 +135,9 @@ fn create_comp_root(
 > {
     let api = &TcnApiImpl {};
 
-    let database = Arc::new(Database::new(
-        Connection::open(sqlite_path).expect("Couldn't create database!"),
-    ));
+    let connection_res = Connection::open(sqlite_path);
+    let connection = expect_log!(connection_res, "Couldn't create database!");
+    let database = Arc::new(Database::new(connection));
 
     let preferences_dao = PreferencesDao::new(database);
     let preferences = Arc::new(PreferencesImpl {

@@ -4,6 +4,7 @@ use crate::tcn_ext::tcn_keys::TcnKeys;
 use crate::{
     composition_root::{bootstrap, dependencies},
     errors::ServicesError,
+    expect_log,
     reporting::{
         public_report::{CoughSeverity, FeverSeverity, PublicReport},
         symptom_inputs::UserInput,
@@ -110,9 +111,8 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_generateTcn(
     let tcn_hex = hex::encode(dependencies().tcn_keys.generate_tcn().0);
     info!("Generated TCN: {:?}", tcn_hex);
 
-    let output = env
-        .new_string(tcn_hex)
-        .expect("Couldn't create java string");
+    let output_res = env.new_string(tcn_hex);
+    let output = expect_log!(output_res, "Couldn't create java string");
 
     output.into_inner()
 }
@@ -302,7 +302,8 @@ fn init_log(env: &JNIEnv, level_j_string: JString, coepi_only: jboolean, callbac
 
     let level_java_str = env.get_string(level_j_string).unwrap();
     let level_str = level_java_str.to_str().unwrap();
-    let filter_level = LevelFilter::from_str(&level_str).expect("Incorrect log level selected!");
+    let filter_level_res = LevelFilter::from_str(&level_str);
+    let filter_level = expect_log!(filter_level_res, "Incorrect log level selected!");
     let _ = simple_logger::setup_logger(filter_level, coepi_only != 0);
     log::max_level() as i32
 }
@@ -374,16 +375,18 @@ impl LogCallbackWrapper for LogCallbackWrapperImpl {
 
         let level_j_value = JValue::from(level as i32);
 
-        let text_j_string = env.new_string(text).expect("Couldn't create java string!");
+        let text_j_string_res = env.new_string(text);
+        let text_j_string = expect_log!(text_j_string_res, "Couldn't create java string!");
+
         let text_j_value = JValue::from(JObject::from(text_j_string));
 
-        env.call_method(
+        let res = env.call_method(
             self.callback.as_obj(),
             "log",
             "(ILjava/lang/String;)V",
             &[level_j_value, text_j_value],
-        )
-        .expect("Couldn't call callback");
+        );
+        expect_log!(res, "Couldn't call callback");
     }
 }
 
