@@ -575,8 +575,9 @@ mod tests {
     }
 
     // Utility to see quickly all TCNs (hex) for a report
-    // #[test]
-    fn _print_tcns_for_report() {
+    #[test]
+    #[ignore]
+    fn print_tcns_for_report() {
         let report_str = "rOFMgzy3y36MJns34Xj7EZu5Dti9XMhYGRpa/DVznep6q4hMtMYm9sYMg9+sRSHAj0Ff2rHTPXskuzJH0+pZMQEAAgAAFAEAnazaXgAAAAD//////////wMAMFLrKLNOvwUJQSNta9rlzTyjFdpfq25Kv34c6y+ZOoSzRewzNAWsd56Yzm8LUw9cpHB8yyzDUMJ9YTKhD8dADA==";
         let report = SignedReport::with_str(report_str).unwrap();
         info!("{:?}", report);
