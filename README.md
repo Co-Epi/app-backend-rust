@@ -17,8 +17,6 @@ Fork and create a branch in the fork
 
 ## iOS Targets
  - [Build Instructions](https://github.com/Co-Epi/app-backend-rust/wiki/Building-library-for-iOS)
- - [Exposed Functions](src/ios/c_headers/coepicore.h)
 
  ## Android Targets
  - [Build Instructions](https://github.com/Co-Epi/app-backend-rust/wiki/Building-library-for-Android)
- - Exposed Functions (TBD)
