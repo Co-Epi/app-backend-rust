@@ -25,7 +25,7 @@ pub struct FFINestedParameterStruct {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_sendReceiveString(
+pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_sendReceiveString(
     env: JNIEnv,
     _: JClass,
     string: JString,
@@ -40,7 +40,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_sendReceiveString(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_testPassAndReturnFloat(
+pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_testPassAndReturnFloat(
     _env: JNIEnv,
     _: JClass,
     my_float: jfloat,
@@ -52,7 +52,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_testPassAndReturnF
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_passStruct(
+pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_passStruct(
     env: JNIEnv,
     _: JClass,
     my_struct: JObject,
@@ -71,7 +71,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_passStruct(
         .get_field(
             my_struct,
             "myNested",
-            "Lorg/coepi/android/api/FFINestedParameterStruct;",
+            "Lorg/coepi/android/core/FFINestedParameterStruct;",
         )
         .unwrap();
 
@@ -94,11 +94,11 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_passStruct(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_returnStruct(
+pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_returnStruct(
     env: JNIEnv,
     _: JClass,
 ) -> jobject {
-    let cls = env.find_class("org/coepi/android/api/FFIParameterStruct");
+    let cls = env.find_class("org/coepi/android/core/FFIParameterStruct");
 
     let my_int_j_value = JValue::from(123);
 
@@ -106,14 +106,14 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_returnStruct(
     let str_parameter = expect_log!(str_parameter_res, "Couldn't create java string!");
     let str_parameter_j_value = JValue::from(JObject::from(str_parameter));
 
-    let nested = env.find_class("org/coepi/android/api/FFINestedParameterStruct");
+    let nested = env.find_class("org/coepi/android/core/FFINestedParameterStruct");
     let my_int_nested = JValue::from(123);
     let nested_obj = env.new_object(nested.unwrap(), "(I)V", &[my_int_nested]);
     let nested_obj_val = JValue::from(nested_obj.unwrap());
 
     let obj = env.new_object(
         cls.unwrap(),
-        "(ILjava/lang/String;Lorg/coepi/android/api/FFINestedParameterStruct;)V",
+        "(ILjava/lang/String;Lorg/coepi/android/core/FFINestedParameterStruct;)V",
         &[my_int_j_value, str_parameter_j_value, nested_obj_val],
     );
 
@@ -121,7 +121,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_returnStruct(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_callCallback(
+pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_callCallback(
     env: JNIEnv,
     _: JClass,
     callback: JObject,
@@ -136,7 +136,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_callCallback(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_registerCallback(
+pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_registerCallback(
     env: JNIEnv,
     _: JClass,
     callback: jobject,
@@ -150,7 +150,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_registerCallback(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_android_api_NativeApi_triggerCallback(
+pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_triggerCallback(
     env: JNIEnv,
     _: JClass,
     string: JString,
