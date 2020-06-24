@@ -4,6 +4,9 @@
 *.ap_
 *.aab
 
+# Rust binaries
+core/src/main/jniLibs/
+
 # Files for the ART/Dalvik VM
 *.dex
 
