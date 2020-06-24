@@ -1,0 +1,5 @@
+install:
+  - echo "Custom JitPack install command: cd into Android project"
+  - cd ./android/core
+  - ./gradlew install
+
