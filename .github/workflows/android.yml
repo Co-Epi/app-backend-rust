@@ -26,6 +26,8 @@ jobs:
         with:
           command: install
           args: cargo-ndk
+      - name: setup build targets
+        run: rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android
       - name: instrumented tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -58,6 +60,8 @@ jobs:
         with:
           command: install
           args: cargo-ndk
+      - name: setup build targets
+        run: rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android
       - name: Unit tests
         run: ./gradlew test --stacktrace
         env: 
