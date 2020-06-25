@@ -1,7 +1,7 @@
-package org.coepi.android.common
+package org.coepi.core.domain.common
 
-import org.coepi.android.common.Optional.None
-import org.coepi.android.common.Optional.Some
+import org.coepi.core.domain.common.Optional.None
+import org.coepi.core.domain.common.Optional.Some
 
 /**
  * To deal with RxJava's limitation of not allowing null.
@@ -16,7 +16,7 @@ sealed class Optional<out T> {
     }
 }
 
-fun <T>Optional<T>.toNullable(): T? = when (this) {
+fun <T> Optional<T>.toNullable(): T? = when (this) {
     is Some -> this.value
     is None -> null
 }

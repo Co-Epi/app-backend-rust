@@ -1,9 +1,9 @@
 package org.coepi.api
 
 import android.content.Context
-import org.coepi.common.Result
-import org.coepi.common.Result.Failure
-import org.coepi.common.Result.Success
+import org.coepi.core.domain.common.Result
+import org.coepi.core.domain.common.Result.Failure
+import org.coepi.core.domain.common.Result.Success
 
 class Api {
 

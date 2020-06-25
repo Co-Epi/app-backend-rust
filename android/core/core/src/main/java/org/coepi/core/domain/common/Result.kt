@@ -1,7 +1,7 @@
-package org.coepi.common
+package org.coepi.core.domain.common
 
-import org.coepi.common.Result.Failure
-import org.coepi.common.Result.Success
+import org.coepi.core.domain.common.Result.Failure
+import org.coepi.core.domain.common.Result.Success
 
 sealed class Result<out T, out E> {
     data class Success<out T>(val success: T) : Result<T, Nothing>()
