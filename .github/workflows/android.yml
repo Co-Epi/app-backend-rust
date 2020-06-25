@@ -31,6 +31,8 @@ jobs:
         with:
           api-level: 29
           script: ./gradlew connectedAndroidTest --stacktrace
+        env: 
+          ANDROID_NDK_HOME: ${ANDROID_NDK}
       - name: Instrumented tests results
         uses: actions/upload-artifact@v2
         with:
@@ -58,6 +60,8 @@ jobs:
           args: cargo-ndk
       - name: Unit tests
         run: ./gradlew test --stacktrace
+        env: 
+          ANDROID_NDK_HOME: ${ANDROID_NDK}
       - name: Unit tests results
         uses: actions/upload-artifact@v2
         with:
