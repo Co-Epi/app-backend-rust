@@ -21,6 +21,11 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+      - name: install cargo ndk
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-ndk
       - name: instrumented tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -46,6 +51,11 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+      - name: install cargo ndk
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-ndk
       - name: Unit tests
         run: ./gradlew test --stacktrace
       - name: Unit tests results
