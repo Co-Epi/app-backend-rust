@@ -14,7 +14,7 @@ use jni::{
 };
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_testReturnAnAlert(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_testReturnAnAlert(
     env: JNIEnv,
     _: JClass,
 ) -> jobject {
@@ -25,14 +25,14 @@ pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_testReturnAnAler
         1,
         None,
         JObject::from(jobject),
-        "org/coepi/android/core/JniOneAlertResult",
-        "Lorg/coepi/android/core/JniAlert;",
+        "org/coepi/core/jni/JniOneAlertResult",
+        "Lorg/coepi/core/jni/JniAlert;",
         &env,
     )
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_testReturnMultipleAlerts(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_testReturnMultipleAlerts(
     env: JNIEnv,
     _: JClass,
 ) -> jobject {
@@ -42,7 +42,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_testReturnMultip
     let jobject2 = alert_to_jobject(alert2, &env);
 
     let array: jobjectArray = env
-        .new_object_array(2, "org/coepi/android/core/JniAlert", jobject1)
+        .new_object_array(2, "org/coepi/core/jni/JniAlert", jobject1)
         .unwrap();
     env.set_object_array_element(array, 0, jobject1).unwrap();
     env.set_object_array_element(array, 1, jobject2).unwrap();
@@ -51,8 +51,8 @@ pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_testReturnMultip
         1,
         None,
         JObject::from(array),
-        "org/coepi/android/core/JniAlertsArrayResult",
-        "[Lorg/coepi/android/core/JniAlert;",
+        "org/coepi/core/jni/JniAlertsArrayResult",
+        "[Lorg/coepi/core/jni/JniAlert;",
         &env,
     )
 }

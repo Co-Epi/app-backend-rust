@@ -28,7 +28,7 @@ use std::{
 };
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_bootstrapCore(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_bootstrapCore(
     env: JNIEnv,
     _: JClass,
     db_path_j_string: JString,
@@ -48,7 +48,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_bootstrapCore(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_fetchNewReports(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_fetchNewReports(
     env: JNIEnv,
     _: JClass,
 ) -> jobject {
@@ -67,7 +67,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_fetchNewReports(
     let alerts_array = env
         .new_object_array(
             alerts_j_objects.len() as i32,
-            "org/coepi/android/core/JniAlert",
+            "org/coepi/core/jni/JniAlert",
             placeholder_alert_j_object,
         )
         .unwrap();
@@ -81,14 +81,14 @@ pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_fetchNewReports(
         1,
         None,
         JObject::from(alerts_array),
-        "org/coepi/android/core/JniAlertsArrayResult",
-        "[Lorg/coepi/android/core/JniAlert;",
+        "org/coepi/core/jni/JniAlertsArrayResult",
+        "[Lorg/coepi/core/jni/JniAlert;",
         &env,
     )
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_recordTcn(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_recordTcn(
     env: JNIEnv,
     _: JClass,
     tcn: JString,
@@ -103,7 +103,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_recordTcn(
 
 // NOTE: Returns directly success string
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_generateTcn(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_generateTcn(
     env: JNIEnv,
     _: JClass,
 ) -> jstring {
@@ -118,7 +118,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_generateTcn(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_setSymptomIds(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_setSymptomIds(
     env: JNIEnv,
     _: JClass,
     ids: JString,
@@ -137,7 +137,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_setSymptomIds(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_setCoughType(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_setCoughType(
     env: JNIEnv,
     _: JClass,
     cough_type: JString,
@@ -155,7 +155,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_setCoughType(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_setCoughDays(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_setCoughDays(
     env: JNIEnv,
     _: JClass,
     is_set: jint,
@@ -168,7 +168,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_setCoughDays(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_setCoughStatus(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_setCoughStatus(
     env: JNIEnv,
     _: JClass,
     cough_status: JString,
@@ -186,7 +186,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_setCoughStatus(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_setBreathlessnessCause(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_setBreathlessnessCause(
     env: JNIEnv,
     _: JClass,
     cause: JString,
@@ -204,7 +204,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_setBreathlessnes
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_setFeverDays(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_setFeverDays(
     env: JNIEnv,
     _: JClass,
     is_set: jint,
@@ -219,7 +219,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_setFeverDays(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_setFeverTakenTemperatureToday(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_setFeverTakenTemperatureToday(
     env: JNIEnv,
     _: JClass,
     is_set: jint,
@@ -232,7 +232,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_setFeverTakenTem
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_setFeverTakenTemperatureSpot(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_setFeverTakenTemperatureSpot(
     env: JNIEnv,
     _: JClass,
     spot: JString,
@@ -250,7 +250,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_setFeverTakenTem
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_setFeverHighestTemperatureTaken(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_setFeverHighestTemperatureTaken(
     env: JNIEnv,
     _: JClass,
     is_set: jint,
@@ -263,7 +263,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_setFeverHighestT
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_setEarliestSymptomStartedDaysAgo(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_setEarliestSymptomStartedDaysAgo(
     env: JNIEnv,
     _: JClass,
     is_set: jint,
@@ -276,7 +276,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_setEarliestSympt
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_clearSymptoms(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_clearSymptoms(
     env: JNIEnv,
     _: JClass,
 ) -> jobject {
@@ -285,7 +285,7 @@ pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_clearSymptoms(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_android_core_NativeCore_submitSymptoms(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_submitSymptoms(
     env: JNIEnv,
     _: JClass,
 ) -> jobject {
@@ -309,7 +309,7 @@ fn init_log(env: &JNIEnv, level_j_string: JString, coepi_only: jboolean, callbac
 }
 
 pub fn jni_void_result(status: i32, message: Option<&str>, env: &JNIEnv) -> jobject {
-    let cls = env.find_class("org/coepi/android/core/JniVoidResult");
+    let cls = env.find_class("org/coepi/core/jni/JniVoidResult");
 
     let status_j_value = JValue::from(status);
 
@@ -442,7 +442,7 @@ fn placeholder_alert() -> Alert {
 
 pub fn alert_to_jobject(alert: Alert, env: &JNIEnv) -> jobject {
     let jni_public_report_class = env
-        .find_class("org/coepi/android/core/JniPublicReport")
+        .find_class("org/coepi/core/jni/JniPublicReport")
         .unwrap();
 
     let report_time_j_value = JValue::from(alert.report.report_time.value as i64);
@@ -494,7 +494,7 @@ pub fn alert_to_jobject(alert: Alert, env: &JNIEnv) -> jobject {
         ],
     );
 
-    let jni_alert_class = env.find_class("org/coepi/android/core/JniAlert").unwrap();
+    let jni_alert_class = env.find_class("org/coepi/core/jni/JniAlert").unwrap();
 
     let id_j_string = env.new_string(alert.id).unwrap();
     let id_j_value = JValue::from(JObject::from(id_j_string));
@@ -503,7 +503,7 @@ pub fn alert_to_jobject(alert: Alert, env: &JNIEnv) -> jobject {
 
     env.new_object(
         jni_alert_class,
-        "(Ljava/lang/String;Lorg/coepi/android/core/JniPublicReport;J)V",
+        "(Ljava/lang/String;Lorg/coepi/core/jni/JniPublicReport;J)V",
         &[
             id_j_value,
             JValue::from(jni_public_report_obj.unwrap()),
