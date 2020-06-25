@@ -1,14 +1,14 @@
-package org.coepi.core.domain
+package org.coepi.core.services
 
+import org.coepi.core.jni.JniApi
 import org.coepi.core.domain.model.Tcn
-import org.coepi.api.Api
 import org.coepi.core.extensions.hexToByteArray
 
 interface TcnGenerator {
     fun generateTcn(): Tcn
 }
 
-class TcnGeneratorImpl(private val nativeApi: Api) : TcnGenerator {
+class TcnGeneratorImpl(private val api: JniApi) : TcnGenerator {
     override fun generateTcn(): Tcn =
-        Tcn(nativeApi.generateTcn().hexToByteArray())
+        Tcn(api.generateTcn().hexToByteArray())
 }

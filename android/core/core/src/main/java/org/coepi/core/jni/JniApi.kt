@@ -1,11 +1,11 @@
-package org.coepi.api
+package org.coepi.core.jni
 
 import android.content.Context
 import org.coepi.core.domain.common.Result
 import org.coepi.core.domain.common.Result.Failure
 import org.coepi.core.domain.common.Result.Success
 
-class Api {
+class JniApi {
 
     init {
         System.loadLibrary("coepi_core")
@@ -23,6 +23,7 @@ class Api {
 
     external fun recordTcn(tcn: String): JniVoidResult
 
+    // TODO test:
     external fun setBreathlessnessCause(cause: String): JniVoidResult
 
     external fun setCoughDays(isSet: Int, days: Int): JniVoidResult
@@ -162,7 +163,7 @@ private fun statusDescription(status: Int, message: String): String =
     "Status: $status Message: $message"
 
 fun bootstrap(applicationContext: Context) {
-    val nativeApi = Api()
+    val nativeApi = JniApi()
 
     // getDatabasePath requires a db name, but we use need the directory
     // (to initialize multiple databases), so adding and removing a suffix.
@@ -170,7 +171,8 @@ fun bootstrap(applicationContext: Context) {
         .absolutePath.removeSuffix("/remove")
 
     val result = nativeApi.bootstrapCore(dbPath, "debug", true,
-        JniLogCallback())
+        JniLogCallback()
+    )
     if (result.status != 1) {
         error("Couldn't bootstrap core: status: ${result.status}, message: ${result.message}")
     }

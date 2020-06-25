@@ -1,8 +1,8 @@
-package org.coepi.core.domain
+package org.coepi.core.services
 
 import com.google.gson.Gson
-import org.coepi.api.Api
-import org.coepi.api.asResult
+import org.coepi.core.jni.JniApi
+import org.coepi.core.jni.asResult
 import org.coepi.core.domain.common.Result
 import org.coepi.core.domain.model.SymptomId
 import org.coepi.core.domain.model.SymptomId.BREATHLESSNESS
@@ -51,7 +51,7 @@ interface SymptomsInputManager {
     fun clearSymptoms(): Result<Unit, Throwable>
 }
 
-class SymptomInputsManagerImpl(private val api: Api, private val gson: Gson) :
+class SymptomInputsManagerImpl(private val api: JniApi, private val gson: Gson) :
     SymptomsInputManager {
 
     override fun setSymptoms(inputs: Set<SymptomId>): Result<Unit, Throwable> {
@@ -87,8 +87,10 @@ class SymptomInputsManagerImpl(private val api: Api, private val gson: Gson) :
             }
         ).asResult()
 
+    // TODO tests: e.g. this was previously setting cough type, since JNI api isn't typed, compiler can't detect it,
+    // TODO probably we need to expose a function in Rust that returns the current inputs.
     override fun setBreathlessnessCause(input: UserInput<Breathlessness.Cause>): Result<Unit, Throwable> =
-        api.setCoughType(
+        api.setBreathlessnessCause(
             input.toJniStringInput {
                 when (it) {
                     EXERCISE -> "exercise"
@@ -146,14 +148,26 @@ class SymptomInputsManagerImpl(private val api: Api, private val gson: Gson) :
 
     private fun <T : Serializable> UserInput<T>.toJniIntInput(f: (T) -> Int): JniIntInput =
         when (this) {
-            is UserInput.Some -> JniIntInput(1, f(value))
-            is UserInput.None -> JniIntInput(0, -1)
+            is UserInput.Some -> JniIntInput(
+                1,
+                f(value)
+            )
+            is UserInput.None -> JniIntInput(
+                0,
+                -1
+            )
         }
 
     private fun <T : Serializable> UserInput<T>.toJniFloatInput(f: (T) -> Float): JniFloatInput =
         when (this) {
-            is UserInput.Some -> JniFloatInput(1, f(value))
-            is UserInput.None -> JniFloatInput(0, -1f)
+            is UserInput.Some -> JniFloatInput(
+                1,
+                f(value)
+            )
+            is UserInput.None -> JniFloatInput(
+                0,
+                -1f
+            )
         }
 
     private data class JniIntInput(val isSet: Int, val value: Int)

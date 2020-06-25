@@ -3,6 +3,9 @@ package org.coepi.api
 import android.content.Context
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import org.coepi.core.jni.JniApi
+import org.coepi.core.jni.JniLogCallback
+import org.coepi.core.jni.JniVoidResult
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
@@ -27,8 +30,10 @@ class JNIInterfaceBootstrappedTests {
             // we need to pass the db directory (without file name)
             .absolutePath.removeSuffix("/remove")
 
-        val n = Api()
-        val result = n.bootstrapCore(dbPath, "debug", true, JniLogCallback())
+        val n = JniApi()
+        val result = n.bootstrapCore(dbPath, "debug", true,
+            JniLogCallback()
+        )
         // Double check
         assertEquals(JniVoidResult(1, ""), result)
     }
@@ -43,13 +48,13 @@ class JNIInterfaceBootstrappedTests {
 
     @Test
     fun recordTcn() {
-        val value = Api().recordTcn("2485a64b57addcaea3ed1b538d07dbce")
+        val value = JniApi().recordTcn("2485a64b57addcaea3ed1b538d07dbce")
         assertEquals(JniVoidResult(1, ""), value)
     }
 
     @Test
     fun generateTcn() {
-        val value = Api().generateTcn()
+        val value = JniApi().generateTcn()
         assertEquals(value.length, 32)
     }
 
@@ -57,92 +62,92 @@ class JNIInterfaceBootstrappedTests {
     fun setSymptomIds() {
         // NOTE: JSON format
         val value =
-            Api().setSymptomIds("""["breathlessness", "muscle_aches", "runny_nose"]""")
+            JniApi().setSymptomIds("""["breathlessness", "muscle_aches", "runny_nose"]""")
         assertEquals(JniVoidResult(1, ""), value)
     }
 
     @Test
     fun setInvalidSymptomIdReturnsError() {
         // NOTE: JSON format
-        val value = Api().setSymptomIds("""["not_supported", "muscle_aches", "runny_nose"]""")
+        val value = JniApi().setSymptomIds("""["not_supported", "muscle_aches", "runny_nose"]""")
         // TODO https://github.com/Co-Epi/app-backend-rust/issues/79 shouldn't return 1
         assertEquals(JniVoidResult(1, ""), value)
     }
 
     @Test
     fun setInvalidSymptomIdsJsonReturnsError() {
-        val value = Api().setSymptomIds("sdjfhskdf")
+        val value = JniApi().setSymptomIds("sdjfhskdf")
         // TODO https://github.com/Co-Epi/app-backend-rust/issues/79 shouldn't return 1
         assertEquals(JniVoidResult(1, ""), value)
     }
 
     @Test
     fun setCoughTypeNone() {
-        val result = Api().setCoughType("none")
+        val result = JniApi().setCoughType("none")
         assertEquals(JniVoidResult(1, ""), result)
     }
 
     @Test
     fun setCoughTypeWet() {
-        val result = Api().setCoughType("wet")
+        val result = JniApi().setCoughType("wet")
         assertEquals(JniVoidResult(1, ""), result)
     }
 
     @Test
     fun setCoughTypeDry() {
-        val result = Api().setCoughType("dry")
+        val result = JniApi().setCoughType("dry")
         assertEquals(JniVoidResult(1, ""), result)
     }
 
     @Test
     fun setInvalidCoughTypeReturnsError() {
-        val result = Api().setCoughType("invalid")
+        val result = JniApi().setCoughType("invalid")
         // TODO https://github.com/Co-Epi/app-backend-rust/issues/79 shouldn't return 1
         assertEquals(JniVoidResult(1, ""), result)
     }
 
     @Test
     fun setCoughDaysIsSet() {
-        val result = Api().setCoughDays(1, 3)
+        val result = JniApi().setCoughDays(1, 3)
         assertEquals(JniVoidResult(1, ""), result)
     }
 
     @Test
     fun setCoughDaysIsNotSet() {
         // Note: days is ignored
-        val result = Api().setCoughDays(0, 123)
+        val result = JniApi().setCoughDays(0, 123)
         assertEquals(JniVoidResult(1, ""), result)
     }
 
     @Test
     fun setCoughStatus() {
-        val result = Api().setCoughStatus("better_and_worse")
+        val result = JniApi().setCoughStatus("better_and_worse")
         assertEquals(JniVoidResult(1, ""), result)
     }
 
     @Test
     fun setInvalidCoughStatusReturnsError() {
-        val result = Api().setCoughStatus("invalid")
+        val result = JniApi().setCoughStatus("invalid")
         // TODO https://github.com/Co-Epi/app-backend-rust/issues/79 shouldn't return 1
         assertEquals(JniVoidResult(1, ""), result)
     }
 
     @Test
     fun setBreathlessnessCause() {
-        val result = Api().setCoughStatus("leaving_house_or_dressing")
+        val result = JniApi().setCoughStatus("leaving_house_or_dressing")
         assertEquals(JniVoidResult(1, ""), result)
     }
 
     @Test
     fun setInvalidBreathlessnessCauseReturnsError() {
-        val result = Api().setCoughStatus("invalid")
+        val result = JniApi().setCoughStatus("invalid")
         // TODO https://github.com/Co-Epi/app-backend-rust/issues/79 shouldn't return 1
         assertEquals(JniVoidResult(1, ""), result)
     }
 
     @Test
     fun setFeverDaysIsSet() {
-        val result = Api().setFeverDays(1, 3)
+        val result = JniApi().setFeverDays(1, 3)
         // TODO https://github.com/Co-Epi/app-backend-rust/issues/79 shouldn't return 1
         assertEquals(JniVoidResult(1, ""), result)
     }
@@ -150,71 +155,77 @@ class JNIInterfaceBootstrappedTests {
     @Test
     fun setFeverDaysNone() {
         // Note: days is ignored
-        val result = Api().setFeverDays(0, 3)
+        val result = JniApi().setFeverDays(0, 3)
         assertEquals(JniVoidResult(1, ""), result)
     }
 
     @Test
     fun setFeverTakenTemperatureToday() {
-        val result = Api().setFeverTakenTemperatureToday(1, 3)
+        val result = JniApi()
+            .setFeverTakenTemperatureToday(1, 3)
         assertEquals(JniVoidResult(1, ""), result)
     }
 
     @Test
     fun setFeverTakenTemperatureTodayNone() {
         // Note: days is ignored
-        val result = Api().setFeverTakenTemperatureToday(0, 3)
+        val result = JniApi()
+            .setFeverTakenTemperatureToday(0, 3)
         assertEquals(JniVoidResult(1, ""), result)
     }
 
     @Test
     fun setFeverTakenTemperatureSpot() {
-        val result = Api().setFeverTakenTemperatureSpot("armpit")
+        val result = JniApi().setFeverTakenTemperatureSpot("armpit")
         assertEquals(JniVoidResult(1, ""), result)
     }
 
     @Test
     fun setInvalidFeverTakenTemperatureSpot() {
-        val result = Api().setFeverTakenTemperatureSpot("invalid")
+        val result = JniApi().setFeverTakenTemperatureSpot("invalid")
         // TODO https://github.com/Co-Epi/app-backend-rust/issues/79 shouldn't return 1
         assertEquals(JniVoidResult(1, ""), result)
     }
 
     @Test
     fun setHigherFeverTemperatureTaken() {
-        val result = Api().setFeverHighestTemperatureTaken(1, 100f)
+        val result = JniApi()
+            .setFeverHighestTemperatureTaken(1, 100f)
         assertEquals(JniVoidResult(1, ""), result)
     }
 
     @Test
     fun setHigherFeverTemperatureTakenNone() {
         // Note: temp is ignored
-        val result = Api().setFeverHighestTemperatureTaken(0, 100f)
+        val result = JniApi()
+            .setFeverHighestTemperatureTaken(0, 100f)
         assertEquals(JniVoidResult(1, ""), result)
     }
 
     @Test
     fun setEarliestSymptomStartedDaysAgo() {
-        val result = Api().setEarliestSymptomStartedDaysAgo(1, 10)
+        val result = JniApi()
+            .setEarliestSymptomStartedDaysAgo(1, 10)
         assertEquals(JniVoidResult(1, ""), result)
     }
 
     @Test
     fun setEarliestSymptomStartedDaysAgoNone() {
         // Note: days is ignored
-        val result = Api().setEarliestSymptomStartedDaysAgo(0, 10)
+        val result = JniApi()
+            .setEarliestSymptomStartedDaysAgo(0, 10)
         assertEquals(JniVoidResult(1, ""), result)
     }
 
     @Test
     fun clearSymptoms() {
-        val result = Api().clearSymptoms()
+        val result = JniApi().clearSymptoms()
         assertEquals(JniVoidResult(1, ""), result)
     }
 
     @Test
     fun submitSymptoms() {
-        val result = Api().submitSymptoms()
+        val result = JniApi().submitSymptoms()
         assertEquals(JniVoidResult(1, ""), result)
     }
 

@@ -1,11 +1,11 @@
-package org.coepi.core.domain
+package org.coepi.core.services
 
+import org.coepi.core.jni.JniAlert
+import org.coepi.core.jni.JniAlertsArrayResult
+import org.coepi.core.jni.JniApi
 import org.coepi.core.domain.model.Alert
 import org.coepi.core.domain.model.toCoughSeverity
 import org.coepi.core.domain.model.toFeverSeverity
-import org.coepi.api.Api
-import org.coepi.api.JniAlert
-import org.coepi.api.JniAlertsArrayResult
 import org.coepi.core.domain.common.Result
 import org.coepi.core.domain.common.Result.Success
 import org.coepi.core.domain.common.Result.Failure
@@ -17,7 +17,8 @@ interface AlertsFetcher {
     fun fetchNewAlerts(): Result<List<Alert>, Throwable>
 }
 
-class AlertsFetcherImpl(private val api: Api) : AlertsFetcher {
+class AlertsFetcherImpl(private val api: JniApi) :
+    AlertsFetcher {
 
     override fun fetchNewAlerts(): Result<List<Alert>, Throwable> {
         val result = api.fetchNewReports()

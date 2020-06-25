@@ -28,7 +28,7 @@ use std::{
 };
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_api_Api_bootstrapCore(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_bootstrapCore(
     env: JNIEnv,
     _: JClass,
     db_path_j_string: JString,
@@ -48,7 +48,10 @@ pub unsafe extern "C" fn Java_org_coepi_api_Api_bootstrapCore(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_api_Api_fetchNewReports(env: JNIEnv, _: JClass) -> jobject {
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_fetchNewReports(
+    env: JNIEnv,
+    _: JClass,
+) -> jobject {
     info!("Updating reports");
     // TODO error handling https://github.com/Co-Epi/app-backend-rust/issues/79
     let result = dependencies().reports_updater.fetch_new_reports().unwrap();
@@ -64,7 +67,7 @@ pub unsafe extern "C" fn Java_org_coepi_api_Api_fetchNewReports(env: JNIEnv, _: 
     let alerts_array = env
         .new_object_array(
             alerts_j_objects.len() as i32,
-            "org/coepi/api/JniAlert",
+            "org/coepi/core/jni/JniAlert",
             placeholder_alert_j_object,
         )
         .unwrap();
@@ -78,14 +81,14 @@ pub unsafe extern "C" fn Java_org_coepi_api_Api_fetchNewReports(env: JNIEnv, _: 
         1,
         None,
         JObject::from(alerts_array),
-        "org/coepi/api/JniAlertsArrayResult",
-        "[Lorg/coepi/api/JniAlert;",
+        "org/coepi/core/jni/JniAlertsArrayResult",
+        "[Lorg/coepi/core/jni/JniAlert;",
         &env,
     )
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_api_Api_recordTcn(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_recordTcn(
     env: JNIEnv,
     _: JClass,
     tcn: JString,
@@ -100,7 +103,10 @@ pub unsafe extern "C" fn Java_org_coepi_api_Api_recordTcn(
 
 // NOTE: Returns directly success string
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_api_Api_generateTcn(env: JNIEnv, _: JClass) -> jstring {
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_generateTcn(
+    env: JNIEnv,
+    _: JClass,
+) -> jstring {
     // TODO hex encoding in component, or send byte array directly?
     let tcn_hex = hex::encode(dependencies().tcn_keys.generate_tcn().0);
     info!("Generated TCN: {:?}", tcn_hex);
@@ -112,7 +118,7 @@ pub unsafe extern "C" fn Java_org_coepi_api_Api_generateTcn(env: JNIEnv, _: JCla
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_api_Api_setSymptomIds(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_setSymptomIds(
     env: JNIEnv,
     _: JClass,
     ids: JString,
@@ -131,7 +137,7 @@ pub unsafe extern "C" fn Java_org_coepi_api_Api_setSymptomIds(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_api_Api_setCoughType(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_setCoughType(
     env: JNIEnv,
     _: JClass,
     cough_type: JString,
@@ -149,7 +155,7 @@ pub unsafe extern "C" fn Java_org_coepi_api_Api_setCoughType(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_api_Api_setCoughDays(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_setCoughDays(
     env: JNIEnv,
     _: JClass,
     is_set: jint,
@@ -162,7 +168,7 @@ pub unsafe extern "C" fn Java_org_coepi_api_Api_setCoughDays(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_api_Api_setCoughStatus(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_setCoughStatus(
     env: JNIEnv,
     _: JClass,
     cough_status: JString,
@@ -180,7 +186,7 @@ pub unsafe extern "C" fn Java_org_coepi_api_Api_setCoughStatus(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_api_Api_setBreathlessnessCause(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_setBreathlessnessCause(
     env: JNIEnv,
     _: JClass,
     cause: JString,
@@ -198,7 +204,7 @@ pub unsafe extern "C" fn Java_org_coepi_api_Api_setBreathlessnessCause(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_api_Api_setFeverDays(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_setFeverDays(
     env: JNIEnv,
     _: JClass,
     is_set: jint,
@@ -213,7 +219,7 @@ pub unsafe extern "C" fn Java_org_coepi_api_Api_setFeverDays(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_api_Api_setFeverTakenTemperatureToday(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_setFeverTakenTemperatureToday(
     env: JNIEnv,
     _: JClass,
     is_set: jint,
@@ -226,7 +232,7 @@ pub unsafe extern "C" fn Java_org_coepi_api_Api_setFeverTakenTemperatureToday(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_api_Api_setFeverTakenTemperatureSpot(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_setFeverTakenTemperatureSpot(
     env: JNIEnv,
     _: JClass,
     spot: JString,
@@ -244,7 +250,7 @@ pub unsafe extern "C" fn Java_org_coepi_api_Api_setFeverTakenTemperatureSpot(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_api_Api_setFeverHighestTemperatureTaken(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_setFeverHighestTemperatureTaken(
     env: JNIEnv,
     _: JClass,
     is_set: jint,
@@ -257,7 +263,7 @@ pub unsafe extern "C" fn Java_org_coepi_api_Api_setFeverHighestTemperatureTaken(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_api_Api_setEarliestSymptomStartedDaysAgo(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_setEarliestSymptomStartedDaysAgo(
     env: JNIEnv,
     _: JClass,
     is_set: jint,
@@ -270,13 +276,19 @@ pub unsafe extern "C" fn Java_org_coepi_api_Api_setEarliestSymptomStartedDaysAgo
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_api_Api_clearSymptoms(env: JNIEnv, _: JClass) -> jobject {
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_clearSymptoms(
+    env: JNIEnv,
+    _: JClass,
+) -> jobject {
     let result = dependencies().symptom_inputs_processor.clear();
     jni_void_result(1, None, &env)
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_api_Api_submitSymptoms(env: JNIEnv, _: JClass) -> jobject {
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_submitSymptoms(
+    env: JNIEnv,
+    _: JClass,
+) -> jobject {
     let result = dependencies().symptom_inputs_processor.submit();
     jni_void_result(1, None, &env)
 }
@@ -297,7 +309,7 @@ fn init_log(env: &JNIEnv, level_j_string: JString, coepi_only: jboolean, callbac
 }
 
 pub fn jni_void_result(status: i32, message: Option<&str>, env: &JNIEnv) -> jobject {
-    let cls = env.find_class("org/coepi/api/JniVoidResult");
+    let cls = env.find_class("org/coepi/core/jni/JniVoidResult");
 
     let status_j_value = JValue::from(status);
 
@@ -429,7 +441,9 @@ fn placeholder_alert() -> Alert {
 }
 
 pub fn alert_to_jobject(alert: Alert, env: &JNIEnv) -> jobject {
-    let jni_public_report_class = env.find_class("org/coepi/api/JniPublicReport").unwrap();
+    let jni_public_report_class = env
+        .find_class("org/coepi/core/jni/JniPublicReport")
+        .unwrap();
 
     let report_time_j_value = JValue::from(alert.report.report_time.value as i64);
 
@@ -480,7 +494,7 @@ pub fn alert_to_jobject(alert: Alert, env: &JNIEnv) -> jobject {
         ],
     );
 
-    let jni_alert_class = env.find_class("org/coepi/api/JniAlert").unwrap();
+    let jni_alert_class = env.find_class("org/coepi/core/jni/JniAlert").unwrap();
 
     let id_j_string = env.new_string(alert.id).unwrap();
     let id_j_value = JValue::from(JObject::from(id_j_string));
@@ -489,7 +503,7 @@ pub fn alert_to_jobject(alert: Alert, env: &JNIEnv) -> jobject {
 
     env.new_object(
         jni_alert_class,
-        "(Ljava/lang/String;Lorg/coepi/api/JniPublicReport;J)V",
+        "(Ljava/lang/String;Lorg/coepi/core/jni/JniPublicReport;J)V",
         &[
             id_j_value,
             JValue::from(jni_public_report_obj.unwrap()),

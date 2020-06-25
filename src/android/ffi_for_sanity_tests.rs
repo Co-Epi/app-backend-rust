@@ -25,7 +25,7 @@ pub struct FFINestedParameterStruct {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_api_Api_sendReceiveString(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_sendReceiveString(
     env: JNIEnv,
     _: JClass,
     string: JString,
@@ -40,7 +40,7 @@ pub unsafe extern "C" fn Java_org_coepi_api_Api_sendReceiveString(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_api_Api_testPassAndReturnFloat(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_testPassAndReturnFloat(
     _env: JNIEnv,
     _: JClass,
     my_float: jfloat,
@@ -52,7 +52,7 @@ pub unsafe extern "C" fn Java_org_coepi_api_Api_testPassAndReturnFloat(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_api_Api_passStruct(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_passStruct(
     env: JNIEnv,
     _: JClass,
     my_struct: JObject,
@@ -71,7 +71,7 @@ pub unsafe extern "C" fn Java_org_coepi_api_Api_passStruct(
         .get_field(
             my_struct,
             "myNested",
-            "Lorg/coepi/api/FFINestedParameterStruct;",
+            "Lorg/coepi/core/jni/FFINestedParameterStruct;",
         )
         .unwrap();
 
@@ -94,8 +94,11 @@ pub unsafe extern "C" fn Java_org_coepi_api_Api_passStruct(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_api_Api_returnStruct(env: JNIEnv, _: JClass) -> jobject {
-    let cls = env.find_class("org/coepi/api/FFIParameterStruct");
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_returnStruct(
+    env: JNIEnv,
+    _: JClass,
+) -> jobject {
+    let cls = env.find_class("org/coepi/core/jni/FFIParameterStruct");
 
     let my_int_j_value = JValue::from(123);
 
@@ -103,14 +106,14 @@ pub unsafe extern "C" fn Java_org_coepi_api_Api_returnStruct(env: JNIEnv, _: JCl
     let str_parameter = expect_log!(str_parameter_res, "Couldn't create java string!");
     let str_parameter_j_value = JValue::from(JObject::from(str_parameter));
 
-    let nested = env.find_class("org/coepi/api/FFINestedParameterStruct");
+    let nested = env.find_class("org/coepi/core/jni/FFINestedParameterStruct");
     let my_int_nested = JValue::from(123);
     let nested_obj = env.new_object(nested.unwrap(), "(I)V", &[my_int_nested]);
     let nested_obj_val = JValue::from(nested_obj.unwrap());
 
     let obj = env.new_object(
         cls.unwrap(),
-        "(ILjava/lang/String;Lorg/coepi/api/FFINestedParameterStruct;)V",
+        "(ILjava/lang/String;Lorg/coepi/core/jni/FFINestedParameterStruct;)V",
         &[my_int_j_value, str_parameter_j_value, nested_obj_val],
     );
 
@@ -118,7 +121,7 @@ pub unsafe extern "C" fn Java_org_coepi_api_Api_returnStruct(env: JNIEnv, _: JCl
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_api_Api_callCallback(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_callCallback(
     env: JNIEnv,
     _: JClass,
     callback: JObject,
@@ -133,7 +136,7 @@ pub unsafe extern "C" fn Java_org_coepi_api_Api_callCallback(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_api_Api_registerCallback(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_registerCallback(
     env: JNIEnv,
     _: JClass,
     callback: jobject,
@@ -147,7 +150,7 @@ pub unsafe extern "C" fn Java_org_coepi_api_Api_registerCallback(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_org_coepi_api_Api_triggerCallback(
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_triggerCallback(
     env: JNIEnv,
     _: JClass,
     string: JString,
