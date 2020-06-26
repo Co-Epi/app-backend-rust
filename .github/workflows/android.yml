@@ -32,7 +32,7 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 29
-          script: ./gradlew connectedAndroidTest --stacktrace
+          script: cd android/core; ./gradlew connectedAndroidTest --stacktrace
         env: 
           ANDROID_NDK_HOME: ${ANDROID_NDK}
       - name: Instrumented tests results
