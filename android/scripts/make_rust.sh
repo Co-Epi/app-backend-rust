@@ -32,7 +32,6 @@ PATH_TO_ANDROID_MAIN=$PATH_TO_ANDROID_LIBRARY/core/src/main
 
 rm -fr $PATH_TO_ANDROID_MAIN/jniLibs
 mkdir $PATH_TO_ANDROID_MAIN/jniLibs
-mkdir $PATH_TO_ANDROID_MAIN/jniLibs/arm64
 mkdir $PATH_TO_ANDROID_MAIN/jniLibs/arm64-v8a
 mkdir $PATH_TO_ANDROID_MAIN/jniLibs/armeabi
 mkdir $PATH_TO_ANDROID_MAIN/jniLibs/x86_64
