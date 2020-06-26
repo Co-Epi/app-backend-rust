@@ -1,9 +1,9 @@
 package org.coepi.core.jni
 
-import android.content.Context
 import org.coepi.core.domain.common.Result
 import org.coepi.core.domain.common.Result.Failure
 import org.coepi.core.domain.common.Result.Success
+import org.coepi.core.services.CoreLogger
 
 class JniApi {
 
@@ -87,10 +87,9 @@ open class Callback {
     }
 }
 
-open class JniLogCallback {
+open class JniLogCallback(private val coreLogger: CoreLogger) {
     open fun log(level: Int, message: String) {
-        // TODO
-        println("[CORE] level: $level, message: $message")
+        coreLogger.log(level, message)
     }
 }
 
@@ -161,19 +160,3 @@ fun JniVoidResult.statusDescription(): String =
 
 private fun statusDescription(status: Int, message: String): String =
     "Status: $status Message: $message"
-
-fun bootstrap(applicationContext: Context) {
-    val nativeApi = JniApi()
-
-    // getDatabasePath requires a db name, but we use need the directory
-    // (to initialize multiple databases), so adding and removing a suffix.
-    val dbPath = applicationContext.getDatabasePath("remove")
-        .absolutePath.removeSuffix("/remove")
-
-    val result = nativeApi.bootstrapCore(dbPath, "debug", true,
-        JniLogCallback()
-    )
-    if (result.status != 1) {
-        error("Couldn't bootstrap core: status: ${result.status}, message: ${result.message}")
-    }
-}
