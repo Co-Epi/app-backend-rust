@@ -13,7 +13,7 @@ pub static mut SENDER: Option<Sender<CoreLogMessageThreadSafe>> = None;
 //Supress warnings when compiling in test configuration (CoreLogLevel is not used in tests)
 #[allow(dead_code)]
 #[repr(u8)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum CoreLogLevel {
     Trace = 0,
     Debug = 1,

@@ -32,20 +32,6 @@ class JNIInterfaceTests {
     }
 
     @Test
-    fun testBootstrap() {
-        val dbPath = instrumentationContext.getDatabasePath("remove")
-            // we need to pass the db directory (without file name)
-            .absolutePath.removeSuffix("/remove")
-
-        val n = JniApi()
-        val result = n.bootstrapCore(dbPath, "debug", true,
-            JniLogCallback()
-        )
-
-        assertEquals(JniVoidResult(1, ""), result)
-    }
-
-    @Test
     fun testFetchAReport() {
         val n = JniApi()
         val value = n.testReturnAnAlert()
