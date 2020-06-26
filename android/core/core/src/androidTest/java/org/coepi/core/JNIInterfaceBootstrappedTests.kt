@@ -21,10 +21,25 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class JNIInterfaceBootstrappedTests {
 
+    companion object {
+        // Fixes Os { code: 11, kind: WouldBlock, message: "Try again" } error in bootstrap
+        // Apparently something there (likely the Persy initalizer, which creates a DB before checking
+        // whether the static OnceCell was set already) doesn't like being called in quick succession/parallel
+        // TODO investigate
+        // Not critical since the apps call bootstrap only once, at launch.
+        private var bootstrapped = false
+    }
+
     private lateinit var instrumentationContext: Context
 
     @Before
     fun setup() {
+        if (bootstrapped) return
+        bootstrapped = true
+        bootstrap()
+    }
+
+    private fun bootstrap() {
         instrumentationContext = androidx.test.core.app.ApplicationProvider.getApplicationContext()
 
         val dbPath = instrumentationContext.getDatabasePath("remove")
@@ -75,15 +90,13 @@ class JNIInterfaceBootstrappedTests {
     fun setInvalidSymptomIdReturnsError() {
         // NOTE: JSON format
         val value = JniApi().setSymptomIds("""["not_supported", "muscle_aches", "runny_nose"]""")
-        // TODO https://github.com/Co-Epi/app-backend-rust/issues/79 shouldn't return 1
-        assertEquals(JniVoidResult(1, ""), value)
+        assertEquals(3, value.status)
     }
 
     @Test
     fun setInvalidSymptomIdsJsonReturnsError() {
         val value = JniApi().setSymptomIds("sdjfhskdf")
-        // TODO https://github.com/Co-Epi/app-backend-rust/issues/79 shouldn't return 1
-        assertEquals(JniVoidResult(1, ""), value)
+        assertEquals(3, value.status)
     }
 
     @Test
@@ -107,8 +120,7 @@ class JNIInterfaceBootstrappedTests {
     @Test
     fun setInvalidCoughTypeReturnsError() {
         val result = JniApi().setCoughType("invalid")
-        // TODO https://github.com/Co-Epi/app-backend-rust/issues/79 shouldn't return 1
-        assertEquals(JniVoidResult(1, ""), result)
+        assertEquals(3, result.status)
     }
 
     @Test
@@ -133,27 +145,24 @@ class JNIInterfaceBootstrappedTests {
     @Test
     fun setInvalidCoughStatusReturnsError() {
         val result = JniApi().setCoughStatus("invalid")
-        // TODO https://github.com/Co-Epi/app-backend-rust/issues/79 shouldn't return 1
-        assertEquals(JniVoidResult(1, ""), result)
+        assertEquals(3, result.status)
     }
 
     @Test
     fun setBreathlessnessCause() {
-        val result = JniApi().setCoughStatus("leaving_house_or_dressing")
+        val result = JniApi().setBreathlessnessCause("leaving_house_or_dressing")
         assertEquals(JniVoidResult(1, ""), result)
     }
 
     @Test
     fun setInvalidBreathlessnessCauseReturnsError() {
         val result = JniApi().setCoughStatus("invalid")
-        // TODO https://github.com/Co-Epi/app-backend-rust/issues/79 shouldn't return 1
-        assertEquals(JniVoidResult(1, ""), result)
+        assertEquals(3, result.status)
     }
 
     @Test
     fun setFeverDaysIsSet() {
         val result = JniApi().setFeverDays(1, 3)
-        // TODO https://github.com/Co-Epi/app-backend-rust/issues/79 shouldn't return 1
         assertEquals(JniVoidResult(1, ""), result)
     }
 
@@ -188,8 +197,7 @@ class JNIInterfaceBootstrappedTests {
     @Test
     fun setInvalidFeverTakenTemperatureSpot() {
         val result = JniApi().setFeverTakenTemperatureSpot("invalid")
-        // TODO https://github.com/Co-Epi/app-backend-rust/issues/79 shouldn't return 1
-        assertEquals(JniVoidResult(1, ""), result)
+        assertEquals(3, result.status)
     }
 
     @Test

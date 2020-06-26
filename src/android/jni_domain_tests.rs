@@ -1,5 +1,6 @@
 use super::android_interface::{alert_to_jobject, jni_obj_result};
 use crate::{
+    expect_log,
     reporting::{
         public_report::{CoughSeverity, FeverSeverity, PublicReport},
         symptom_inputs::UserInput,
@@ -9,9 +10,10 @@ use crate::{
 };
 use jni::{
     objects::{JClass, JObject},
-    sys::{jobject, jobjectArray},
+    sys::jobject,
     JNIEnv,
 };
+use log::error;
 
 #[no_mangle]
 pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_testReturnAnAlert(
@@ -19,7 +21,8 @@ pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_testReturnAnAlert(
     _: JClass,
 ) -> jobject {
     let alert = create_test_alert("123", 234324);
-    let jobject = alert_to_jobject(alert, &env);
+    let res = alert_to_jobject(alert, &env);
+    let jobject = expect_log!(res, "Failed creating alert jobject");
 
     jni_obj_result(
         1,
@@ -38,12 +41,15 @@ pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_testReturnMultipleAlerts
 ) -> jobject {
     let alert1 = create_test_alert("123", 131321);
     let alert2 = create_test_alert("343356", 32516899200);
-    let jobject1 = alert_to_jobject(alert1, &env);
-    let jobject2 = alert_to_jobject(alert2, &env);
 
-    let array: jobjectArray = env
-        .new_object_array(2, "org/coepi/core/jni/JniAlert", jobject1)
-        .unwrap();
+    let jobject1_res = alert_to_jobject(alert1, &env);
+    let jobject2_res = alert_to_jobject(alert2, &env);
+    let jobject1 = expect_log!(jobject1_res, "Couldn't create alert object");
+    let jobject2 = expect_log!(jobject2_res, "Couldn't create alert object");
+
+    let array_res = env.new_object_array(2, "org/coepi/core/jni/JniAlert", jobject1);
+    let array = expect_log!(array_res, "Failed creating array jobject");
+
     env.set_object_array_element(array, 0, jobject1).unwrap();
     env.set_object_array_element(array, 1, jobject2).unwrap();
 

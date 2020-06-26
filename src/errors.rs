@@ -96,3 +96,13 @@ impl From<rusqlite::Error> for ServicesError {
 }
 
 impl error::Error for ServicesError {}
+
+#[cfg(target_os = "android")]
+impl From<jni::errors::Error> for ServicesError {
+    fn from(error: jni::errors::Error) -> Self {
+        ServicesError::Error(Box::new(StdError::new(
+            ErrorKind::Other,
+            format!("{}", error),
+        )))
+    }
+}

@@ -15,7 +15,7 @@ use crate::{
 };
 use jni::{
     objects::{GlobalRef, JClass, JObject, JString, JValue},
-    sys::{jboolean, jfloat, jint, jobject, jstring},
+    sys::{jboolean, jfloat, jint, jobject, jobjectArray, jstring},
     JNIEnv, JavaVM,
 };
 use log::*;
@@ -36,15 +36,14 @@ pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_bootstrapCore(
     log_coepi_only: jboolean,
     log_callback: jobject,
 ) -> jobject {
-    init_log(&env, log_level_j_string, log_coepi_only, log_callback);
-
-    let db_path_java_str = env.get_string(db_path_j_string).unwrap();
-    let db_path_str = db_path_java_str.to_str().map_err(ServicesError::from);
-    info!("Bootstrapping with db path: {:?}", db_path_str);
-    let db_result = db_path_str.and_then(|path| bootstrap(path).map_err(ServicesError::from));
-    info!("Bootstrapping result: {:?}", db_result);
-
-    jni_void_result(1, None, &env)
+    bootstrap_core(
+        &env,
+        db_path_j_string,
+        log_level_j_string,
+        log_coepi_only,
+        log_callback,
+    )
+    .to_void_jni(&env)
 }
 
 #[no_mangle]
@@ -52,39 +51,28 @@ pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_fetchNewReports(
     env: JNIEnv,
     _: JClass,
 ) -> jobject {
-    info!("Updating reports");
-    // TODO error handling https://github.com/Co-Epi/app-backend-rust/issues/79
-    let result = dependencies().reports_updater.fetch_new_reports().unwrap();
-    info!("New reports: {:?}", result);
+    let arr = fetch_new_reports(&env);
 
-    let alerts_j_objects: Vec<jobject> = result
-        .into_iter()
-        .map(|alert| alert_to_jobject(alert, &env))
-        .collect();
-
-    let placeholder_alert_j_object = alert_to_jobject(placeholder_alert(), &env);
-
-    let alerts_array = env
-        .new_object_array(
-            alerts_j_objects.len() as i32,
-            "org/coepi/core/jni/JniAlert",
-            placeholder_alert_j_object,
-        )
-        .unwrap();
-
-    for (index, alert_j_object) in alerts_j_objects.into_iter().enumerate() {
-        env.set_object_array_element(alerts_array, index as i32, alert_j_object)
-            .unwrap();
+    match arr {
+        Ok(a) => to_alerts_result_jobject(1, None, a, &env),
+        Err(e) => {
+            // If there's an error, return a JNI object with error status and an empty JNI array
+            // TODO it may be possible to avoid empty array by making array in JniAlertsArrayResult optional
+            let jni_error = e.to_jni_error();
+            let empty_alerts_jobject_array = alerts_to_jobject_array(vec![], &env);
+            // If the creation of the empty array fails, we've to crash, because we've to return an array.
+            let empty_alerts_array = expect_log!(
+                empty_alerts_jobject_array,
+                "Critical: Failed instantiating empty error object"
+            );
+            to_alerts_result_jobject(
+                jni_error.status,
+                Some(jni_error.message.as_ref()),
+                empty_alerts_array,
+                &env,
+            )
+        }
     }
-
-    jni_obj_result(
-        1,
-        None,
-        JObject::from(alerts_array),
-        "org/coepi/core/jni/JniAlertsArrayResult",
-        "[Lorg/coepi/core/jni/JniAlert;",
-        &env,
-    )
 }
 
 #[no_mangle]
@@ -93,12 +81,7 @@ pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_recordTcn(
     _: JClass,
     tcn: JString,
 ) -> jobject {
-    let tcn_java_str = env.get_string(tcn).unwrap();
-    let tcn_str = tcn_java_str.to_str().map_err(ServicesError::from);
-
-    let result = tcn_str.and_then(|tcn_str| dependencies().observed_tcn_processor.save(tcn_str));
-    info!("Recording TCN result {:?}", result);
-    jni_void_result(1, None, &env)
+    recordTcn(&env, tcn).to_void_jni(&env)
 }
 
 // NOTE: Returns directly success string
@@ -107,11 +90,12 @@ pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_generateTcn(
     env: JNIEnv,
     _: JClass,
 ) -> jstring {
-    // TODO hex encoding in component, or send byte array directly?
+    // Maybe send byte array directly?
     let tcn_hex = hex::encode(dependencies().tcn_keys.generate_tcn().0);
     info!("Generated TCN: {:?}", tcn_hex);
 
     let output_res = env.new_string(tcn_hex);
+    // Unclear about when new_string can return Error (TODO), and there's no meaningful handling in the app, so for now crash
     let output = expect_log!(output_res, "Couldn't create java string");
 
     output.into_inner()
@@ -123,17 +107,7 @@ pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_setSymptomIds(
     _: JClass,
     ids: JString,
 ) -> jobject {
-    let ids_java_str = env.get_string(ids).unwrap();
-    let ids_str = ids_java_str.to_str().map_err(ServicesError::from);
-
-    debug!("Setting symptom ids: {:?}", ids_str);
-
-    let result = ids_str.and_then(|ids_str| {
-        dependencies()
-            .symptom_inputs_processor
-            .set_symptom_ids(ids_str)
-    });
-    jni_void_result(1, None, &env)
+    set_symptom_ids(&env, ids).to_void_jni(&env)
 }
 
 #[no_mangle]
@@ -142,16 +116,7 @@ pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_setCoughType(
     _: JClass,
     cough_type: JString,
 ) -> jobject {
-    let java_str = env.get_string(cough_type).unwrap();
-    let str = java_str.to_str().map_err(ServicesError::from);
-
-    debug!("Setting cough type: {:?}", str);
-    let result = str.and_then(|cough_type_str| {
-        dependencies()
-            .symptom_inputs_processor
-            .set_cough_type(cough_type_str)
-    });
-    jni_void_result(1, None, &env)
+    set_cough_type(&env, cough_type).to_void_jni(&env)
 }
 
 #[no_mangle]
@@ -161,10 +126,10 @@ pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_setCoughDays(
     is_set: jint,
     days: jint,
 ) -> jobject {
-    let result = dependencies()
+    dependencies()
         .symptom_inputs_processor
-        .set_cough_days(is_set == 1, days as u32);
-    jni_void_result(1, None, &env)
+        .set_cough_days(is_set == 1, days as u32)
+        .to_void_jni(&env)
 }
 
 #[no_mangle]
@@ -173,16 +138,7 @@ pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_setCoughStatus(
     _: JClass,
     cough_status: JString,
 ) -> jobject {
-    let java_str = env.get_string(cough_status).unwrap();
-    let str = java_str.to_str().map_err(ServicesError::from);
-
-    info!("Setting cough status: {:?}", str);
-    let result = str.and_then(|status_str| {
-        dependencies()
-            .symptom_inputs_processor
-            .set_cough_status(status_str)
-    });
-    jni_void_result(1, None, &env)
+    set_cough_status(&env, cough_status).to_void_jni(&env)
 }
 
 #[no_mangle]
@@ -191,16 +147,7 @@ pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_setBreathlessnessCause(
     _: JClass,
     cause: JString,
 ) -> jobject {
-    let java_str = env.get_string(cause).unwrap();
-    let str = java_str.to_str().map_err(ServicesError::from);
-
-    debug!("Setting breathlessness cause: {:?}", str);
-    let result = str.and_then(|cause_str| {
-        dependencies()
-            .symptom_inputs_processor
-            .set_breathlessness_cause(cause_str)
-    });
-    jni_void_result(1, None, &env)
+    set_breathlessness_cause(&env, cause).to_void_jni(&env)
 }
 
 #[no_mangle]
@@ -212,10 +159,10 @@ pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_setFeverDays(
 ) -> jobject {
     // TODO is_set jboolean
     // TODO assert is_set / days etc. in type's bounds, also iOS
-    let result = dependencies()
+    dependencies()
         .symptom_inputs_processor
-        .set_fever_days(is_set == 1, days as u32);
-    jni_void_result(1, None, &env)
+        .set_fever_days(is_set == 1, days as u32)
+        .to_void_jni(&env)
 }
 
 #[no_mangle]
@@ -225,10 +172,10 @@ pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_setFeverTakenTemperature
     is_set: jint,
     taken: jint,
 ) -> jobject {
-    let result = dependencies()
+    dependencies()
         .symptom_inputs_processor
-        .set_fever_taken_temperature_today(is_set == 1, taken == 1);
-    jni_void_result(1, None, &env)
+        .set_fever_taken_temperature_today(is_set == 1, taken == 1)
+        .to_void_jni(&env)
 }
 
 #[no_mangle]
@@ -237,16 +184,7 @@ pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_setFeverTakenTemperature
     _: JClass,
     spot: JString,
 ) -> jobject {
-    let java_str = env.get_string(spot).unwrap();
-    let str = java_str.to_str().map_err(ServicesError::from);
-
-    debug!("Setting temperature spot cause: {:?}", str);
-    let result = str.and_then(|spot_str| {
-        dependencies()
-            .symptom_inputs_processor
-            .set_fever_taken_temperature_spot(spot_str)
-    });
-    jni_void_result(1, None, &env)
+    set_fever_taken_temperature_spot(&env, spot).to_void_jni(&env)
 }
 
 #[no_mangle]
@@ -256,10 +194,10 @@ pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_setFeverHighestTemperatu
     is_set: jint,
     temp: jfloat,
 ) -> jobject {
-    let result = dependencies()
+    dependencies()
         .symptom_inputs_processor
-        .set_fever_highest_temperature_taken(is_set == 1, temp as f32);
-    jni_void_result(1, None, &env)
+        .set_fever_highest_temperature_taken(is_set == 1, temp as f32)
+        .to_void_jni(&env)
 }
 
 #[no_mangle]
@@ -269,10 +207,10 @@ pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_setEarliestSymptomStarte
     is_set: jint,
     days: jint,
 ) -> jobject {
-    let result = dependencies()
+    dependencies()
         .symptom_inputs_processor
-        .set_earliest_symptom_started_days_ago(is_set == 1, days as u32);
-    jni_void_result(1, None, &env)
+        .set_earliest_symptom_started_days_ago(is_set == 1, days as u32)
+        .to_void_jni(&env)
 }
 
 #[no_mangle]
@@ -280,8 +218,10 @@ pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_clearSymptoms(
     env: JNIEnv,
     _: JClass,
 ) -> jobject {
-    let result = dependencies().symptom_inputs_processor.clear();
-    jni_void_result(1, None, &env)
+    dependencies()
+        .symptom_inputs_processor
+        .clear()
+        .to_void_jni(&env)
 }
 
 #[no_mangle]
@@ -289,41 +229,191 @@ pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_submitSymptoms(
     env: JNIEnv,
     _: JClass,
 ) -> jobject {
-    let result = dependencies().symptom_inputs_processor.submit();
-    jni_void_result(1, None, &env)
+    dependencies()
+        .symptom_inputs_processor
+        .submit()
+        .to_void_jni(&env)
+}
+
+fn bootstrap_core(
+    env: &JNIEnv,
+    db_path_j_string: JString,
+    log_level_j_string: JString,
+    log_coepi_only: jboolean,
+    log_callback: jobject,
+) -> Result<(), ServicesError> {
+    init_log(&env, log_level_j_string, log_coepi_only, log_callback);
+
+    let db_path_java_str = env.get_string(db_path_j_string)?;
+    let db_path_str = db_path_java_str.to_str()?;
+
+    info!("Bootstrapping with db path: {:?}", db_path_str);
+    let db_result = bootstrap(db_path_str)?;
+    info!("Bootstrapping result: {:?}", db_result);
+
+    Ok(())
+}
+
+fn fetch_new_reports(env: &JNIEnv) -> Result<jobjectArray, ServicesError> {
+    info!("Updating reports");
+    let result = dependencies().reports_updater.fetch_new_reports()?;
+    info!("New reports: {:?}", result);
+
+    alerts_to_jobject_array(result, &env)
+}
+
+fn recordTcn(env: &JNIEnv, tcn: JString) -> Result<(), ServicesError> {
+    let tcn_java_str = env.get_string(tcn)?;
+    let tcn_str = tcn_java_str.to_str()?;
+
+    let result = dependencies().observed_tcn_processor.save(tcn_str);
+    info!("Recording TCN result {:?}", result);
+
+    result
+}
+
+fn set_symptom_ids(env: &JNIEnv, ids: JString) -> Result<(), ServicesError> {
+    let java_str = env.get_string(ids)?;
+    let ids_str = java_str.to_str()?;
+
+    debug!("Setting symptom ids: {:?}", ids_str);
+
+    dependencies()
+        .symptom_inputs_processor
+        .set_symptom_ids(ids_str)
+}
+
+fn set_cough_type(env: &JNIEnv, cough_type: JString) -> Result<(), ServicesError> {
+    let java_str = env.get_string(cough_type)?;
+    let cough_type_str = java_str.to_str()?;
+
+    debug!("Setting cough type: {:?}", cough_type_str);
+
+    dependencies()
+        .symptom_inputs_processor
+        .set_cough_type(cough_type_str)
+}
+
+fn set_cough_status(env: &JNIEnv, cough_status: JString) -> Result<(), ServicesError> {
+    let java_str = env.get_string(cough_status)?;
+    let str = java_str.to_str()?;
+
+    dependencies()
+        .symptom_inputs_processor
+        .set_cough_status(str)
+}
+
+fn set_breathlessness_cause(env: &JNIEnv, cause: JString) -> Result<(), ServicesError> {
+    let java_str = env.get_string(cause)?;
+    let str = java_str.to_str()?;
+
+    dependencies()
+        .symptom_inputs_processor
+        .set_breathlessness_cause(str)
+}
+
+fn set_fever_taken_temperature_spot(env: &JNIEnv, spot: JString) -> Result<(), ServicesError> {
+    let java_str = env.get_string(spot)?;
+    let str = java_str.to_str()?;
+
+    debug!("Setting temperature spot cause: {:?}", str);
+    dependencies()
+        .symptom_inputs_processor
+        .set_fever_taken_temperature_spot(str)
+}
+
+fn to_alerts_result_jobject(
+    status: i32,
+    message: Option<&str>,
+    alerts: jobjectArray,
+    env: &JNIEnv,
+) -> jobject {
+    jni_obj_result(
+        status,
+        message,
+        JObject::from(alerts),
+        "org/coepi/core/jni/JniAlertsArrayResult",
+        "[Lorg/coepi/core/jni/JniAlert;",
+        &env,
+    )
+}
+
+fn alerts_to_jobject_array(
+    alerts: Vec<Alert>,
+    env: &JNIEnv,
+) -> Result<jobjectArray, ServicesError> {
+    let alerts_j_objects_res: Result<Vec<jobject>, ServicesError> = alerts
+        .into_iter()
+        .map(|alert| alert_to_jobject(alert, &env))
+        .collect();
+
+    let alerts_j_objects: Vec<jobject> = alerts_j_objects_res?;
+
+    let placeholder_alert_j_object = alert_to_jobject(placeholder_alert(), &env)?;
+
+    let alerts_array = env.new_object_array(
+        alerts_j_objects.len() as i32,
+        "org/coepi/core/jni/JniAlert",
+        placeholder_alert_j_object,
+    )?;
+
+    for (index, alert_j_object) in alerts_j_objects.into_iter().enumerate() {
+        env.set_object_array_element(alerts_array, index as i32, alert_j_object)?;
+    }
+
+    Ok(alerts_array)
 }
 
 fn init_log(env: &JNIEnv, level_j_string: JString, coepi_only: jboolean, callback: jobject) -> i32 {
-    let callback_wrapper = LogCallbackWrapperImpl {
-        java_vm: env.get_java_vm().unwrap(),
-        callback: env.new_global_ref(callback).unwrap(),
-    };
-    register_callback_internal(Box::new(callback_wrapper));
+    match env.get_java_vm() {
+        Ok(java_vm) => {
+            let callback_wrapper = LogCallbackWrapperImpl {
+                java_vm: env.get_java_vm().unwrap(),
+                callback: env.new_global_ref(callback).unwrap(),
+            };
+            register_callback_internal(Box::new(callback_wrapper));
 
-    let level_java_str = env.get_string(level_j_string).unwrap();
-    let level_str = level_java_str.to_str().unwrap();
-    let filter_level_res = LevelFilter::from_str(&level_str);
-    let filter_level = expect_log!(filter_level_res, "Incorrect log level selected!");
-    let _ = simple_logger::setup_logger(filter_level, coepi_only != 0);
-    log::max_level() as i32
+            let level_java_str = env.get_string(level_j_string).unwrap();
+            let level_str = level_java_str.to_str().unwrap();
+            let filter_level_res = LevelFilter::from_str(&level_str);
+            let filter_level = expect_log!(filter_level_res, "Incorrect log level selected!");
+            let _ = simple_logger::setup_logger(filter_level, coepi_only != 0);
+            log::max_level() as i32
+        }
+        // Note: This will not show on Android, as LogCat doesn't show stdout / stderr.
+        // panic will also not show anything useful, so there doesn't seem to be a point in crashing here.
+        Err(e) => {
+            println!("Couldn't initialize log: {:?}", e);
+            1
+        }
+    }
 }
 
 pub fn jni_void_result(status: i32, message: Option<&str>, env: &JNIEnv) -> jobject {
-    let cls = env.find_class("org/coepi/core/jni/JniVoidResult");
+    let cls_res = env.find_class("org/coepi/core/jni/JniVoidResult");
 
     let status_j_value = JValue::from(status);
 
     let msg = message.unwrap_or("");
-    let msg_j_string = env.new_string(msg).unwrap();
+    let msg_j_string_res = env.new_string(msg);
+
+    // If we can't create a result to send to JNI, we only can crash
+    let msg_j_string = expect_log!(msg_j_string_res, "Couldn't create JNI msg string");
+
     let msg_j_value = JValue::from(msg_j_string);
 
+    // If we can't create a result to send to JNI, we only can crash
+    let cls = expect_log!(cls_res, "Couldn't create JNI result class");
+
     let obj = env.new_object(
-        cls.unwrap(),
+        cls,
         "(ILjava/lang/String;)V",
         &[status_j_value, msg_j_value],
     );
 
-    obj.unwrap().into_inner()
+    let res = obj;
+    // If we can't create a result to send to JNI, we only can crash
+    expect_log!(res, "Couldn't create JNI result object").into_inner()
 }
 
 pub fn jni_obj_result(
@@ -334,14 +424,19 @@ pub fn jni_obj_result(
     inner_class: &str,
     env: &JNIEnv,
 ) -> jobject {
-    let cls = env.find_class(outer_class).unwrap();
+    let cls_res = env.find_class(outer_class);
 
     let status_j_value = JValue::from(status);
 
     let msg = message.unwrap_or("");
 
-    let msg_j_string = env.new_string(msg).unwrap();
+    let msg_j_string_res = env.new_string(msg);
+    // If we can't create a result to send to JNI, we only can crash
+    let msg_j_string = expect_log!(msg_j_string_res, "Couldn't create JNI msg string");
     let msg_j_value = JValue::from(msg_j_string);
+
+    // If we can't create a result to send to JNI, we only can crash
+    let cls = expect_log!(cls_res, "Couldn't create JNI result object");
 
     let obj = env.new_object(
         cls,
@@ -349,7 +444,8 @@ pub fn jni_obj_result(
         &[status_j_value, msg_j_value, JValue::from(obj)],
     );
 
-    obj.unwrap().into_inner()
+    // If we can't create a result to send to JNI, we only can crash
+    expect_log!(obj, "Couldn't create JNI result object").into_inner()
 }
 
 trait LogCallbackWrapper {
@@ -371,11 +467,24 @@ struct LogCallbackWrapperImpl {
 
 impl LogCallbackWrapper for LogCallbackWrapperImpl {
     fn call(&self, level: CoreLogLevel, text: String) {
-        let env = self.java_vm.attach_current_thread().unwrap();
+        match self.java_vm.attach_current_thread() {
+            Ok(env) => self.call(level, text, &env),
+            // The Android LogCat will not show this, but for consistency or testing with non-Android JNI.
+            // Note that if we panic, LogCat will also not show a message, or location.
+            // TODO consider writing to file. Otherwise it's impossible to notice this.
+            Err(e) => println!(
+                "Couldn't get env: Can't send log: level: {}, text: {}",
+                level, text,
+            ),
+        }
+    }
+}
 
+impl LogCallbackWrapperImpl {
+    fn call(&self, level: CoreLogLevel, text: String, env: &JNIEnv) {
         let level_j_value = JValue::from(level as i32);
 
-        let text_j_string_res = env.new_string(text);
+        let text_j_string_res = env.new_string(text.clone());
         let text_j_string = expect_log!(text_j_string_res, "Couldn't create java string!");
 
         let text_j_value = JValue::from(JObject::from(text_j_string));
@@ -386,7 +495,16 @@ impl LogCallbackWrapper for LogCallbackWrapperImpl {
             "(ILjava/lang/String;)V",
             &[level_j_value, text_j_value],
         );
-        expect_log!(res, "Couldn't call callback");
+
+        // The Android LogCat will not show this, but for consistency or testing with non-Android JNI
+        // Note that if we panic, LogCat will also not show a message, or location.
+        // TODO consider writing to file. Otherwise it's impossible to notice this.
+        if let Err(e) = res {
+            println!(
+                "Calling callback failed: error: {:?}, level: {}, text: {}",
+                e, level, text,
+            )
+        }
     }
 }
 
@@ -440,10 +558,8 @@ fn placeholder_alert() -> Alert {
     }
 }
 
-pub fn alert_to_jobject(alert: Alert, env: &JNIEnv) -> jobject {
-    let jni_public_report_class = env
-        .find_class("org/coepi/core/jni/JniPublicReport")
-        .unwrap();
+pub fn alert_to_jobject(alert: Alert, env: &JNIEnv) -> Result<jobject, ServicesError> {
+    let jni_public_report_class = env.find_class("org/coepi/core/jni/JniPublicReport")?;
 
     let report_time_j_value = JValue::from(alert.report.report_time.value as i64);
 
@@ -492,24 +608,73 @@ pub fn alert_to_jobject(alert: Alert, env: &JNIEnv) -> jobject {
             other_j_value,
             no_symptoms_j_value,
         ],
-    );
+    )?;
 
-    let jni_alert_class = env.find_class("org/coepi/core/jni/JniAlert").unwrap();
+    let jni_alert_class = env.find_class("org/coepi/core/jni/JniAlert")?;
 
-    let id_j_string = env.new_string(alert.id).unwrap();
+    let id_j_string = env.new_string(alert.id)?;
     let id_j_value = JValue::from(JObject::from(id_j_string));
 
     let earliest_time_j_value = JValue::from(alert.contact_time as i64);
 
-    env.new_object(
-        jni_alert_class,
-        "(Ljava/lang/String;Lorg/coepi/core/jni/JniPublicReport;J)V",
-        &[
-            id_j_value,
-            JValue::from(jni_public_report_obj.unwrap()),
-            earliest_time_j_value,
-        ],
-    )
-    .unwrap()
-    .into_inner()
+    let result: Result<jobject, jni::errors::Error> = env
+        .new_object(
+            jni_alert_class,
+            "(Ljava/lang/String;Lorg/coepi/core/jni/JniPublicReport;J)V",
+            &[
+                id_j_value,
+                JValue::from(jni_public_report_obj),
+                earliest_time_j_value,
+            ],
+        )
+        .map(|o| o.into_inner());
+
+    result.map_err(ServicesError::from)
+}
+
+trait ResultExt<T, ServicesError> {
+    fn to_void_jni(self, env: &JNIEnv) -> jobject;
+}
+impl<T> ResultExt<T, ServicesError> for Result<T, ServicesError> {
+    fn to_void_jni(self, env: &JNIEnv) -> jobject {
+        match self {
+            Ok(_) => jni_void_result(1, None, &env),
+            Err(error) => {
+                let jni_error = error.to_jni_error();
+                jni_void_result(jni_error.status, Some(jni_error.message.as_ref()), &env)
+            }
+        }
+    }
+}
+
+trait JniErrorMappable {
+    fn to_jni_error(&self) -> JniError;
+}
+
+impl JniErrorMappable for ServicesError {
+    fn to_jni_error(&self) -> JniError {
+        match self {
+            ServicesError::Networking(networking_error) => JniError {
+                status: 2,
+                message: format!("{:?}", networking_error),
+            },
+            ServicesError::Error(error) => JniError {
+                status: 3,
+                message: format!("{:?}", error),
+            },
+            ServicesError::FFIParameters(msg) => JniError {
+                status: 4,
+                message: msg.to_owned(),
+            },
+            ServicesError::General(msg) => JniError {
+                status: 5,
+                message: msg.to_owned(),
+            },
+        }
+    }
+}
+
+struct JniError {
+    status: i32,
+    message: String,
 }
