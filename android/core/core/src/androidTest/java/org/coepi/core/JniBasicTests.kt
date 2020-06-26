@@ -1,4 +1,4 @@
-package org.coepi.api
+package org.coepi.core
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import kotlinx.coroutines.ExperimentalCoroutinesApi
