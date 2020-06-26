@@ -1,4 +1,4 @@
-package org.coepi.api
+package org.coepi.core
 
 import android.content.Context
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -6,6 +6,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.coepi.core.jni.JniApi
 import org.coepi.core.jni.JniLogCallback
 import org.coepi.core.jni.JniVoidResult
+import org.coepi.core.services.CoreLogger
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
@@ -47,7 +48,11 @@ class JNIInterfaceBootstrappedTests {
 
         val n = JniApi()
         val result = n.bootstrapCore(dbPath, "debug", true,
-            JniLogCallback()
+            JniLogCallback(object : CoreLogger {
+                override fun log(level: Int, message: String) {
+                    println("[CORE] level: $level, message: $message")
+                }
+            })
         )
         // Double check
         assertEquals(JniVoidResult(1, ""), result)
