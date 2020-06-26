@@ -256,7 +256,6 @@ fn bootstrap_core(
 
 fn fetch_new_reports(env: &JNIEnv) -> Result<jobjectArray, ServicesError> {
     info!("Updating reports");
-    // TODO error handling https://github.com/Co-Epi/app-backend-rust/issues/79
     let result = dependencies().reports_updater.fetch_new_reports()?;
     info!("New reports: {:?}", result);
 
