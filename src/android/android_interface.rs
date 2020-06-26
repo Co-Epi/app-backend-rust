@@ -365,11 +365,11 @@ fn alerts_to_jobject_array(
 }
 
 fn init_log(env: &JNIEnv, level_j_string: JString, coepi_only: jboolean, callback: jobject) -> i32 {
-    match env.get_java_vm() {
-        Ok(java_vm) => {
+    match (env.get_java_vm(), env.new_global_ref(callback)) {
+        (Ok(java_vm), Ok(callback_global_ref)) => {
             let callback_wrapper = LogCallbackWrapperImpl {
-                java_vm: env.get_java_vm().unwrap(),
-                callback: env.new_global_ref(callback).unwrap(),
+                java_vm,
+                callback: callback_global_ref,
             };
             register_callback_internal(Box::new(callback_wrapper));
 
@@ -380,11 +380,23 @@ fn init_log(env: &JNIEnv, level_j_string: JString, coepi_only: jboolean, callbac
             let _ = simple_logger::setup_logger(filter_level, coepi_only != 0);
             log::max_level() as i32
         }
-        // Note: This will not show on Android, as LogCat doesn't show stdout / stderr.
+
+        // Note: These println will not show on Android, as LogCat doesn't show stdout / stderr.
         // panic will also not show anything useful, so there doesn't seem to be a point in crashing here.
-        Err(e) => {
-            println!("Couldn't initialize log: {:?}", e);
-            1
+        (Ok(_), Err(e)) => {
+            println!("Couldn't initialize JNI env: {:?}", e);
+            -1
+        }
+        (Err(e), Ok(_)) => {
+            println!("Couldn't initialize vm: {:?}", e);
+            -1
+        }
+        (Err(vm_e), Err(env_e)) => {
+            println!(
+                "Couldn't initialize JNI env: {:?} and vm: {:?}",
+                vm_e, env_e
+            );
+            -1
         }
     }
 }
