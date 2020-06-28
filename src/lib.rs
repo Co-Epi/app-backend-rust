@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate serde_big_array;
 use errors::Error;
+use log::*;
 use once_cell::sync::OnceCell;
 use persy::{Config, Persy, ValueMode};
 use std::path::Path;
@@ -23,15 +24,36 @@ mod android;
 pub type Res<T> = Result<T, Error>;
 
 const CENS_BY_TS: &str = "cens by ts";
+const SEGMENT_TCN: &str = "tcn";
 
 pub fn init_persy<P: AsRef<Path>>(p: P) -> Res<()> {
-    let db = Persy::open_or_create_with(p, Config::new(), |db| {
+    let db = Persy::open_or_create_with(p, Config::new(), 
+    |db|{
         let mut tx = db.begin()?;
         tx.create_segment("tcn")?;
         tx.create_index::<i64, u128>(CENS_BY_TS, ValueMode::CLUSTER)?;
         tx.prepare_commit()?.commit()?;
+        debug!("Persy: Segment and Index successfully created");
         Ok(())
     })?;
+
+    if !db.exists_segment(SEGMENT_TCN)? {
+        let mut tx = db.begin()?;
+        tx.create_segment(SEGMENT_TCN)?;
+        tx.prepare_commit()?.commit()?;
+        debug!("Persy: Segment successfully created");
+        // Ok(())
+    }
+
+    if !db.exists_index(CENS_BY_TS)? {
+        let mut tx = db.begin()?;
+        tx.create_index::<i64, u128>(CENS_BY_TS, ValueMode::CLUSTER)?;
+        tx.prepare_commit()?.commit()?;
+        debug!("Persy: Index successfully created");
+        // Ok(())
+    }
+
+    println!("Persy init");
     DB.set(db).map_err(|_| DB_ALREADY_INIT)?;
     Ok(())
 }
