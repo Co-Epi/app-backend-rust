@@ -3,14 +3,11 @@ package org.coepi.core
 import android.content.Context
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import org.coepi.core.jni.JniApi
 import org.coepi.core.jni.JniAlert
 import org.coepi.core.jni.JniAlertsArrayResult
-import org.coepi.core.jni.JniLogCallback
+import org.coepi.core.jni.JniApi
 import org.coepi.core.jni.JniOneAlertResult
 import org.coepi.core.jni.JniPublicReport
-import org.coepi.core.jni.JniVoidResult
-import org.coepi.core.services.CoreLogger
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
