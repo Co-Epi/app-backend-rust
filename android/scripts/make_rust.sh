@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # Run from repo's root folder (relative to Gradle build file. TODO do this in Gradle)
-# cd ../..
 
 if [ -d "android/core/gradle" ]; then
     echo "Starting..."
@@ -26,7 +25,7 @@ else
     if [ -d "$PATH_TO_ANDROID_REPO" ]; then
         echo "Will copy files to ${PATH_TO_ANDROID_REPO}..."
     else
-        echo "Error: ${PATH_TO_ANDROID_REPO} not found. Make sure that you have checked out the iOS project and that the path specified in PATH_TO_ANDROID_REPO environment variable is correct"
+        echo "Error: ${PATH_TO_ANDROID_REPO} not found. Make sure that you have checked out the corresponding Android project and that the path specified in PATH_TO_ANDROID_REPO environment variable is correct"
         exit 7
     fi
 fi
@@ -51,7 +50,6 @@ cd ../.. || exit 2
 
 # Linking ###########################################################
 
-#PATH_TO_ANDROID_LIBRARY="./android/core"
 PATH_TO_ANDROID_MAIN=$root/android/core/core/src/main
 
 echo "PATH_TO_ANDROID_MAIN is $PATH_TO_ANDROID_MAIN"
