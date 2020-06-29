@@ -44,14 +44,14 @@ fun toFeverSeverity(int: Int): FeverSeverity = when (int) {
 fun CoughSeverity.toInt(): Int = when (this) {
     CoughSeverity.NONE -> 0
     CoughSeverity.EXISTING -> 1
-    CoughSeverity.DRY -> 2
-    CoughSeverity.WET -> 3
+    CoughSeverity.WET -> 2
+    CoughSeverity.DRY -> 3
 }
 
 fun toCoughSeverity(int: Int): CoughSeverity = when (int) {
     0 -> CoughSeverity.NONE
     1 -> CoughSeverity.EXISTING
-    2 -> CoughSeverity.DRY
-    3 -> CoughSeverity.WET
+    2 -> CoughSeverity.WET
+    3 -> CoughSeverity.DRY
     else -> error("Invalid value: $int")
 }
