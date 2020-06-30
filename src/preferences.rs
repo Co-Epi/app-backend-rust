@@ -96,9 +96,9 @@ impl PreferencesDao {
     fn create_table_if_not_exists(db: &Arc<Database>) {
         let res = db.execute_sql(
             "create table if not exists preferences(
-                    key text primary key,
-                    value text not null
-                )",
+                key text primary key,
+                value text not null
+            )",
             params![],
         );
         expect_log!(res, "Couldn't create preferences table");
@@ -120,6 +120,25 @@ impl Database {
         let res = self.conn.lock();
         let conn = expect_log!(res, "Couldn't lock mutex");
         conn.execute(sql, pars)
+    }
+
+    pub fn query<T, P, F>(&self, sql: &str, params: P, f: F) -> Result<Vec<T>, rusqlite::Error>
+    where
+        P: IntoIterator,
+        P::Item: ToSql,
+        F: Fn(&Row<'_>) -> T,
+    {
+        let res = self.conn.lock();
+        let conn = expect_log!(res, "Couldn't lock mutex");
+
+        let mut statement = conn.prepare(sql)?;
+        let mut rows = statement.query(params)?;
+
+        let mut objs = Vec::new();
+        while let Some(row) = rows.next().unwrap() {
+            objs.push(f(row));
+        }
+        Ok(objs)
     }
 
     pub fn query_row<T, P, F>(&self, sql: &str, params: P, f: F) -> Result<T, rusqlite::Error>
