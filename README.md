@@ -1,7 +1,7 @@
 # app-backend-rust
 
 ![Rust](https://github.com/Co-Epi/app-backend-rust/workflows/Rust/badge.svg)
-![Android CI](https://github.com/Co-Epi/app-backend-rust/workflows/Android%20CI/badge.svg)
+![Android](https://github.com/Co-Epi/app-backend-rust/workflows/Android/badge.svg)
 
 iOS/Android shared Rust library
 
