@@ -1,9 +1,6 @@
 #[macro_use]
 extern crate serde_big_array;
 use errors::Error;
-use once_cell::sync::OnceCell;
-use persy::{Config, Persy, ValueMode};
-use std::path::Path;
 mod composition_root;
 mod errors;
 mod networking;
@@ -21,26 +18,6 @@ mod ios;
 mod android;
 
 pub type Res<T> = Result<T, Error>;
-
-const CENS_BY_TS: &str = "cens by ts";
-
-pub fn init_persy<P: AsRef<Path>>(p: P) -> Res<()> {
-    let db = Persy::open_or_create_with(p, Config::new(), |db| {
-        let mut tx = db.begin()?;
-        tx.create_segment("tcn")?;
-        tx.create_index::<i64, u128>(CENS_BY_TS, ValueMode::CLUSTER)?;
-        tx.prepare_commit()?.commit()?;
-        Ok(())
-    })?;
-    DB.set(db).map_err(|_| DB_ALREADY_INIT)?;
-    Ok(())
-}
-
-const DB_ALREADY_INIT: &str = "DB failed to initalize";
-pub const DB_UNINIT: &str = "DB not initialized";
-
-// TODO since we're using DI put this in a dependency, to be consistent
-pub static DB: OnceCell<Persy> = OnceCell::new();
 
 // TODO refactor these (byte_vec_to) convertions or better way?
 
