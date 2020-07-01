@@ -58,11 +58,12 @@ data class SymptomInputs(
     ) : Parcelable, Serializable {
         data class Days(val value: Int) : Serializable
 
+        // Leaving as sealed class in case we re-add text input to "other" in the future.
         sealed class TemperatureSpot : Serializable {
             object Mouth : TemperatureSpot()
             object Ear : TemperatureSpot()
             object Armpit : TemperatureSpot()
-            data class Other(val description: String) : TemperatureSpot()
+            object Other : TemperatureSpot()
         }
     }
 
