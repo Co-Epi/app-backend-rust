@@ -90,10 +90,18 @@ lib_file=libcoepi_core.so
 if [[ $* == *--release* ]]; then
     # release
     build_type=release
-    cp $root/target/aarch64-linux-android/release/libcoepi_core.so $PATH_TO_ANDROID_MAIN/jniLibs/arm64-v8a/libcoepi_core.so
-    #cp $root/target/x86_64-linux-android/release/libcoepi_core.so $PATH_TO_ANDROID_MAIN/jniLibs/x86_64/libcoepi_core.so
-    #cp $root/target/armv7-linux-androideabi/release/libcoepi_core.so $PATH_TO_ANDROID_MAIN/jniLibs/armeabi/libcoepi_core.so
-    #cp $root/target/i686-linux-android/release/libcoepi_core.so $PATH_TO_ANDROID_MAIN/jniLibs/x86/libcoepi_core.so
+    echo "cp $root/target/aarch64-linux-android/release/libcoepi_core.so $PATH_TO_ANDROID_MAIN/jniLibs/arm64-v8a/libcoepi_core.so"
+    echo "cp $root/target/x86_64-linux-android/release/libcoepi_core.so $PATH_TO_ANDROID_MAIN/jniLibs/x86_64/libcoepi_core.so"
+    echo "cp $root/target/armv7-linux-androideabi/release/libcoepi_core.so $PATH_TO_ANDROID_MAIN/jniLibs/armeabi/libcoepi_core.so"
+    echo "cp $root/target/i686-linux-android/release/libcoepi_core.so $PATH_TO_ANDROID_MAIN/jniLibs/x86/libcoepi_core.so"
+
+    for i in {0..3}
+    do
+        echo "cp $root/target/${target_triples[i]}/release/$lib_file $PATH_TO_ANDROID_MAIN/jniLibs/${architectures[i]}/$lib_file"
+    done
+
+    exit 0
+
 else
     # debug
     echo "Copying .so files to $PATH_TO_ANDROID_MAIN/jniLibs..."
@@ -109,13 +117,20 @@ else
     echo "cp $root/target/i686-linux-android/debug/libcoepi_core.so $PATH_TO_ANDROID_MAIN/jniLibs/x86/libcoepi_core.so"
     echo "cp $root/target/${target_triples[3]}/$build_type/$lib_file $PATH_TO_ANDROID_MAIN/jniLibs/${architectures[3]}/$lib_file"
 
-    exit 0
+    echo "xxxxx"
 
     echo "Copying .so files to  $PATH_TO_ANDROID_REPO/app/src/main/jniLibs..."
-    cp $root/target/aarch64-linux-android/debug/libcoepi_core.so $PATH_TO_ANDROID_REPO/app/src/main/jniLibs/arm64-v8a/libcoepi_core.so
+    echo "cp $root/target/aarch64-linux-android/debug/libcoepi_core.so $PATH_TO_ANDROID_REPO/app/src/main/jniLibs/arm64-v8a/libcoepi_core.so"
     #cp $root/target/x86_64-linux-android/debug/libcoepi_core.so $PATH_TO_ANDROID_REPO/app/src/main/jniLibs/x86_64/libcoepi_core.so
     #cp $root/target/armv7-linux-androideabi/debug/libcoepi_core.so $PATH_TO_ANDROID_REPO/app/src/main/jniLibs/armeabi/libcoepi_core.so
     #cp $root/target/i686-linux-android/debug/libcoepi_core.so $PATH_TO_ANDROID_REPO/app/src/main/jniLibs/x86/libcoepi_core.so
+
+    for i in {0..3}
+    do
+        echo "cp $root/target/${target_triples[i]}/$build_type/$lib_file $PATH_TO_ANDROID_REPO/app/src/main/jniLibs/${architectures[i]}/$lib_file"
+    done
+
+    exit 0
 fi
 
 echo "Done"
