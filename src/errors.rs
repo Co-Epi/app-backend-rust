@@ -59,15 +59,6 @@ impl From<serde_json::Error> for ServicesError {
     }
 }
 
-impl From<persy::PersyError> for ServicesError {
-    fn from(error: persy::PersyError) -> Self {
-        ServicesError::Error(Box::new(StdError::new(
-            ErrorKind::Other,
-            format!("{}", error),
-        )))
-    }
-}
-
 impl From<hex::FromHexError> for ServicesError {
     fn from(error: hex::FromHexError) -> Self {
         ServicesError::Error(Box::new(StdError::new(

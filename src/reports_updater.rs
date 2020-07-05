@@ -1,18 +1,20 @@
 use crate::{
-    byte_vec_to_16_byte_array, byte_vec_to_24_byte_array, byte_vec_to_8_byte_array,
+    byte_vec_to_16_byte_array,
     errors::{Error, ServicesError},
+    expect_log,
     networking::{NetworkingError, TcnApi},
-    preferences::Preferences,
+    preferences::{Database, Preferences},
     reporting::{
         memo::{Memo, MemoMapper},
         public_report::PublicReport,
     },
-    reports_interval, DB, DB_UNINIT,
+    reports_interval,
 };
 use chrono::Utc;
 use log::*;
 use rayon::prelude::*;
 use reports_interval::{ReportsInterval, UnixTime};
+use rusqlite::{params, Row, NO_PARAMS};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::{io::Cursor, sync::Arc, time::Instant};
@@ -100,38 +102,18 @@ pub struct ObservedTcn {
     time: UnixTime,
 }
 
-impl ObservedTcn {
-    fn as_bytes(&self) -> [u8; 24] {
-        let tcn_bytes: [u8; 16] = self.tcn.0;
-        let time_bytes: [u8; 8] = self.time.value.as_bytes();
-        let total_bytes = [&tcn_bytes[..], &time_bytes[..]].concat();
-        byte_vec_to_24_byte_array(total_bytes)
-    }
-
-    fn from_bytes(bytes: [u8; 24]) -> ObservedTcn {
-        let tcn_bytes: [u8; 16] = byte_vec_to_16_byte_array(bytes[0..16].to_vec());
-        let time_bytes: [u8; 8] = byte_vec_to_8_byte_array(bytes[16..24].to_vec());
-        let time = u64::from_le_bytes(time_bytes);
-
-        ObservedTcn {
-            tcn: TemporaryContactNumber(tcn_bytes),
-            time: UnixTime { value: time },
-        }
-    }
-}
-
 pub trait ObservedTcnProcessor {
     fn save(&self, tcn_str: &str) -> Result<(), ServicesError>;
 }
 
-pub struct ObservedTcnProcessorImpl<'a, T>
+pub struct ObservedTcnProcessorImpl<T>
 where
     T: TcnDao,
 {
-    pub tcn_dao: &'a T,
+    pub tcn_dao: Arc<T>,
 }
 
-impl<'a, T> ObservedTcnProcessor for ObservedTcnProcessorImpl<'a, T>
+impl<T> ObservedTcnProcessor for ObservedTcnProcessorImpl<T>
 where
     T: TcnDao,
 {
@@ -145,42 +127,74 @@ where
                 value: Utc::now().timestamp() as u64,
             },
         };
-        self.tcn_dao.save(observed_tcn)
+
+        self.tcn_dao.save(&observed_tcn)
     }
 }
 
 pub trait TcnDao {
     fn all(&self) -> Result<Vec<ObservedTcn>, ServicesError>;
-    fn save(&self, observed_tcn: ObservedTcn) -> Result<(), ServicesError>;
+    fn save(&self, observed_tcn: &ObservedTcn) -> Result<(), ServicesError>;
 }
 
-pub struct TcnDaoImpl {}
-impl TcnDao for TcnDaoImpl {
-    fn all(&self) -> Result<Vec<ObservedTcn>, ServicesError> {
-        let mut out: Vec<ObservedTcn> = Vec::new();
+pub struct TcnDaoImpl {
+    db: Arc<Database>,
+}
 
-        let items = DB
-            .get()
-            .ok_or(DB_UNINIT)
-            .map_err(Error::from)?
-            .scan("tcn")
-            .map_err(Error::from)?;
-
-        for (_id, content) in items {
-            let byte_array: [u8; 24] = byte_vec_to_24_byte_array(content);
-            out.push(ObservedTcn::from_bytes(byte_array));
-        }
-
-        Ok(out)
+impl TcnDaoImpl {
+    fn create_table_if_not_exists(db: &Arc<Database>) {
+        // TODO use blob for tcn? https://docs.rs/rusqlite/0.23.1/rusqlite/blob/index.html
+        // TODO ideally FFI should send byte arrays too
+        let res = db.execute_sql(
+            "create table if not exists tcn(
+                tcn text not null,
+                contact_time integer not null
+            )",
+            params![],
+        );
+        expect_log!(res, "Couldn't create tcn table");
     }
 
-    fn save(&self, observed_tcn: ObservedTcn) -> Result<(), ServicesError> {
-        let db = DB.get().ok_or(DB_UNINIT)?;
-        let mut tx = db.begin()?;
+    fn to_tcn(row: &Row) -> ObservedTcn {
+        let tcn: Result<String, _> = row.get(0);
+        let contact_time = row.get(1);
+        let tcn_value = expect_log!(tcn, "Invalid row: no TCN");
+        let tcn_value_bytes_vec_res = hex::decode(tcn_value);
+        let tcn_value_bytes_vec = expect_log!(tcn_value_bytes_vec_res, "Invalid stored TCN format");
+        let tcn_value_bytes = byte_vec_to_16_byte_array(tcn_value_bytes_vec);
+        let contact_time_value: i64 = expect_log!(contact_time, "Invalid row: no contact time");
+        ObservedTcn {
+            tcn: TemporaryContactNumber(tcn_value_bytes),
+            time: UnixTime {
+                value: contact_time_value as u64,
+            },
+        }
+    }
 
-        tx.insert_record("tcn", &observed_tcn.as_bytes())?;
-        // tx.put(CENS_BY_TS, ts, u128_of_tcn(tcn))?;
-        tx.prepare_commit()?.commit()?;
+    pub fn new(db: Arc<Database>) -> TcnDaoImpl {
+        Self::create_table_if_not_exists(&db);
+        TcnDaoImpl { db }
+    }
+}
+
+impl TcnDao for TcnDaoImpl {
+    fn all(&self) -> Result<Vec<ObservedTcn>, ServicesError> {
+        self.db
+            .query("select tcn, contact_time from tcn", NO_PARAMS, |row| {
+                Self::to_tcn(row)
+            })
+            .map_err(ServicesError::from)
+    }
+
+    fn save(&self, observed_tcn: &ObservedTcn) -> Result<(), ServicesError> {
+        let tcn_str = hex::encode(observed_tcn.tcn.0);
+
+        let res = self.db.execute_sql(
+            "insert or replace into tcn(tcn, contact_time) values(?1, ?2)",
+            // conversion to signed timestamp is safe, for obvious reasons.
+            params![tcn_str, observed_tcn.time.value as i64],
+        );
+        expect_log!(res, "Couldn't insert tcn");
         Ok(())
     }
 }
@@ -211,7 +225,7 @@ pub struct Alert {
 
 pub struct ReportsUpdater<'a, T: Preferences, U: TcnDao, V: TcnMatcher, W: TcnApi, X: MemoMapper> {
     pub preferences: Arc<T>,
-    pub tcn_dao: &'a U,
+    pub tcn_dao: Arc<U>,
     pub tcn_matcher: V,
     pub api: &'a W,
     pub memo_mapper: &'a X,
@@ -478,6 +492,7 @@ mod tests {
             symptom_inputs::UserInput,
         },
     };
+    use rusqlite::Connection;
     use tcn::{MemoType, ReportAuthorizationKey};
 
     #[test]
@@ -559,19 +574,108 @@ mod tests {
     }
 
     #[test]
-    fn tcn_saved_and_restored_from_bytes() {
-        let mut tcn_bytes: [u8; 16] = [0; 16];
-        tcn_bytes[1] = 1;
-        tcn_bytes[12] = 5;
-        tcn_bytes[15] = 250;
-        let time = UnixTime { value: 1590528300 };
+    #[ignore]
+    fn saves_and_loads_observed_tcn() {
+        let database = Arc::new(Database::new(
+            Connection::open_in_memory().expect("Couldn't create database!"),
+        ));
+        let tcn_dao = TcnDaoImpl::new(database.clone());
+
         let observed_tcn = ObservedTcn {
-            tcn: TemporaryContactNumber(tcn_bytes),
-            time,
+            tcn: TemporaryContactNumber([
+                24, 229, 125, 245, 98, 86, 219, 221, 172, 25, 232, 150, 206, 66, 164, 173,
+            ]),
+            time: UnixTime { value: 1590528300 },
         };
-        let observed_tcn_as_bytes = observed_tcn.as_bytes();
-        let observed_tc_from_bytes = ObservedTcn::from_bytes(observed_tcn_as_bytes);
-        assert_eq!(observed_tc_from_bytes, observed_tcn);
+
+        let save_res = tcn_dao.save(&observed_tcn);
+        assert!(save_res.is_ok());
+
+        let loaded_tcns_res = tcn_dao.all();
+        assert!(loaded_tcns_res.is_ok());
+
+        let loaded_tcns = loaded_tcns_res.unwrap();
+
+        assert_eq!(loaded_tcns.len(), 1);
+        assert_eq!(loaded_tcns[0], observed_tcn);
+    }
+
+    #[test]
+    #[ignore]
+    fn saves_and_loads_multiple_tcns() {
+        let database = Arc::new(Database::new(
+            Connection::open_in_memory().expect("Couldn't create database!"),
+        ));
+        let tcn_dao = TcnDaoImpl::new(database.clone());
+
+        let observed_tcn_1 = ObservedTcn {
+            tcn: TemporaryContactNumber([
+                24, 229, 125, 245, 98, 86, 219, 221, 172, 25, 232, 150, 206, 66, 164, 173,
+            ]),
+            time: UnixTime { value: 1590528300 },
+        };
+        let observed_tcn_2 = ObservedTcn {
+            tcn: TemporaryContactNumber([
+                43, 229, 125, 245, 98, 86, 100, 1, 172, 25, 0, 150, 123, 66, 34, 12,
+            ]),
+            time: UnixTime { value: 1590518190 },
+        };
+        let observed_tcn_3 = ObservedTcn {
+            tcn: TemporaryContactNumber([
+                11, 246, 125, 123, 102, 86, 100, 1, 34, 25, 21, 150, 99, 66, 34, 0,
+            ]),
+            time: UnixTime { value: 2230522104 },
+        };
+
+        let save_res_1 = tcn_dao.save(&observed_tcn_1);
+        let save_res_2 = tcn_dao.save(&observed_tcn_2);
+        let save_res_3 = tcn_dao.save(&observed_tcn_3);
+        assert!(save_res_1.is_ok());
+        assert!(save_res_2.is_ok());
+        assert!(save_res_3.is_ok());
+
+        let loaded_tcns_res = tcn_dao.all();
+        assert!(loaded_tcns_res.is_ok());
+
+        let loaded_tcns = loaded_tcns_res.unwrap();
+
+        assert_eq!(loaded_tcns.len(), 3);
+        assert_eq!(loaded_tcns[0], observed_tcn_1);
+        assert_eq!(loaded_tcns[1], observed_tcn_2);
+        assert_eq!(loaded_tcns[2], observed_tcn_3);
+    }
+
+    #[test]
+    #[ignore]
+    // Currently there's no unique, as for current use case it doesn't seem necessary/critical and
+    // it affects negatively performance.
+    // TODO revisit
+    fn saves_and_loads_repeated_tcns() {
+        let database = Arc::new(Database::new(
+            Connection::open_in_memory().expect("Couldn't create database!"),
+        ));
+        let tcn_dao = TcnDaoImpl::new(database.clone());
+
+        let observed_tcn_1 = ObservedTcn {
+            tcn: TemporaryContactNumber([
+                24, 229, 125, 245, 98, 86, 219, 221, 172, 25, 232, 150, 206, 66, 164, 173,
+            ]),
+            time: UnixTime { value: 1590528300 },
+        };
+
+        let save_res_1 = tcn_dao.save(&observed_tcn_1);
+        let save_res_2 = tcn_dao.save(&observed_tcn_1);
+        assert!(save_res_1.is_ok());
+        assert!(save_res_2.is_ok());
+
+        let loaded_tcns_res = tcn_dao.all();
+        assert!(loaded_tcns_res.is_ok());
+
+        let loaded_tcns = loaded_tcns_res.unwrap();
+
+        assert_eq!(loaded_tcns.len(), 2);
+        assert_eq!(loaded_tcns[0], observed_tcn_1);
+        assert_eq!(loaded_tcns[1], observed_tcn_1);
     }
 
     // Utility to see quickly all TCNs (hex) for a report
