@@ -30,40 +30,33 @@ else
     fi
 fi
 
-# cd android/core || exit 1
+# Order of target_triples has to match the order of arhitectures:
+# aarch64-linux-android --> arm64-v8a
+# armv7-linux-androideabi --> armeabi
+# x86_64-linux-android --> x86_64
+# i686-linux-android --> x86
 
-platform="--platform 29"
 target_triples=(aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android)
 architectures=(arm64-v8a armeabi x86_64 x86)
-echo ${target_triples[*]}
-echo ${target_triples[0]} ${architectures[0]}
-echo ${target_triples[3]} ${architectures[3]}
 
+if [ ${#target_triples[@]} != ${#architectures[@]} ]; then
+    echo "Number of target_triples has to match number of architectures!"
+    exit 17
+fi
+
+platform="--platform 29"
 release=""
+build_type=debug
 
 if [[ $* == *--release* ]]; then
     # release builds
     release="--release"
-    #cargo ndk $platform --target x86_64-linux-android build --release
-    #cargo ndk --platform 29 --target aarch64-linux-android build --release
-    #cargo ndk --platform 29 --target armv7-linux-androideabi build --release
-    #cargo ndk --platform 29 --target i686-linux-android build --release
-# else
-    # debug builds
-    #cargo ndk $platform --target x86_64-linux-android build
-    #cargo ndk --platform 29 --target aarch64-linux-android build
-    #cargo ndk --platform 29 --target armv7-linux-androideabi build
-    #cargo ndk --platform 29 --target i686-linux-android build
+    build_type=release
 fi
 
-for target_triple in ${target_triples[@]}
-do
-echo "cargo ndk $platform --target $target_triple build $release"
+for target_triple in ${target_triples[@]}; do
+    cargo ndk $platform --target $target_triple build $release
 done
-
-
-
-# cd ../.. || exit 2
 
 # Linking ###########################################################
 
@@ -71,66 +64,28 @@ PATH_TO_ANDROID_MAIN=$root/android/core/core/src/main
 
 echo "PATH_TO_ANDROID_MAIN is $PATH_TO_ANDROID_MAIN"
 
-#rm -fr $PATH_TO_ANDROID_MAIN/jniLibs
-#mkdir $PATH_TO_ANDROID_MAIN/jniLibs
-for arch in ${architectures[@]}
-do
-echo "mkdir $PATH_TO_ANDROID_MAIN/jniLibs/$arch"
+rm -fr $PATH_TO_ANDROID_MAIN/jniLibs
+mkdir $PATH_TO_ANDROID_MAIN/jniLibs
+for arch in ${architectures[@]}; do
+    mkdir $PATH_TO_ANDROID_MAIN/jniLibs/$arch
 done
 
-
-#mkdir $PATH_TO_ANDROID_MAIN/jniLibs/arm64-v8a
-#mkdir $PATH_TO_ANDROID_MAIN/jniLibs/armeabi
-#mkdir $PATH_TO_ANDROID_MAIN/jniLibs/x86_64
-#mkdir $PATH_TO_ANDROID_MAIN/jniLibs/x86
-
-build_type=debug
 lib_file=libcoepi_core.so
 
-if [[ $* == *--release* ]]; then
-    # release
-    build_type=release
-    echo "cp $root/target/aarch64-linux-android/release/libcoepi_core.so $PATH_TO_ANDROID_MAIN/jniLibs/arm64-v8a/libcoepi_core.so"
-    echo "cp $root/target/x86_64-linux-android/release/libcoepi_core.so $PATH_TO_ANDROID_MAIN/jniLibs/x86_64/libcoepi_core.so"
-    echo "cp $root/target/armv7-linux-androideabi/release/libcoepi_core.so $PATH_TO_ANDROID_MAIN/jniLibs/armeabi/libcoepi_core.so"
-    echo "cp $root/target/i686-linux-android/release/libcoepi_core.so $PATH_TO_ANDROID_MAIN/jniLibs/x86/libcoepi_core.so"
+echo "Copying .so files to $PATH_TO_ANDROID_MAIN/jniLibs..."
 
-    for i in {0..3}
-    do
-        echo "cp $root/target/${target_triples[i]}/release/$lib_file $PATH_TO_ANDROID_MAIN/jniLibs/${architectures[i]}/$lib_file"
-    done
+cnt=${#target_triples[@]}
+limit=$(($cnt - 1))
 
-    exit 0
+i=0
+while [ "$i" -le "$limit" ]; do
+    cp $root/target/${target_triples[i]}/$build_type/$lib_file $PATH_TO_ANDROID_MAIN/jniLibs/${architectures[i]}/$lib_file
 
-else
-    # debug
-    echo "Copying .so files to $PATH_TO_ANDROID_MAIN/jniLibs..."
-    echo "cp $root/target/aarch64-linux-android/debug/libcoepi_core.so $PATH_TO_ANDROID_MAIN/jniLibs/arm64-v8a/libcoepi_core.so"
-    echo "cp $root/target/${target_triples[0]}/$build_type/$lib_file $PATH_TO_ANDROID_MAIN/jniLibs/${architectures[0]}/$lib_file"
-    
-    echo "cp $root/target/armv7-linux-androideabi/debug/libcoepi_core.so $PATH_TO_ANDROID_MAIN/jniLibs/armeabi/libcoepi_core.so"
-    echo "cp $root/target/${target_triples[1]}/$build_type/$lib_file $PATH_TO_ANDROID_MAIN/jniLibs/${architectures[1]}/$lib_file"
-    
-    echo "cp $root/target/x86_64-linux-android/debug/libcoepi_core.so $PATH_TO_ANDROID_MAIN/jniLibs/x86_64/libcoepi_core.so"
-    echo "cp $root/target/${target_triples[2]}/$build_type/$lib_file $PATH_TO_ANDROID_MAIN/jniLibs/${architectures[2]}/$lib_file"
-    
-    echo "cp $root/target/i686-linux-android/debug/libcoepi_core.so $PATH_TO_ANDROID_MAIN/jniLibs/x86/libcoepi_core.so"
-    echo "cp $root/target/${target_triples[3]}/$build_type/$lib_file $PATH_TO_ANDROID_MAIN/jniLibs/${architectures[3]}/$lib_file"
-
-    echo "xxxxx"
-
-    echo "Copying .so files to  $PATH_TO_ANDROID_REPO/app/src/main/jniLibs..."
-    echo "cp $root/target/aarch64-linux-android/debug/libcoepi_core.so $PATH_TO_ANDROID_REPO/app/src/main/jniLibs/arm64-v8a/libcoepi_core.so"
-    #cp $root/target/x86_64-linux-android/debug/libcoepi_core.so $PATH_TO_ANDROID_REPO/app/src/main/jniLibs/x86_64/libcoepi_core.so
-    #cp $root/target/armv7-linux-androideabi/debug/libcoepi_core.so $PATH_TO_ANDROID_REPO/app/src/main/jniLibs/armeabi/libcoepi_core.so
-    #cp $root/target/i686-linux-android/debug/libcoepi_core.so $PATH_TO_ANDROID_REPO/app/src/main/jniLibs/x86/libcoepi_core.so
-
-    for i in {0..3}
-    do
-        echo "cp $root/target/${target_triples[i]}/$build_type/$lib_file $PATH_TO_ANDROID_REPO/app/src/main/jniLibs/${architectures[i]}/$lib_file"
-    done
-
-    exit 0
-fi
+    if [ $build_type = debug ]; then
+        echo "Copying $build_type/$lib_file to  $PATH_TO_ANDROID_REPO/app/src/main/jniLibs/${architectures[i]}/"
+        cp $root/target/${target_triples[i]}/$build_type/$lib_file $PATH_TO_ANDROID_REPO/app/src/main/jniLibs/${architectures[i]}/$lib_file
+    fi
+    i=$(($i + 1))
+done
 
 echo "Done"
