@@ -33,8 +33,6 @@ jobs:
         with:
           api-level: 29
           script: cd android/core; ./gradlew connectedAndroidTest --stacktrace
-        env: 
-          ANDROID_NDK_HOME: ${ANDROID_NDK}
       - name: Instrumented tests results
         uses: actions/upload-artifact@v2
         with:
@@ -64,8 +62,6 @@ jobs:
         run: rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
       - name: Unit tests
         run: ./gradlew test --stacktrace
-        env: 
-          ANDROID_NDK_HOME: ${ANDROID_NDK}
       - name: Unit tests results
         uses: actions/upload-artifact@v2
         with:
