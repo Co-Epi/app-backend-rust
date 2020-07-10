@@ -29,12 +29,11 @@ default-features = false # do not include the default features, and optionally
 version = "0.10.2"
 features = ["blocking", "json", "rustls-tls"]
 
-
 [target.'cfg(any(target_os="ios", target_os="macos"))'.dependencies]
 libc = "0.2"
 core-foundation = "0.6.2"
 
-[target.'cfg(target_os="android")'.dependencies]
+[target.'cfg(any(target_os="android", target_os="macos"))'.dependencies]
 jni = { version = "0.16", default-features = false }
 
 [dependencies.tcn]

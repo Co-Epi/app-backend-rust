@@ -6,8 +6,9 @@ use super::{
     },
     public_report::PublicReport,
 };
+#[cfg(any(target_os = "android", target_os = "macos"))]
 use crate::expect_log;
-#[cfg(target_os = "android")]
+#[cfg(any(target_os = "android", target_os = "macos"))]
 use log::error;
 use std::convert::TryInto;
 

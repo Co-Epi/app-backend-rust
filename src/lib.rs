@@ -14,7 +14,7 @@ mod tcn_ext;
 #[cfg(any(target_os = "ios", target_os = "macos"))]
 mod ios;
 
-#[cfg(target_os = "android")]
+#[cfg(any(target_os = "android", target_os = "macos"))]
 mod android;
 
 pub type Res<T> = Result<T, Error>;
@@ -79,7 +79,7 @@ macro_rules! expect_log {
         match $res {
             Ok(value) => value,
             Err(error) => {
-                #[cfg(target_os = "android")]
+                #[cfg(any(target_os = "android", target_os = "macos"))]
                 error!("Panic: line: {}, msg: {}, error:{:?}", line!(), $msg, error);
                 panic!("{}: {:?}", $msg, error);
             }
