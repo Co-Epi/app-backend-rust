@@ -1,5 +1,3 @@
-#![allow(non_snake_case)]
-
 use crate::reporting::symptom_inputs_manager::SymptomInputsProcessor;
 use crate::reports_updater::ObservedTcnProcessor;
 use crate::tcn_ext::tcn_keys::TcnKeys;

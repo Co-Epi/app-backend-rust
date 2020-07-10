@@ -1,5 +1,3 @@
-#![allow(non_snake_case)]
-
 use std::{
     sync::mpsc::{self, Sender},
     thread,
