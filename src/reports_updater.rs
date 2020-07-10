@@ -10,7 +10,6 @@ use crate::{
     },
     reports_interval,
 };
-use chrono::Utc;
 use log::*;
 use rayon::prelude::*;
 use reports_interval::{ReportsInterval, UnixTime};
@@ -81,7 +80,7 @@ impl TcnMatcherRayon {
                     if let Some(entry) = observed_tcns_map.get(&tcn.0) {
                         out = Some(MatchedReport {
                             report: report.clone(),
-                            contact_time: entry.time.clone(),
+                            contact_time: entry.contact_start.clone(),
                         });
                         break;
                     }
@@ -96,14 +95,16 @@ impl TcnMatcherRayon {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct ObservedTcn {
     tcn: TemporaryContactNumber,
-    time: UnixTime,
+    contact_start: UnixTime,
+    contact_end: UnixTime,
+    min_distance: f32,
 }
 
 pub trait ObservedTcnProcessor {
-    fn save(&self, tcn_str: &str) -> Result<(), ServicesError>;
+    fn save(&self, tcn_str: &str, distance: f32) -> Result<(), ServicesError>;
 }
 
 pub struct ObservedTcnProcessorImpl<T>
@@ -117,15 +118,17 @@ impl<T> ObservedTcnProcessor for ObservedTcnProcessorImpl<T>
 where
     T: TcnDao,
 {
-    fn save(&self, tcn_str: &str) -> Result<(), ServicesError> {
+    fn save(&self, tcn_str: &str, distance: f32) -> Result<(), ServicesError> {
         info!("Recording a TCN {:?}", tcn_str);
+
+        // TODO aggregation
 
         let bytes_vec: Vec<u8> = hex::decode(tcn_str)?;
         let observed_tcn = ObservedTcn {
             tcn: TemporaryContactNumber(byte_vec_to_16_byte_array(bytes_vec)),
-            time: UnixTime {
-                value: Utc::now().timestamp() as u64,
-            },
+            contact_start: UnixTime { value: 0 },
+            contact_end: UnixTime { value: 0 },
+            min_distance: distance,
         };
 
         self.tcn_dao.save(&observed_tcn)
@@ -148,7 +151,9 @@ impl TcnDaoImpl {
         let res = db.execute_sql(
             "create table if not exists tcn(
                 tcn text not null,
-                contact_time integer not null
+                contact_start integer not null,
+                contact_end integer not null,
+                min_distance real not null
             )",
             params![],
         );
@@ -157,18 +162,36 @@ impl TcnDaoImpl {
 
     fn to_tcn(row: &Row) -> ObservedTcn {
         let tcn: Result<String, _> = row.get(0);
-        let contact_time = row.get(1);
         let tcn_value = expect_log!(tcn, "Invalid row: no TCN");
-        let tcn_value_bytes_vec_res = hex::decode(tcn_value);
+        let tcn = Self::db_tcn_str_to_tcn(tcn_value);
+
+        let contact_start_res = row.get(1);
+        let contact_start: i64 = expect_log!(contact_start_res, "Invalid row: no contact start");
+
+        let contact_end_res = row.get(2);
+        let contact_end: i64 = expect_log!(contact_end_res, "Invalid row: no contact end");
+
+        let min_distance_res = row.get(3);
+        let min_distance: f64 = expect_log!(min_distance_res, "Invalid row: no min distance");
+
+        ObservedTcn {
+            tcn,
+            contact_start: UnixTime {
+                value: contact_start as u64,
+            },
+            contact_end: UnixTime {
+                value: contact_end as u64,
+            },
+            min_distance: min_distance as f32,
+        }
+    }
+
+    // TCN string loaded from DB is assumed to be valid
+    fn db_tcn_str_to_tcn(str: String) -> TemporaryContactNumber {
+        let tcn_value_bytes_vec_res = hex::decode(str);
         let tcn_value_bytes_vec = expect_log!(tcn_value_bytes_vec_res, "Invalid stored TCN format");
         let tcn_value_bytes = byte_vec_to_16_byte_array(tcn_value_bytes_vec);
-        let contact_time_value: i64 = expect_log!(contact_time, "Invalid row: no contact time");
-        ObservedTcn {
-            tcn: TemporaryContactNumber(tcn_value_bytes),
-            time: UnixTime {
-                value: contact_time_value as u64,
-            },
-        }
+        TemporaryContactNumber(tcn_value_bytes)
     }
 
     pub fn new(db: Arc<Database>) -> TcnDaoImpl {
@@ -180,9 +203,11 @@ impl TcnDaoImpl {
 impl TcnDao for TcnDaoImpl {
     fn all(&self) -> Result<Vec<ObservedTcn>, ServicesError> {
         self.db
-            .query("select tcn, contact_time from tcn", NO_PARAMS, |row| {
-                Self::to_tcn(row)
-            })
+            .query(
+                "select tcn, contact_start, contact_end, min_distance from tcn",
+                NO_PARAMS,
+                |row| Self::to_tcn(row),
+            )
             .map_err(ServicesError::from)
     }
 
@@ -190,9 +215,14 @@ impl TcnDao for TcnDaoImpl {
         let tcn_str = hex::encode(observed_tcn.tcn.0);
 
         let res = self.db.execute_sql(
-            "insert or replace into tcn(tcn, contact_time) values(?1, ?2)",
+            "insert or replace into tcn(tcn, contact_start, contact_end, min_distance) values(?1, ?2, ?3, ?4)",
             // conversion to signed timestamp is safe, for obvious reasons.
-            params![tcn_str, observed_tcn.time.value as i64],
+            params![
+                tcn_str,
+                observed_tcn.contact_start.value as i64,
+                observed_tcn.contact_end.value as i64,
+                observed_tcn.min_distance as f64 // db requires f64 / real
+            ],
         );
         expect_log!(res, "Couldn't insert tcn");
         Ok(())
@@ -574,7 +604,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn saves_and_loads_observed_tcn() {
         let database = Arc::new(Database::new(
             Connection::open_in_memory().expect("Couldn't create database!"),
@@ -585,7 +614,9 @@ mod tests {
             tcn: TemporaryContactNumber([
                 24, 229, 125, 245, 98, 86, 219, 221, 172, 25, 232, 150, 206, 66, 164, 173,
             ]),
-            time: UnixTime { value: 1590528300 },
+            contact_start: UnixTime { value: 1590528300 },
+            contact_end: UnixTime { value: 1590528301 },
+            min_distance: 0.0,
         };
 
         let save_res = tcn_dao.save(&observed_tcn);
@@ -601,7 +632,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn saves_and_loads_multiple_tcns() {
         let database = Arc::new(Database::new(
             Connection::open_in_memory().expect("Couldn't create database!"),
@@ -612,19 +642,25 @@ mod tests {
             tcn: TemporaryContactNumber([
                 24, 229, 125, 245, 98, 86, 219, 221, 172, 25, 232, 150, 206, 66, 164, 173,
             ]),
-            time: UnixTime { value: 1590528300 },
+            contact_start: UnixTime { value: 1590528300 },
+            contact_end: UnixTime { value: 1590528301 },
+            min_distance: 0.0,
         };
         let observed_tcn_2 = ObservedTcn {
             tcn: TemporaryContactNumber([
                 43, 229, 125, 245, 98, 86, 100, 1, 172, 25, 0, 150, 123, 66, 34, 12,
             ]),
-            time: UnixTime { value: 1590518190 },
+            contact_start: UnixTime { value: 1590518190 },
+            contact_end: UnixTime { value: 1590518191 },
+            min_distance: 0.0,
         };
         let observed_tcn_3 = ObservedTcn {
             tcn: TemporaryContactNumber([
                 11, 246, 125, 123, 102, 86, 100, 1, 34, 25, 21, 150, 99, 66, 34, 0,
             ]),
-            time: UnixTime { value: 2230522104 },
+            contact_start: UnixTime { value: 2230522104 },
+            contact_end: UnixTime { value: 2230522105 },
+            min_distance: 0.0,
         };
 
         let save_res_1 = tcn_dao.save(&observed_tcn_1);
@@ -646,7 +682,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     // Currently there's no unique, as for current use case it doesn't seem necessary/critical and
     // it affects negatively performance.
     // TODO revisit
@@ -660,7 +695,9 @@ mod tests {
             tcn: TemporaryContactNumber([
                 24, 229, 125, 245, 98, 86, 219, 221, 172, 25, 232, 150, 206, 66, 164, 173,
             ]),
-            time: UnixTime { value: 1590528300 },
+            contact_start: UnixTime { value: 1590528300 },
+            contact_end: UnixTime { value: 1590528301 },
+            min_distance: 0.0,
         };
 
         let save_res_1 = tcn_dao.save(&observed_tcn_1);
@@ -711,15 +748,21 @@ mod tests {
         let tcns = vec![
             ObservedTcn {
                 tcn: TemporaryContactNumber([0; 16]),
-                time: UnixTime { value: 1590528300 },
+                contact_start: UnixTime { value: 1590528300 },
+                contact_end: UnixTime { value: 1590528301 },
+                min_distance: 0.0,
             },
             ObservedTcn {
                 tcn: TemporaryContactNumber(verification_report_tcn),
-                time: verification_contact_time.clone(),
+                contact_start: verification_contact_time.clone(),
+                contact_end: verification_contact_time.clone(),
+                min_distance: 0.0,
             },
             ObservedTcn {
                 tcn: TemporaryContactNumber([1; 16]),
-                time: UnixTime { value: 1590528300 },
+                contact_start: UnixTime { value: 1590528300 },
+                contact_end: UnixTime { value: 1590528301 },
+                min_distance: 0.0,
             },
         ];
 

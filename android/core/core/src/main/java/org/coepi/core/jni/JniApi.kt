@@ -21,7 +21,7 @@ class JniApi {
 
     external fun generateTcn(): String
 
-    external fun recordTcn(tcn: String): JniVoidResult
+    external fun recordTcn(tcn: String, distance: Float): JniVoidResult
 
     // TODO test:
     external fun setBreathlessnessCause(cause: String): JniVoidResult

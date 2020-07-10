@@ -65,9 +65,13 @@ pub unsafe extern "C" fn fetch_new_reports() -> CFStringRef {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn record_tcn(c_tcn: *const c_char) -> CFStringRef {
+pub unsafe extern "C" fn record_tcn(c_tcn: *const c_char, distance: f32) -> CFStringRef {
     let tcn_str = cstring_to_str(&c_tcn);
-    let result = tcn_str.and_then(|tcn_str| dependencies().observed_tcn_processor.save(tcn_str));
+    let result = tcn_str.and_then(|tcn_str| {
+        dependencies()
+            .observed_tcn_processor
+            .save(tcn_str, distance)
+    });
     info!("Recording TCN result {:?}", result);
     return to_result_str(result);
 }

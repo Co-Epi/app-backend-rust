@@ -82,8 +82,9 @@ pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_recordTcn(
     env: JNIEnv,
     _: JClass,
     tcn: JString,
+    distance: jfloat,
 ) -> jobject {
-    recordTcn(&env, tcn).to_void_jni(&env)
+    recordTcn(&env, tcn, distance).to_void_jni(&env)
 }
 
 // NOTE: Returns directly success string
@@ -264,11 +265,13 @@ fn fetch_new_reports(env: &JNIEnv) -> Result<jobjectArray, ServicesError> {
     alerts_to_jobject_array(result, &env)
 }
 
-fn recordTcn(env: &JNIEnv, tcn: JString) -> Result<(), ServicesError> {
+fn recordTcn(env: &JNIEnv, tcn: JString, distance: jfloat) -> Result<(), ServicesError> {
     let tcn_java_str = env.get_string(tcn)?;
     let tcn_str = tcn_java_str.to_str()?;
 
-    let result = dependencies().observed_tcn_processor.save(tcn_str);
+    let result = dependencies()
+        .observed_tcn_processor
+        .save(tcn_str, distance as f32);
     info!("Recording TCN result {:?}", result);
 
     result
@@ -487,8 +490,8 @@ impl LogCallbackWrapper for LogCallbackWrapperImpl {
             // Note that if we panic, LogCat will also not show a message, or location.
             // TODO consider writing to file. Otherwise it's impossible to notice this.
             Err(e) => println!(
-                "Couldn't get env: Can't send log: level: {}, text: {}",
-                level, text,
+                "Couldn't get env: Can't send log: level: {}, text: {}, e: {}",
+                level, text, e
             ),
         }
     }
