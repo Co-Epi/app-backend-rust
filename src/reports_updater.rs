@@ -10,6 +10,7 @@ use crate::{
     },
     reports_interval,
 };
+use exposure::Exposure;
 use log::*;
 use rayon::prelude::*;
 use reports_interval::{ReportsInterval, UnixTime};
@@ -30,7 +31,7 @@ pub trait TcnMatcher {
 #[derive(Debug, Clone)]
 pub struct MatchedReport {
     report: SignedReport,
-    contact_time: UnixTime,
+    tcns: Vec<ObservedTcn>,
 }
 
 pub struct TcnMatcherRayon {}
@@ -75,17 +76,20 @@ impl TcnMatcherRayon {
         let rep = report.clone().verify();
         match rep {
             Ok(rep) => {
-                let mut out: Option<MatchedReport> = None;
+                let mut tcns: Vec<ObservedTcn> = vec![];
                 for tcn in rep.temporary_contact_numbers() {
-                    if let Some(entry) = observed_tcns_map.get(&tcn.0) {
-                        out = Some(MatchedReport {
-                            report: report.clone(),
-                            contact_time: entry.contact_start.clone(),
-                        });
-                        break;
+                    if let Some(observed_tcn) = observed_tcns_map.get(&tcn.0) {
+                        tcns.push(observed_tcn.to_owned());
                     }
                 }
-                out
+                if tcns.is_empty() {
+                    None
+                } else {
+                    Some(MatchedReport {
+                        report: report.clone(),
+                        tcns,
+                    })
+                }
             }
             Err(error) => {
                 error!("Report can't be matched. Verification failed: {:?}", error);
@@ -250,7 +254,9 @@ impl ByteArrayMappable for u64 {
 pub struct Alert {
     pub id: String,
     pub report: PublicReport,
-    pub contact_time: u64,
+    pub contact_start: u64,
+    pub contact_end: u64,
+    pub min_distance: f32,
 }
 
 pub struct ReportsUpdater<'a, T: Preferences, U: TcnDao, V: TcnMatcher, W: TcnApi, X: MemoMapper> {
@@ -259,6 +265,85 @@ pub struct ReportsUpdater<'a, T: Preferences, U: TcnDao, V: TcnMatcher, W: TcnAp
     pub tcn_matcher: V,
     pub api: &'a W,
     pub memo_mapper: &'a X,
+}
+
+// struct Foo {
+//     elements: Vec<Bar>,
+// }
+
+// #[derive(Clone)]
+// struct Bar {
+//     field: i32,
+// }
+
+// impl Foo {
+//     fn foo(&mut self) {
+//         let mut clone = self.elements.clone();
+//         clone.sort_by_key(|b| b.field);
+//         // self.elements.sort_by_key(|b| b.field);
+
+//         self.foo()
+//     }
+// }
+
+mod exposure {
+    use super::ObservedTcn;
+    use crate::errors::ServicesError;
+
+    #[derive(PartialEq, Debug)]
+    pub struct Exposure {
+        // Can't be empty
+        tcns: Vec<ObservedTcn>,
+    }
+
+    impl Exposure {
+        pub fn create(tcn: ObservedTcn) -> Exposure {
+            Exposure { tcns: vec![tcn] }
+        }
+
+        // Only used in tests
+        #[allow(dead_code)]
+        pub fn create_with_tcns(tcns: Vec<ObservedTcn>) -> Result<Exposure, ServicesError> {
+            if tcns.is_empty() {
+                Err(ServicesError::General(
+                    "Exposure can't be created without TCNs.".to_owned(),
+                ))
+            } else {
+                Ok(Exposure { tcns })
+            }
+        }
+
+        pub fn push(&mut self, tcn: ObservedTcn) {
+            self.tcns.push(tcn)
+        }
+
+        pub fn measurements(&self) -> ExposureMeasurements {
+            let mut tcns = self.tcns.clone();
+            tcns.sort_by_key(|tcn| tcn.contact_start.value);
+
+            let first_tcn = tcns
+                .first()
+                .expect("Invalid state: struct guarantees that tcns can't be empty");
+
+            let contact_start = first_tcn.contact_start.value;
+            let contact_end = tcns.last().unwrap_or(first_tcn).contact_end.value;
+            let min_distance = tcns
+                .into_iter()
+                .fold(std::f32::MAX, |acc, el| f32::min(acc, el.min_distance));
+
+            ExposureMeasurements {
+                contact_start,
+                contact_end,
+                min_distance,
+            }
+        }
+    }
+
+    pub struct ExposureMeasurements {
+        pub contact_start: u64,
+        pub contact_end: u64,
+        pub min_distance: f32,
+    }
 }
 
 trait SignedReportExt {
@@ -293,25 +378,74 @@ where
         self.retrieve_and_match_new_reports().map(|signed_reports| {
             signed_reports
                 .into_iter()
-                .filter_map(|matched_report| self.to_ffi_alert(matched_report).ok())
+                .filter_map(|matched_report| self.to_ffi_alerts(matched_report).ok())
+                .flatten()
                 .collect()
         })
     }
 
     // Note: For now we will not create an FFI layer to handle JSON conversions, since it may be possible
     // to use directly the data structures.
-    fn to_ffi_alert(&self, matched_report: MatchedReport) -> Result<Alert, ServicesError> {
-        let report = matched_report.report.clone().verify()?;
+    fn to_ffi_alerts(&self, matched_report: MatchedReport) -> Result<Vec<Alert>, ServicesError> {
+        let exposures = Self::group_in_exposures(matched_report.clone().tcns, 3600);
+
+        exposures
+            .into_iter()
+            .map(|exposure_tcns| self.to_alert(matched_report.report.clone(), exposure_tcns))
+            .collect()
+    }
+
+    fn to_alert(
+        &self,
+        signed_report: SignedReport,
+        exposure: Exposure,
+    ) -> Result<Alert, ServicesError> {
+        let report = signed_report.clone().verify()?;
 
         let public_report = self.memo_mapper.to_report(Memo {
             bytes: report.memo_data().to_vec(),
         });
 
+        let measurements = exposure.measurements();
+
         Ok(Alert {
-            id: format!("{:?}", matched_report.report.sig),
+            id: format!("{:?}", signed_report.sig),
             report: public_report,
-            contact_time: matched_report.contact_time.value,
+            contact_start: measurements.contact_start,
+            contact_end: measurements.contact_end,
+            min_distance: measurements.min_distance,
         })
+    }
+
+    fn group_in_exposures(mut tcns: Vec<ObservedTcn>, separator: u64) -> Vec<Exposure> {
+        tcns.sort_by_key(|tcn| tcn.contact_start.value);
+
+        let mut exposures: Vec<Exposure> = vec![];
+        let mut last_contact_end: i64 = std::i64::MAX;
+        for tcn in tcns {
+            let current_contact_end = tcn.contact_end.value as i64;
+            // Signed: overlap (start2 < end1) considered contiguous.
+            // Note that depending on the implementation of writes, overlaps may not happen.
+            // let last_group = chunks.last_mut();
+            match exposures.last_mut() {
+                Some(last_group) => {
+                    if tcn.contact_start.value as i64 - last_contact_end < separator as i64 {
+                        last_group.push(tcn)
+                    } else {
+                        exposures.push(Exposure::create(tcn));
+                    }
+                }
+                None => exposures.push(Exposure::create(tcn)),
+            }
+            // if tcn.contact_start.value as i64 - last_contact_end < separator as i64 {
+            //     chunks.last_mut().unwrap().push(tcn);
+            // } else {
+            //     chunks.push(vec![tcn]);
+            // }
+            last_contact_end = current_contact_end;
+        }
+
+        exposures
     }
 
     fn retrieve_and_match_new_reports(&self) -> Result<Vec<MatchedReport>, ServicesError> {
@@ -728,6 +862,59 @@ mod tests {
     }
 
     #[test]
+    fn one_report_matches() {
+        let verification_report_str = "D7Z8XrufMgfsFH3K5COnv17IFG2ahDb4VM/UMK/5y0+/OtUVVTh7sN0DQ5+R+ocecTilR+SIIpPHzujeJdJzugEAECcAFAEAmmq5XgAAAACaarleAAAAACEBo8p1WdGeXb5O5/3kN6x7GSylgiYGIGsABl3NrxhJu9XHwsN3f6yvRwUxs2fhP4oU5E3+JWabBP6v09pGV1xRCw==";
+        let verification_report_tcn: [u8; 16] = [
+            24, 229, 125, 245, 98, 86, 219, 221, 172, 25, 232, 150, 206, 66, 164, 173,
+        ]; // belongs to report
+        let verification_contact_start = UnixTime { value: 1590528300 };
+        let verification_contact_end = UnixTime { value: 1590528301 };
+        let verification_min_distance = 2.3;
+        let verification_report = SignedReport::with_str(verification_report_str).unwrap();
+
+        let mut reports: Vec<SignedReport> = vec![0; 20]
+            .into_iter()
+            .map(|_| create_test_report())
+            .collect();
+        reports.push(verification_report);
+
+        // let matcher = TcnMatcherStdThreadSpawn {}; // 20 -> 1s, 200 -> 16s, 1000 -> 84s, 10000 ->
+        let matcher = TcnMatcherRayon {}; // 20 -> 1s, 200 -> 7s, 1000 -> 87s, 10000 -> 927s
+
+        let tcns = vec![
+            ObservedTcn {
+                tcn: TemporaryContactNumber([0; 16]),
+                contact_start: UnixTime { value: 1590528300 },
+                contact_end: UnixTime { value: 1590528301 },
+                min_distance: 0.0,
+            },
+            ObservedTcn {
+                tcn: TemporaryContactNumber(verification_report_tcn),
+                contact_start: verification_contact_start.clone(),
+                contact_end: verification_contact_end.clone(),
+                min_distance: verification_min_distance,
+            },
+            ObservedTcn {
+                tcn: TemporaryContactNumber([1; 16]),
+                contact_start: UnixTime { value: 1590528300 },
+                contact_end: UnixTime { value: 1590528301 },
+                min_distance: 0.0,
+            },
+        ];
+
+        let res = matcher.match_reports(tcns, reports);
+        let matches = res.unwrap();
+        assert_eq!(matches.len(), 1);
+
+        let matched_report_str = base64::encode(signed_report_to_bytes(matches[0].report.clone()));
+        assert_eq!(matched_report_str, verification_report_str);
+        assert_eq!(matches[0].tcns[0].contact_start, verification_contact_start);
+        assert_eq!(matches[0].tcns[0].contact_end, verification_contact_end);
+        assert_eq!(matches[0].tcns[0].min_distance, verification_min_distance);
+    }
+
+    #[test]
+    #[ignore]
     fn matching_benchmark() {
         let verification_report_str = "D7Z8XrufMgfsFH3K5COnv17IFG2ahDb4VM/UMK/5y0+/OtUVVTh7sN0DQ5+R+ocecTilR+SIIpPHzujeJdJzugEAECcAFAEAmmq5XgAAAACaarleAAAAACEBo8p1WdGeXb5O5/3kN6x7GSylgiYGIGsABl3NrxhJu9XHwsN3f6yvRwUxs2fhP4oU5E3+JWabBP6v09pGV1xRCw==";
         let verification_report_tcn: [u8; 16] = [
@@ -779,7 +966,6 @@ mod tests {
         // Short verification that matching is working
         let matched_report_str = base64::encode(signed_report_to_bytes(matches[0].report.clone()));
         assert_eq!(matched_report_str, verification_report_str);
-        assert_eq!(matches[0].contact_time, verification_contact_time);
     }
 
     #[test]
@@ -795,6 +981,278 @@ mod tests {
     #[test]
     fn test_report_base64_valid_report_invalid_is_none() {
         assert!(SignedReport::with_str("slkdjfslfd").is_none())
+    }
+
+    #[test]
+    fn test_group_in_exposures_empty() {
+        let tcns = vec![];
+
+        let groups = ReportsUpdater::<
+            'static,
+            PreferencesImpl,
+            TcnDaoImpl,
+            TcnMatcherRayon,
+            TcnApiImpl,
+            MemoMapperImpl,
+        >::group_in_exposures(tcns.clone(), 1000);
+
+        assert_eq!(groups.len(), 0);
+    }
+
+    #[test]
+    fn test_group_in_exposures_same_group() {
+        let tcns = vec![
+            ObservedTcn {
+                tcn: TemporaryContactNumber([0; 16]),
+                contact_start: UnixTime { value: 1000 },
+                contact_end: UnixTime { value: 1001 },
+                min_distance: 0.0,
+            },
+            ObservedTcn {
+                tcn: TemporaryContactNumber([0; 16]),
+                contact_start: UnixTime { value: 1500 },
+                contact_end: UnixTime { value: 1501 },
+                min_distance: 0.0,
+            },
+        ];
+
+        let groups = ReportsUpdater::<
+            'static,
+            PreferencesImpl,
+            TcnDaoImpl,
+            TcnMatcherRayon,
+            TcnApiImpl,
+            MemoMapperImpl,
+        >::group_in_exposures(tcns.clone(), 1000);
+
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0], Exposure::create_with_tcns(tcns).unwrap());
+    }
+
+    #[test]
+    fn test_group_in_exposures_identical_tcns() {
+        // Passing same TCN 2x (normally will not happen)
+        let tcns = vec![
+            ObservedTcn {
+                tcn: TemporaryContactNumber([0; 16]),
+                contact_start: UnixTime { value: 1000 },
+                contact_end: UnixTime { value: 1001 },
+                min_distance: 0.0,
+            },
+            ObservedTcn {
+                tcn: TemporaryContactNumber([0; 16]),
+                contact_start: UnixTime { value: 1000 },
+                contact_end: UnixTime { value: 1001 },
+                min_distance: 0.0,
+            },
+        ];
+
+        let groups = ReportsUpdater::<
+            'static,
+            PreferencesImpl,
+            TcnDaoImpl,
+            TcnMatcherRayon,
+            TcnApiImpl,
+            MemoMapperImpl,
+        >::group_in_exposures(tcns.clone(), 1000);
+
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0], Exposure::create_with_tcns(tcns).unwrap());
+    }
+
+    #[test]
+    fn test_group_in_exposures_different_groups() {
+        let tcns = vec![
+            ObservedTcn {
+                tcn: TemporaryContactNumber([0; 16]),
+                contact_start: UnixTime { value: 1000 },
+                contact_end: UnixTime { value: 1001 },
+                min_distance: 0.0,
+            },
+            ObservedTcn {
+                tcn: TemporaryContactNumber([0; 16]),
+                contact_start: UnixTime { value: 2002 },
+                contact_end: UnixTime { value: 2501 },
+                min_distance: 0.0,
+            },
+        ];
+
+        let groups = ReportsUpdater::<
+            'static,
+            PreferencesImpl,
+            TcnDaoImpl,
+            TcnMatcherRayon,
+            TcnApiImpl,
+            MemoMapperImpl,
+        >::group_in_exposures(tcns.clone(), 1000);
+
+        assert_eq!(groups.len(), 2);
+        assert_eq!(
+            groups[0],
+            Exposure::create_with_tcns(vec![tcns[0].clone()]).unwrap()
+        );
+        assert_eq!(
+            groups[1],
+            Exposure::create_with_tcns(vec![tcns[1].clone()]).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_group_in_exposures_sort() {
+        let tcns = vec![
+            ObservedTcn {
+                tcn: TemporaryContactNumber([0; 16]),
+                contact_start: UnixTime { value: 2002 },
+                contact_end: UnixTime { value: 2501 },
+                min_distance: 0.0,
+            },
+            ObservedTcn {
+                tcn: TemporaryContactNumber([0; 16]),
+                contact_start: UnixTime { value: 1000 },
+                contact_end: UnixTime { value: 1001 },
+                min_distance: 0.0,
+            },
+        ];
+
+        let groups = ReportsUpdater::<
+            'static,
+            PreferencesImpl,
+            TcnDaoImpl,
+            TcnMatcherRayon,
+            TcnApiImpl,
+            MemoMapperImpl,
+        >::group_in_exposures(tcns.clone(), 1000);
+
+        assert_eq!(groups.len(), 2);
+        assert_eq!(
+            groups[0],
+            Exposure::create_with_tcns(vec![tcns[1].clone()]).unwrap()
+        );
+        assert_eq!(
+            groups[1],
+            Exposure::create_with_tcns(vec![tcns[0].clone()]).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_group_in_exposures_overlap() {
+        let tcns = vec![
+            ObservedTcn {
+                tcn: TemporaryContactNumber([0; 16]),
+                contact_start: UnixTime { value: 1000 },
+                contact_end: UnixTime { value: 2000 },
+                min_distance: 0.0,
+            },
+            // starts before previous TCN ends
+            ObservedTcn {
+                tcn: TemporaryContactNumber([0; 16]),
+                contact_start: UnixTime { value: 1600 },
+                contact_end: UnixTime { value: 2600 },
+                min_distance: 0.0,
+            },
+        ];
+
+        let groups = ReportsUpdater::<
+            'static,
+            PreferencesImpl,
+            TcnDaoImpl,
+            TcnMatcherRayon,
+            TcnApiImpl,
+            MemoMapperImpl,
+        >::group_in_exposures(tcns.clone(), 1000);
+
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0], Exposure::create_with_tcns(tcns).unwrap());
+    }
+
+    #[test]
+    fn test_group_in_exposures_mixed() {
+        let tcns = vec![
+            ObservedTcn {
+                tcn: TemporaryContactNumber([0; 16]),
+                contact_start: UnixTime { value: 3000 },
+                contact_end: UnixTime { value: 3001 },
+                min_distance: 0.0,
+            },
+            ObservedTcn {
+                tcn: TemporaryContactNumber([0; 16]),
+                contact_start: UnixTime { value: 1 },
+                contact_end: UnixTime { value: 2 },
+                min_distance: 0.0,
+            },
+            ObservedTcn {
+                tcn: TemporaryContactNumber([0; 16]),
+                contact_start: UnixTime { value: 3900 },
+                contact_end: UnixTime { value: 4500 },
+                min_distance: 0.0,
+            },
+            ObservedTcn {
+                tcn: TemporaryContactNumber([0; 16]),
+                contact_start: UnixTime { value: 500 },
+                contact_end: UnixTime { value: 501 },
+                min_distance: 0.0,
+            },
+            ObservedTcn {
+                tcn: TemporaryContactNumber([0; 16]),
+                contact_start: UnixTime { value: 1589209754 },
+                contact_end: UnixTime { value: 1589209755 },
+                min_distance: 0.0,
+            },
+        ];
+
+        let groups = ReportsUpdater::<
+            'static,
+            PreferencesImpl,
+            TcnDaoImpl,
+            TcnMatcherRayon,
+            TcnApiImpl,
+            MemoMapperImpl,
+        >::group_in_exposures(tcns.clone(), 1000);
+
+        assert_eq!(groups.len(), 3);
+        assert_eq!(
+            groups[0],
+            Exposure::create_with_tcns(vec![tcns[1].clone(), tcns[3].clone()]).unwrap()
+        );
+        assert_eq!(
+            groups[1],
+            Exposure::create_with_tcns(vec![tcns[0].clone(), tcns[2].clone()]).unwrap()
+        );
+        assert_eq!(
+            groups[2],
+            Exposure::create_with_tcns(vec![tcns[4].clone().clone()]).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_alert_aggregate_is_correct() {
+        let tcns = vec![
+            ObservedTcn {
+                tcn: TemporaryContactNumber([0; 16]),
+                contact_start: UnixTime { value: 1600 },
+                contact_end: UnixTime { value: 2600 },
+                min_distance: 2.3,
+            },
+            ObservedTcn {
+                tcn: TemporaryContactNumber([0; 16]),
+                contact_start: UnixTime { value: 2601 },
+                contact_end: UnixTime { value: 3223 },
+                min_distance: 0.845,
+            },
+            ObservedTcn {
+                tcn: TemporaryContactNumber([0; 16]),
+                contact_start: UnixTime { value: 1000 },
+                contact_end: UnixTime { value: 2000 },
+
+                min_distance: 0.846,
+            },
+        ];
+
+        let measurements = Exposure::create_with_tcns(tcns).unwrap().measurements();
+
+        assert_eq!(measurements.contact_start, 1000);
+        assert_eq!(measurements.contact_end, 3223);
+        assert_eq!(measurements.min_distance, 0.845);
     }
 
     fn create_test_report() -> SignedReport {
