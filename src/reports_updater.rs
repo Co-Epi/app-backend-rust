@@ -120,10 +120,6 @@ pub trait ObservedTcnProcessor {
 #[derive(Copy, Clone)]
 struct Element {}
 
-trait MyDao: Send + Sync {
-    fn save(&self, observed_tcn: &Vec<Element>) -> Result<(), ServicesError>;
-}
-
 pub struct TcnBatchesManager<T>
 where
     T: TcnDao,
@@ -214,15 +210,6 @@ where
             Err(_) => Err(ServicesError::General("Couldn't lock tcns batch".to_owned()))
         }
     }
-
-    //     // // This doesn't work: expand only if contiguous.
-    //     // let query = "
-    //     //     INSERT INTO tcn(tcn, contact_start, contact_end, min_distance)
-    //     //     values(?1, ?2, ?3, ?4)
-    //     //     ON CONFLICT(tcn) DO UPDATE SET
-    //     //     contact_start = MIN(tcn.contact_start, excluded.contact_start),
-    //     //     contact_end = MAX(tcn.contact_end, excluded.contact_end),
-    //     //     min_distance = MIN(tcn.min_distance, excluded.min_distance);";
 }
 
 pub struct ObservedTcnProcessorImpl<T>
@@ -248,10 +235,7 @@ where
 
     fn schedule_process_batches(&self) {
         let timer_mutex = self.timer.clone();
-        // let batch = self.tcns_batch.clone();
         let tcn_batches_manager = self.tcn_batches_manager.clone();
-        // let dao = self.tcn_dao.clone();
-
         thread::spawn(move || {
             let timer = timer_mutex.lock().unwrap();
             timer.schedule_repeating(chrono::Duration::seconds(10), move || {
@@ -260,10 +244,6 @@ where
                 let tcn_batches_manager = expect_log!(tcn_batches_manager_res, "error");
                 let flush_res = tcn_batches_manager.flush();
                 expect_log!(flush_res, "Couldn't flush TCNs");
-
-                // let save_res = dao.save_batch(vec.clone());
-                // expect_log!(save_res, "Couldn't save batch");
-                // vec.clear()
             })
         });
     }
@@ -298,7 +278,6 @@ pub trait TcnDao: Send + Sync {
         &self,
         with: Vec<TemporaryContactNumber>,
     ) -> Result<Vec<ObservedTcn>, ServicesError>;
-    fn save(&self, observed_tcn: &ObservedTcn) -> Result<(), ServicesError>;
     fn save_batch(&self, observed_tcns: Vec<ObservedTcn>) -> Result<(), ServicesError>;
 }
 
@@ -360,21 +339,6 @@ impl TcnDaoImpl {
         Self::create_table_if_not_exists(&db);
         TcnDaoImpl { db }
     }
-
-    // pub fn find_observed_tcn(
-    //     &self,
-    //     tcn: TemporaryContactNumber,
-    // ) -> Result<ObservedTcn, ServicesError> {
-    //     let tcn_str = hex::encode(tcn.0);
-
-    //     self.db
-    //         .query_row(
-    //             "select tcn, contact_start, contact_end, min_distance from tcn where tcn=?1",
-    //             &[tcn_str],
-    //             |row| Ok(Self::to_tcn(row)),
-    //         )
-    //         .map_err(ServicesError::from)
-    // }
 }
 
 impl TcnDao for TcnDaoImpl {
@@ -406,23 +370,6 @@ impl TcnDao for TcnDaoImpl {
         self.all()
     }
 
-    fn save(&self, observed_tcn: &ObservedTcn) -> Result<(), ServicesError> {
-        let tcn_str = hex::encode(observed_tcn.tcn.0);
-
-        let res = self.db.execute_sql(
-            "insert or replace into tcn(tcn, contact_start, contact_end, min_distance) values(?1, ?2, ?3, ?4)",
-            // conversion to signed timestamp is safe, for obvious reasons.
-            params![
-                tcn_str,
-                observed_tcn.contact_start.value as i64,
-                observed_tcn.contact_end.value as i64,
-                observed_tcn.min_distance as f64 // db requires f64 / real
-            ],
-        );
-        expect_log!(res, "Couldn't insert tcn");
-        Ok(())
-    }
-
     // Overwrites if already exists
     fn save_batch(&self, observed_tcns: Vec<ObservedTcn>) -> Result<(), ServicesError> {
         self.db.transaction(|t| {
@@ -442,25 +389,6 @@ impl TcnDao for TcnDaoImpl {
             }
             Ok(())
         })
-
-        // let query = "
-        // INSERT INTO tcn(tcn, contact_start, contact_end, min_distance)
-        // values(?1, ?2, ?3, ?4)
-        // ON CONFLICT DO UPDATE SET
-        // contact_start = MIN(tcn.contact_start, excluded.contact_start),
-        // contact_start = MIN(tcn.contact_end, excluded.contact_end),
-        // contact_start = MIN(tcn.min_distance, excluded.min_distance);";
-
-        // let res = self.db.execute_sql(
-        //     query,
-        //     // conversion to signed timestamp is safe, for obvious reasons.
-        //     params![
-        //         tcn_str,
-        //         observed_tcn.contact_start.value as i64,
-        //         observed_tcn.contact_end.value as i64,
-        //         observed_tcn.min_distance as f64 // db requires f64 / real
-        //     ],
-        // );
     }
 }
 
@@ -977,7 +905,7 @@ mod tests {
             min_distance: 0.0,
         };
 
-        let save_res = tcn_dao.save(&observed_tcn);
+        let save_res = tcn_dao.save_batch(vec![observed_tcn.clone()]);
         assert!(save_res.is_ok());
 
         let loaded_tcns_res = tcn_dao.all();
@@ -1021,9 +949,9 @@ mod tests {
             min_distance: 0.0,
         };
 
-        let save_res_1 = tcn_dao.save(&observed_tcn_1);
-        let save_res_2 = tcn_dao.save(&observed_tcn_2);
-        let save_res_3 = tcn_dao.save(&observed_tcn_3);
+        let save_res_1 = tcn_dao.save_batch(vec![observed_tcn_1.clone()]);
+        let save_res_2 = tcn_dao.save_batch(vec![observed_tcn_2.clone()]);
+        let save_res_3 = tcn_dao.save_batch(vec![observed_tcn_3.clone()]);
         assert!(save_res_1.is_ok());
         assert!(save_res_2.is_ok());
         assert!(save_res_3.is_ok());
