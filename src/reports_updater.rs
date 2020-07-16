@@ -243,7 +243,7 @@ where
         let timer = Arc::new(Mutex::new(Timer::new()));
         TimerData {
             _timer: timer.clone(),
-            _guard: timer.clone().lock().unwrap().schedule_repeating(chrono::Duration::seconds(1), move || {
+            _guard: timer.clone().lock().unwrap().schedule_repeating(chrono::Duration::seconds(10), move || {
                 debug!("Flushing TCN batches into database");
                 let tcn_batches_manager_res = tcn_batches_manager.lock();
                 let tcn_batches_manager = expect_log!(tcn_batches_manager_res, "error");
