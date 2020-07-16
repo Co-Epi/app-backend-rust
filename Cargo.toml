@@ -23,6 +23,7 @@ hex = "0.4.2"
 serde-big-array = "0.3.0"
 rayon = "1.1"
 rusqlite = {version = "0.23.1", features = ["bundled"]}
+timer = "0.2.0"
 
 [dependencies.reqwest]
 default-features = false # do not include the default features, and optionally

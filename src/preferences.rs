@@ -1,6 +1,8 @@
-use crate::{byte_vec_to_32_byte_array, expect_log, reports_interval::ReportsInterval};
+use crate::{
+    byte_vec_to_32_byte_array, errors::ServicesError, expect_log, reports_interval::ReportsInterval,
+};
 use log::*;
-use rusqlite::{params, Connection, Row, ToSql};
+use rusqlite::{params, Connection, Row, ToSql, Transaction};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::{
@@ -150,6 +152,22 @@ impl Database {
         let res = self.conn.lock();
         let conn = expect_log!(res, "Couldn't lock mutex");
         conn.query_row(sql, params, f)
+    }
+
+    pub fn transaction<F>(&self, f: F) -> Result<(), ServicesError>
+    where
+        F: FnOnce(&Transaction) -> Result<(), ServicesError>,
+    {
+        let conn_res = self.conn.lock();
+        let mut conn = expect_log!(conn_res, "Couldn't lock connection");
+
+        let t = conn.transaction()?;
+        if f(&t).is_ok() {
+            t.commit()
+        } else {
+            t.rollback()
+        }
+        .map_err(ServicesError::from)
     }
 
     pub fn new(conn: Connection) -> Database {

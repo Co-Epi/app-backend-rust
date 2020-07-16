@@ -1,7 +1,7 @@
 use crate::networking::{TcnApi, TcnApiImpl};
 use crate::reports_updater::{
-    ObservedTcnProcessor, ObservedTcnProcessorImpl, ReportsUpdater, TcnDao, TcnDaoImpl, TcnMatcher,
-    TcnMatcherRayon,
+    ExposureGrouper, ObservedTcnProcessor, ObservedTcnProcessorImpl, ReportsUpdater,
+    TcnBatchesManager, TcnDao, TcnDaoImpl, TcnMatcher, TcnMatcherRayon,
 };
 use crate::{
     errors::ServicesError,
@@ -152,6 +152,7 @@ fn create_comp_root(
     };
 
     let tcn_dao = Arc::new(TcnDaoImpl::new(database.clone()));
+    let exposure_grouper = ExposureGrouper { threshold: 3600 };
 
     CompositionRoot {
         api,
@@ -161,6 +162,7 @@ fn create_comp_root(
             tcn_matcher: TcnMatcherRayon {},
             api,
             memo_mapper,
+            exposure_grouper: exposure_grouper.clone(),
         },
         symptom_inputs_processor: SymptomInputsProcessorImpl {
             inputs_manager: SymptomInputsManagerImpl {
@@ -168,9 +170,10 @@ fn create_comp_root(
                 inputs_submitter: symptom_inputs_submitter,
             },
         },
-        observed_tcn_processor: ObservedTcnProcessorImpl {
-            tcn_dao: tcn_dao.clone(),
-        },
+        observed_tcn_processor: ObservedTcnProcessorImpl::new(TcnBatchesManager::new(
+            tcn_dao.clone(),
+            exposure_grouper.clone(),
+        )),
         tcn_keys: tcn_keys.clone(),
     }
 }

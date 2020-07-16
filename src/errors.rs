@@ -1,4 +1,5 @@
 use crate::networking::NetworkingError;
+use rusqlite::Error::QueryReturnedNoRows;
 use std::{error, fmt, io::Error as StdError, io::ErrorKind};
 use tcn::Error as TcnError;
 pub type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
@@ -8,6 +9,7 @@ pub enum ServicesError {
     Networking(NetworkingError),
     Error(Error),
     FFIParameters(String),
+    NotFound,
     General(String),
 }
 
@@ -79,10 +81,13 @@ impl From<std::str::Utf8Error> for ServicesError {
 
 impl From<rusqlite::Error> for ServicesError {
     fn from(error: rusqlite::Error) -> Self {
-        ServicesError::Error(Box::new(StdError::new(
-            ErrorKind::Other,
-            format!("{}", error),
-        )))
+        match error {
+            QueryReturnedNoRows => ServicesError::NotFound,
+            _ => ServicesError::Error(Box::new(StdError::new(
+                ErrorKind::Other,
+                format!("{}", error),
+            ))),
+        }
     }
 }
 
