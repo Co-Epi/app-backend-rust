@@ -260,13 +260,13 @@ where
     T: TcnDao + Sync + Send,
 {
     fn save(&self, tcn_str: &str, distance: f32) -> Result<(), ServicesError> {
-        info!("Recording a TCN {:?}", tcn_str);
+        info!("Recording a TCN {:?}, distance: {}", tcn_str, distance);
 
         let bytes_vec: Vec<u8> = hex::decode(tcn_str)?;
         let observed_tcn = ObservedTcn {
             tcn: TemporaryContactNumber(byte_vec_to_16_byte_array(bytes_vec)),
-            contact_start: UnixTime { value: 0 },
-            contact_end: UnixTime { value: 0 },
+            contact_start: UnixTime::now(),
+            contact_end: UnixTime::now(),
             min_distance: distance,
         };
 
