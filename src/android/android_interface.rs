@@ -569,7 +569,9 @@ fn placeholder_alert() -> Alert {
     Alert {
         id: "0".to_owned(),
         report,
-        contact_time: 0,
+        contact_start: 0,
+        contact_end: 0,
+        min_distance: 0.0,
     }
 }
 
@@ -630,16 +632,20 @@ pub fn alert_to_jobject(alert: Alert, env: &JNIEnv) -> Result<jobject, ServicesE
     let id_j_string = env.new_string(alert.id)?;
     let id_j_value = JValue::from(JObject::from(id_j_string));
 
-    let earliest_time_j_value = JValue::from(alert.contact_time as i64);
+    let contact_start_j_value = JValue::from(alert.contact_start as i64);
+    let contact_end_j_value = JValue::from(alert.contact_end as i64);
+    let min_distance_j_value = JValue::from(alert.min_distance);
 
     let result: Result<jobject, jni::errors::Error> = env
         .new_object(
             jni_alert_class,
-            "(Ljava/lang/String;Lorg/coepi/core/jni/JniPublicReport;J)V",
+            "(Ljava/lang/String;Lorg/coepi/core/jni/JniPublicReport;JJF)V",
             &[
                 id_j_value,
                 JValue::from(jni_public_report_obj),
-                earliest_time_j_value,
+                contact_start_j_value,
+                contact_end_j_value,
+                min_distance_j_value,
             ],
         )
         .map(|o| o.into_inner());
@@ -684,6 +690,10 @@ impl JniErrorMappable for ServicesError {
             ServicesError::General(msg) => JniError {
                 status: 5,
                 message: msg.to_owned(),
+            },
+            ServicesError::NotFound => JniError {
+                status: 6,
+                message: "Not found".to_owned(),
             },
         }
     }

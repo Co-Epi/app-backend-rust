@@ -36,9 +36,17 @@ class AlertsFetcherImpl(private val api: JniApi) :
 
     private fun JniAlert.toAlert() = Alert(
         id = id,
-        contactTime = when {
-            contactTime < 0 -> error("Invalid contact time: $contactTime")
-            else -> UnixTime.fromValue(contactTime)
+        contactStart = when {
+            contactStart < 0 -> error("Invalid contact start: $contactStart")
+            else -> UnixTime.fromValue(contactStart)
+        },
+        contactEnd = when {
+            contactEnd < 0 -> error("Invalid contact end: $contactEnd")
+            else -> UnixTime.fromValue(contactEnd)
+        },
+        minDistance = when {
+            minDistance < 0 -> error("Invalid min distance: $minDistance")
+            else -> minDistance
         },
         reportTime = when {
             report.reportTime < 0 -> error("Invalid report time: ${report.reportTime}")

@@ -133,7 +133,9 @@ data class JniAlertsArrayResult(
 data class JniAlert(
     var id: String,
     var report: JniPublicReport,
-    var contactTime: Long
+    var contactStart: Long,
+    var contactEnd: Long,
+    var minDistance: Float
 )
 
 data class JniPublicReport(
