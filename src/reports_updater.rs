@@ -124,7 +124,7 @@ where
     T: TcnDao,
 {
     tcn_dao: Arc<T>,
-    tcns_batch: Arc<Mutex<Vec<ObservedTcn>>>, // TODO Arc needed?
+    tcns_batch: Arc<Mutex<HashMap<[u8; 16], ObservedTcn>>>, // TODO Arc needed?
     exposure_grouper: ExposureGrouper,
 }
 
@@ -132,81 +132,125 @@ impl<T> TcnBatchesManager<T>
 where
     T: 'static + TcnDao,
 {
+    pub fn new(tcn_dao: Arc<T>, exposure_grouper: ExposureGrouper) -> TcnBatchesManager<T> {
+        TcnBatchesManager {
+            tcn_dao,
+            tcns_batch: Arc::new(Mutex::new(HashMap::new())),
+            exposure_grouper,
+        }
+    }
+
     pub fn flush(&self) -> Result<(), ServicesError> {
         let res = self.tcns_batch.lock();
         let mut tcns = expect_log!(res, "Couldn't lock tcns batch");
 
         let merged = self.merge_with_db(tcns.clone())?;
-        self.update_db(merged)?;
+        self.tcn_dao.overwrite(merged)?;
 
         tcns.clear();
 
         Ok(())
     }
 
-    fn merge_with_db(&self, tcns: Vec<ObservedTcn>) -> Result<Vec<ObservedTcn>, ServicesError> {
-        let db_tcns = self
+    pub fn push(&self, tcn: ObservedTcn) {
+        let res = self.tcns_batch.lock();
+        let mut tcns = expect_log!(res, "Couldn't lock tcns batch");
+        let merged_tcn = match tcns.get(&tcn.tcn.0) {
+            Some(existing_tcn) => match Self::merge_tcns(&self.exposure_grouper, existing_tcn.to_owned(), tcn.clone()) {
+                Some(merged) => merged,
+                None => tcn
+            },
+            None => tcn
+        };
+        tcns.insert(merged_tcn.tcn.0, merged_tcn);
+    }
+
+    // Used only in tests
+    #[allow(dead_code)]
+    pub fn len(&self) -> Result<usize, ServicesError> {
+        match self.tcns_batch.lock() {
+            Ok(tcns) => Ok(tcns.len()),
+            Err(_) => Err(ServicesError::General("Couldn't lock tcns batch".to_owned()))
+        }
+    }
+
+    fn merge_with_db(&self, tcns: HashMap<[u8; 16], ObservedTcn>) -> Result<Vec<ObservedTcn>, ServicesError> {
+        let tcns_vec: Vec<ObservedTcn> = tcns.iter().map(|(_, observed_tcn)| observed_tcn.clone()).collect();
+
+        let mut db_tcns = self
             .tcn_dao
-            .find_tcns(tcns.clone().into_iter().map(|tcn| tcn.tcn).collect())?;
+            .find_tcns(tcns_vec.clone().into_iter().map(|tcn| tcn.tcn).collect())?;
+        db_tcns.sort_by_key(|tcn| tcn.contact_start.value);
+        
+        let db_tcns_map: HashMap<[u8; 16], Vec<ObservedTcn>> = Self::to_hash_map(db_tcns);
 
-        let db_tcns_map: HashMap<[u8; 16], ObservedTcn> =
-            db_tcns.into_iter().map(|tcn| (tcn.tcn.0, tcn)).collect();
+        Ok(tcns_vec.into_iter().map(|tcn|
+            // Values in db_tcns_map can't be empty: we built the map based on existing TCNs
+            Self::determine_tcns_to_write(self.exposure_grouper.clone(), db_tcns_map.clone(), tcn)
+        ).flatten().collect())
+    }
 
-        Ok(tcns
-            .into_iter()
-            .map(|tcn| match db_tcns_map.get(&tcn.tcn.0) {
-                Some(db_tcn) => {
-                    Self::merge_tcn_with_db(self.exposure_grouper.clone(), db_tcn.to_owned(), tcn)
+    // Expects:
+    // - Values in db_tcns_map not empty
+    // - db_tcns_map sorted by contact_start (ascending)
+    fn determine_tcns_to_write(exposure_grouper: ExposureGrouper, db_tcns_map: HashMap<[u8; 16], Vec<ObservedTcn>>, tcn: ObservedTcn) -> Vec<ObservedTcn> {
+        let db_tcns = db_tcns_map.get(&tcn.tcn.0);
+
+        match db_tcns {
+            Some(db_tcns) => {
+                if let Some(last) = db_tcns.last() {
+
+                    // If contiguous to last stored TCN, merge with it, otherwise append.
+                    let tail = match Self::merge_tcns(&exposure_grouper, last.to_owned(), tcn.clone()) {
+                        Some(merged ) => vec![merged],
+                        None => vec![last.to_owned(), tcn]
+                    };
+
+                    let mut head: Vec<ObservedTcn> = db_tcns.to_owned().into_iter().take(db_tcns.len() - 1).collect();
+                    head.extend(tail);
+                    head
+
+                } else {
+                    error!("Illegal state: value in db_tcns_map is empty");
+                    panic!();
                 }
-                None => tcn,
-            })
-            .collect())
+            } 
+            None => vec![tcn]
+        }
+    }
+
+    fn to_hash_map(tcns: Vec<ObservedTcn>) -> HashMap<[u8; 16], Vec<ObservedTcn>> {
+        let mut map: HashMap<[u8; 16], Vec<ObservedTcn>> = HashMap::new();
+        for tcn in tcns {
+            match map.get_mut(&tcn.tcn.0) {
+                Some(tcns) => tcns.push(tcn),
+                None => {
+                    map.insert(tcn.tcn.0, vec![tcn]);
+                }
+            }
+        }
+        map
     }
 
     // Assumes: tcn contact_start always after db_tcn contact_start
-    fn merge_tcn_with_db(
-        exposure_grouper: ExposureGrouper,
+    fn merge_tcns(
+        exposure_grouper: &ExposureGrouper,
         db_tcn: ObservedTcn,
         tcn: ObservedTcn,
-    ) -> ObservedTcn {
+    ) -> Option<ObservedTcn> {
         if exposure_grouper.is_contiguous(&db_tcn, &tcn) {
             // Put db TCN and new TCN in an exposure as convenience to re-calculate measurements.
             let mut exposure = Exposure::create(db_tcn);
             exposure.push(tcn.clone());
             let measurements = exposure.measurements();
-            ObservedTcn {
+            Some(ObservedTcn {
                 tcn: tcn.tcn,
                 contact_start: measurements.contact_start,
                 contact_end: measurements.contact_end,
                 min_distance: measurements.min_distance,
-            }
+            })
         } else {
-            tcn
-        }
-    }
-
-    fn update_db(&self, tcns: Vec<ObservedTcn>) -> Result<(), ServicesError> {
-        self.tcn_dao.save_batch(tcns)
-    }
-
-    pub fn new(tcn_dao: Arc<T>, exposure_grouper: ExposureGrouper) -> TcnBatchesManager<T> {
-        TcnBatchesManager {
-            tcn_dao,
-            tcns_batch: Arc::new(Mutex::new(vec![])),
-            exposure_grouper,
-        }
-    }
-
-    pub fn push(&self, tcn: ObservedTcn) {
-        let res = self.tcns_batch.lock();
-        let mut tcns = expect_log!(res, "Couldn't lock tcns batch");
-        tcns.push(tcn);
-    }
-
-    pub fn len(&self) -> Result<usize, ServicesError> {
-        match self.tcns_batch.lock() {
-            Ok(tcns) => Ok(tcns.len()),
-            Err(_) => Err(ServicesError::General("Couldn't lock tcns batch".to_owned()))
+            None
         }
     }
 }
@@ -233,7 +277,6 @@ where
         let instance = ObservedTcnProcessorImpl {
             tcn_batches_manager: tcn_batches_manager.clone(),
             _timer_data: Self::schedule_process_batches(tcn_batches_manager)
-
         };
         instance
     }
@@ -249,7 +292,6 @@ where
                 let flush_res = tcn_batches_manager.flush();
                 expect_log!(flush_res, "Couldn't flush TCNs");
             })
-            
         }
     }
 }
@@ -284,6 +326,7 @@ pub trait TcnDao: Send + Sync {
         with: Vec<TemporaryContactNumber>,
     ) -> Result<Vec<ObservedTcn>, ServicesError>;
     fn save_batch(&self, observed_tcns: Vec<ObservedTcn>) -> Result<(), ServicesError>;
+    fn overwrite(&self, observed_tcns: Vec<ObservedTcn>) -> Result<(), ServicesError>;
 }
 
 pub struct TcnDaoImpl {
@@ -296,7 +339,7 @@ impl TcnDaoImpl {
         // TODO ideally FFI should send byte arrays too
         let res = db.execute_sql(
             "create table if not exists tcn(
-                tcn text primary key,
+                tcn text not null,
                 contact_start integer not null,
                 contact_end integer not null,
                 min_distance real not null
@@ -392,8 +435,41 @@ impl TcnDao for TcnDaoImpl {
                 if res.is_err() {
                     return Err(ServicesError::General("Insert TCN failed".to_owned()))
                 }
-                
             }
+            Ok(())
+        })
+    }
+
+    fn overwrite(&self, observed_tcns: Vec<ObservedTcn>) -> Result<(), ServicesError> {
+        debug!("Saving TCN batch: {:?}", observed_tcns);
+
+        let tcn_strs: Vec<Value> = observed_tcns.clone().into_iter().map(|tcn| 
+            Value::Text(hex::encode(tcn.tcn.0))
+        )
+        .collect();
+
+        self.db.transaction(|t| {
+            // Delete all the exposures for TCNs
+            let delete_res = t.execute("delete from tcn where tcn in rarray(?);", params![Rc::new(tcn_strs)]);
+            if delete_res.is_err() {
+                return Err(ServicesError::General("Delete TCNs failed".to_owned()))
+            } 
+
+            // Insert up to date exposures
+            for tcn in observed_tcns {
+                let tcn_str = hex::encode(tcn.tcn.0);
+                let insert_res = t.execute("insert into tcn(tcn, contact_start, contact_end, min_distance) values(?1, ?2, ?3, ?4)",
+                params![
+                    tcn_str,
+                    tcn.contact_start.value as i64,
+                    tcn.contact_end.value as i64,
+                    tcn.min_distance as f64 // db requires f64 / real
+                ]);
+                if insert_res.is_err() {
+                    return Err(ServicesError::General("Insert TCN failed".to_owned()))
+                }
+            }
+            
             Ok(())
         })
     }
@@ -484,7 +560,6 @@ mod exposure {
             }
         }
     }
-
     pub struct ExposureMeasurements {
         pub contact_start: UnixTime,
         pub contact_end: UnixTime,
@@ -1324,52 +1399,7 @@ mod tests {
     }
 
     #[test]
-    fn test_update_overwrites_tcn() {
-        let database = Arc::new(Database::new(
-            Connection::open_in_memory().expect("Couldn't create database!"),
-        ));
-        let tcn_dao = TcnDaoImpl::new(database.clone());
-
-        let tcn = ObservedTcn {
-            tcn: TemporaryContactNumber([0; 16]),
-            contact_start: UnixTime { value: 1600 },
-            contact_end: UnixTime { value: 2600 },
-            min_distance: 2.3,
-        };
-
-        let res = tcn_dao.save_batch(vec![tcn.clone()]);
-
-        assert!(res.is_ok());
-
-        let loaded_tcns_res = tcn_dao.all();
-        assert!(loaded_tcns_res.is_ok());
-
-        let loaded_tcns = loaded_tcns_res.unwrap();
-        assert_eq!(loaded_tcns.len(), 1);
-        assert_eq!(loaded_tcns[0], tcn);
-
-        let new_tcn = ObservedTcn {
-            tcn: TemporaryContactNumber([0; 16]),
-            contact_start: UnixTime { value: 1000 },
-            contact_end: UnixTime { value: 2000 },
-            min_distance: 1.21,
-        };
-        let res = tcn_dao.save_batch(vec![new_tcn.clone()]);
-        assert!(res.is_ok());
-
-        let loaded_tcns_res_new = tcn_dao.all();
-        assert!(loaded_tcns_res_new.is_ok());
-
-        let loaded_tcns_new = loaded_tcns_res_new.unwrap();
-        assert_eq!(loaded_tcns_new.len(), 1);
-        assert_eq!(loaded_tcns_new[0].tcn, new_tcn.tcn);
-        assert_eq!(loaded_tcns_new[0].contact_start.value, 1000);
-        assert_eq!(loaded_tcns_new[0].contact_end.value, 2000);
-        assert_eq!(loaded_tcns_new[0].min_distance, 1.21);
-    }
-
-    #[test]
-    fn test_push_adds_tcns_to_batch_manager() {
+    fn test_push_merges_existing_tcn_in_batch_manager() {
         let database = Arc::new(Database::new(
             Connection::open_in_memory().expect("Couldn't create database!"),
         ));
@@ -1386,14 +1416,22 @@ mod tests {
 
         batches_manager.push(ObservedTcn {
             tcn: TemporaryContactNumber([0; 16]),
-            contact_start: UnixTime { value: 1600 },
-            contact_end: UnixTime { value: 2600 },
-            min_distance: 2.3,
+            contact_start: UnixTime { value: 3000 },
+            contact_end: UnixTime { value: 5000 },
+            min_distance: 2.0,
         });
 
         let len_res = batches_manager.len();
         assert!(len_res.is_ok());
-        assert_eq!(2, len_res.unwrap())
+        assert_eq!(1, len_res.unwrap());
+
+        let tcns = batches_manager.tcns_batch.lock().unwrap();
+        assert_eq!(tcns[&[0; 16]], ObservedTcn {
+            tcn: TemporaryContactNumber([0; 16]),
+            contact_start: UnixTime { value: 1600 },
+            contact_end: UnixTime { value: 5000 },
+            min_distance: 2.0,
+        });
     }
 
     #[test]
@@ -1594,6 +1632,7 @@ mod tests {
         assert_eq!(loaded_tcns[1], stored_tcn2);
     }
 
+
     #[test]
     fn test_finds_tcn() {
         let database = Arc::new(Database::new(
@@ -1638,6 +1677,69 @@ mod tests {
         assert_eq!(stored_tcn1, tcns[0]);
         assert_eq!(stored_tcn3, tcns[1]);
     }
+
+    #[test]
+    fn test_multiple_exposures_updated_correctly() {
+        let database = Arc::new(Database::new(
+            Connection::open_in_memory().expect("Couldn't create database!"),
+        ));
+        let tcn_dao = Arc::new(TcnDaoImpl::new(database.clone()));
+
+        let batches_manager = TcnBatchesManager::new(tcn_dao.clone(), ExposureGrouper{ threshold: 1000});
+
+        let stored_tcn1 = ObservedTcn {
+            tcn: TemporaryContactNumber([0; 16]),
+            contact_start: UnixTime { value: 1000 },
+            contact_end: UnixTime { value: 3000 },
+            min_distance: 0.4,
+        };
+
+        let stored_tcn2 = ObservedTcn {
+            tcn: TemporaryContactNumber([0; 16]),
+            contact_start: UnixTime { value: 5000 },
+            contact_end: UnixTime { value: 7000 },
+            min_distance: 2.0,
+        };
+        let save_res = tcn_dao.save_batch(vec![stored_tcn1.clone(), stored_tcn2.clone()]);
+        assert!(save_res.is_ok());
+
+        let tcn = ObservedTcn {
+            tcn: TemporaryContactNumber([0; 16]),
+            contact_start: UnixTime { value: 7500 },
+            contact_end: UnixTime { value: 9000 },
+            min_distance: 1.0,
+        };
+
+        batches_manager.push(tcn.clone());
+
+        let flush_res = batches_manager.flush();
+        assert!(flush_res.is_ok());
+
+        let loaded_tcns_res = tcn_dao.all();
+        assert!(loaded_tcns_res.is_ok());
+
+        let mut loaded_tcns = loaded_tcns_res.unwrap();
+        assert_eq!(2, loaded_tcns.len());
+
+        // Sqlite doesn't guarantee insertion order, so sort
+        // start value not meaningul here, other than for reproducible sorting
+        loaded_tcns.sort_by_key(|tcn| tcn.contact_start.value);
+
+        assert_eq!(loaded_tcns[0], ObservedTcn {
+            tcn: TemporaryContactNumber([0; 16]),
+            contact_start: UnixTime { value: 1000 },
+            contact_end: UnixTime { value: 3000 },
+            min_distance: 0.4,
+        });
+        // The new TCN was merged with stored_tcn2
+        assert_eq!(loaded_tcns[1], ObservedTcn {
+            tcn: TemporaryContactNumber([0; 16]),
+            contact_start: UnixTime { value: 5000 },
+            contact_end: UnixTime { value: 9000 },
+            min_distance: 1.0,
+        });
+    }
+
 
     fn create_test_report() -> SignedReport {
         let memo_mapper = MemoMapperImpl {};
