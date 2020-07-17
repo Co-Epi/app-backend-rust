@@ -2,7 +2,8 @@ use crate::{
     byte_vec_to_32_byte_array, errors::ServicesError, expect_log, reports_interval::ReportsInterval,
 };
 use log::*;
-use rusqlite::{params, Connection, Row, ToSql, Transaction};
+use rusqlite::{params, Connection, Result};
+use rusqlite::{Row, ToSql, Transaction};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::{
@@ -171,6 +172,11 @@ impl Database {
     }
 
     pub fn new(conn: Connection) -> Database {
+        let load_array_mod_res = rusqlite::vtab::array::load_module(&conn);
+        expect_log!(
+            load_array_mod_res,
+            "Couldn't load array module (needed for IN query)"
+        );
         Database {
             conn: Mutex::new(conn),
         }

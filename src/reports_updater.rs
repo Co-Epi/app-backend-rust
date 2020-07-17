@@ -14,14 +14,13 @@ use exposure::Exposure;
 use log::*;
 use rayon::prelude::*;
 use reports_interval::{ReportsInterval, UnixTime};
-use rusqlite::{params, Row, NO_PARAMS};
+use rusqlite::{params, Row, NO_PARAMS, types::Value};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::{
     io::Cursor,
     sync::{Arc, Mutex},
-    thread,
-    time::Instant,
+    time::Instant, rc::Rc,
 };
 use tcn::{SignedReport, TemporaryContactNumber};
 use timer::{Guard, Timer};
@@ -360,20 +359,20 @@ impl TcnDao for TcnDaoImpl {
 
     fn find_tcns(
         &self,
-        _with: Vec<TemporaryContactNumber>,
+        with: Vec<TemporaryContactNumber>,
     ) -> Result<Vec<ObservedTcn>, ServicesError> {
-        // TODO: IN query
-        // let tcn_strs: Vec<String> = with.into_iter().map(|tcn| hex::encode(tcn.0)).collect();
-        // self.db
-        //     .query(
-        //         "select tcn, contact_start, contact_end, min_distance from tcn where tcn in ?1",
-        //         // params![tcn_strs],
-        //         params![vec![foo]],
-        //         |row| Self::to_tcn(row),
-        //     )
-        //     .map_err(ServicesError::from)
+        let tcn_strs: Vec<Value> = with.into_iter().map(|tcn| 
+            Value::Text(hex::encode(tcn.0))
+        )
+        .collect();
 
-        self.all()
+        self.db
+            .query(
+                "select tcn, contact_start, contact_end, min_distance from tcn where tcn in rarray(?);",
+                params![Rc::new(tcn_strs)],
+                |row| Self::to_tcn(row),
+            )
+            .map_err(ServicesError::from)
     }
 
     // Overwrites if already exists
@@ -1595,6 +1594,50 @@ mod tests {
         assert_eq!(loaded_tcns[1], stored_tcn2);
     }
 
+    #[test]
+    fn test_finds_tcn() {
+        let database = Arc::new(Database::new(
+            Connection::open_in_memory().expect("Couldn't create database!"),
+        ));
+        let tcn_dao = Arc::new(TcnDaoImpl::new(database.clone()));
+
+        let stored_tcn1 = ObservedTcn {
+            tcn: TemporaryContactNumber([0; 16]),
+            contact_start: UnixTime { value: 1000 },
+            contact_end: UnixTime { value: 6000 },
+            min_distance: 0.4,
+        };
+
+        let stored_tcn2 = ObservedTcn {
+            tcn: TemporaryContactNumber([1; 16]),
+            contact_start: UnixTime { value: 2000 },
+            contact_end: UnixTime { value: 3000 },
+            min_distance: 1.8,
+        };
+
+        let stored_tcn3 = ObservedTcn {
+            tcn: TemporaryContactNumber([2; 16]),
+            contact_start: UnixTime { value: 1600 },
+            contact_end: UnixTime { value: 2600 },
+            min_distance: 2.3,
+        };
+
+        let save_res = tcn_dao.save_batch(vec![stored_tcn1.clone(), stored_tcn2.clone(), stored_tcn3.clone()]);
+        assert!(save_res.is_ok());
+
+        let res = tcn_dao.find_tcns(vec![TemporaryContactNumber([0; 16]), TemporaryContactNumber([2; 16])]);
+        assert!(res.is_ok());
+
+        let mut tcns = res.unwrap();
+
+        // Sqlite doesn't guarantee insertion order, so sort
+        // start value not meaningul here, other than for reproducible sorting
+        tcns.sort_by_key(|tcn| tcn.contact_start.value);
+
+        assert_eq!(2, tcns.len());
+        assert_eq!(stored_tcn1, tcns[0]);
+        assert_eq!(stored_tcn3, tcns[1]);
+    }
 
     fn create_test_report() -> SignedReport {
         let memo_mapper = MemoMapperImpl {};
