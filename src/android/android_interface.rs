@@ -572,6 +572,7 @@ fn placeholder_alert() -> Alert {
         contact_start: 0,
         contact_end: 0,
         min_distance: 0.0,
+        avg_distance: 0.0,
     }
 }
 
@@ -635,17 +636,19 @@ pub fn alert_to_jobject(alert: Alert, env: &JNIEnv) -> Result<jobject, ServicesE
     let contact_start_j_value = JValue::from(alert.contact_start as i64);
     let contact_end_j_value = JValue::from(alert.contact_end as i64);
     let min_distance_j_value = JValue::from(alert.min_distance);
+    let avg_distance_j_value = JValue::from(alert.avg_distance);
 
     let result: Result<jobject, jni::errors::Error> = env
         .new_object(
             jni_alert_class,
-            "(Ljava/lang/String;Lorg/coepi/core/jni/JniPublicReport;JJF)V",
+            "(Ljava/lang/String;Lorg/coepi/core/jni/JniPublicReport;JJFF)V",
             &[
                 id_j_value,
                 JValue::from(jni_public_report_obj),
                 contact_start_j_value,
                 contact_end_j_value,
                 min_distance_j_value,
+                avg_distance_j_value,
             ],
         )
         .map(|o| o.into_inner());

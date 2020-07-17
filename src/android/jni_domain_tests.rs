@@ -84,5 +84,6 @@ fn create_test_alert(id: &str, report_time: u64) -> Alert {
         contact_start: 1592567315,
         contact_end: 1592567335,
         min_distance: 1.2,
+        avg_distance: 2.1,
     }
 }

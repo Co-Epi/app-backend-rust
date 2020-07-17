@@ -19,7 +19,8 @@ data class Alert(
     val noSymptoms: Boolean, // https://github.com/Co-Epi/app-ios/issues/268#issuecomment-645583717
     var contactStart: UnixTime,
     var contactEnd: UnixTime,
-    var minDistance: Float
+    var minDistance: Float,
+    var avgDistance: Float
 ) : Parcelable
 
 enum class FeverSeverity {

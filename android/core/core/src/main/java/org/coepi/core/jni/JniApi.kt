@@ -135,7 +135,8 @@ data class JniAlert(
     var report: JniPublicReport,
     var contactStart: Long,
     var contactEnd: Long,
-    var minDistance: Float
+    var minDistance: Float,
+    var avgDistance: Float
 )
 
 data class JniPublicReport(

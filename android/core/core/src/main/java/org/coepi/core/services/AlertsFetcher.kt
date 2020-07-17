@@ -48,6 +48,10 @@ class AlertsFetcherImpl(private val api: JniApi) :
             minDistance < 0 -> error("Invalid min distance: $minDistance")
             else -> minDistance
         },
+        avgDistance = when {
+            avgDistance < 0 -> error("Invalid avg distance: $avgDistance")
+            else -> avgDistance
+        },
         reportTime = when {
             report.reportTime < 0 -> error("Invalid report time: ${report.reportTime}")
             else -> UnixTime.fromValue(report.reportTime)
