@@ -338,8 +338,6 @@ pub trait TcnDao: Send + Sync {
         &self,
         with: Vec<TemporaryContactNumber>,
     ) -> Result<Vec<ObservedTcn>, ServicesError>;
-    fn save_batch(&self, observed_tcns: Vec<ObservedTcn>) -> Result<(), ServicesError>;
-
     // Removes all matching TCNs (same TCN bytes) and stores observed_tcns 
     fn overwrite(&self, observed_tcns: Vec<ObservedTcn>) -> Result<(), ServicesError>;
 }
@@ -441,30 +439,6 @@ impl TcnDao for TcnDaoImpl {
                 |row| Self::to_tcn(row),
             )
             .map_err(ServicesError::from)
-    }
-
-    // Overwrites if already exists
-    fn save_batch(&self, observed_tcns: Vec<ObservedTcn>) -> Result<(), ServicesError> {
-        debug!("Saving TCN batch: {:?}", observed_tcns);
-
-        self.db.transaction(|t| {
-            for tcn in observed_tcns {
-                let tcn_str = hex::encode(tcn.tcn.0);
-                let res = t.execute("insert or replace into tcn(tcn, contact_start, contact_end, min_distance, avg_distance, total_count) values(?1, ?2, ?3, ?4, ?5, ?6)",
-                params![
-                    tcn_str,
-                    tcn.contact_start.value as i64,
-                    tcn.contact_end.value as i64,
-                    tcn.min_distance as f64, // db requires f64 / real
-                    tcn.avg_distance as f64, // db requires f64 / real
-                    tcn.total_count as i64
-                ]);
-                if res.is_err() {
-                    return Err(ServicesError::General("Insert TCN failed".to_owned()))
-                }
-            }
-            Ok(())
-        })
     }
 
     fn overwrite(&self, observed_tcns: Vec<ObservedTcn>) -> Result<(), ServicesError> {
@@ -1033,7 +1007,7 @@ mod tests {
             total_count: 1,
         };
 
-        let save_res = tcn_dao.save_batch(vec![observed_tcn.clone()]);
+        let save_res = tcn_dao.overwrite(vec![observed_tcn.clone()]);
         assert!(save_res.is_ok());
 
         let loaded_tcns_res = tcn_dao.all();
@@ -1083,9 +1057,9 @@ mod tests {
             total_count: 1,
         };
 
-        let save_res_1 = tcn_dao.save_batch(vec![observed_tcn_1.clone()]);
-        let save_res_2 = tcn_dao.save_batch(vec![observed_tcn_2.clone()]);
-        let save_res_3 = tcn_dao.save_batch(vec![observed_tcn_3.clone()]);
+        let save_res_1 = tcn_dao.overwrite(vec![observed_tcn_1.clone()]);
+        let save_res_2 = tcn_dao.overwrite(vec![observed_tcn_2.clone()]);
+        let save_res_3 = tcn_dao.overwrite(vec![observed_tcn_3.clone()]);
         assert!(save_res_1.is_ok());
         assert!(save_res_2.is_ok());
         assert!(save_res_3.is_ok());
@@ -1616,7 +1590,7 @@ mod tests {
             avg_distance: 1.25,// (2.3 + 0.7 + 1 + 1) / 4
             total_count: 4,
         };
-        let save_res = tcn_dao.save_batch(vec![stored_tcn]);
+        let save_res = tcn_dao.overwrite(vec![stored_tcn]);
         assert!(save_res.is_ok());
 
         let tcn = ObservedTcn {
@@ -1665,7 +1639,7 @@ mod tests {
             avg_distance: 2.3,
             total_count: 1,
         };
-        let save_res = tcn_dao.save_batch(vec![stored_tcn]);
+        let save_res = tcn_dao.overwrite(vec![stored_tcn]);
         assert!(save_res.is_ok());
 
         let tcn = ObservedTcn {
@@ -1734,7 +1708,7 @@ mod tests {
             avg_distance: 2.3,
             total_count: 1,
         };
-        let save_res = tcn_dao.save_batch(vec![stored_tcn1.clone(), stored_tcn2.clone()]);
+        let save_res = tcn_dao.overwrite(vec![stored_tcn1.clone(), stored_tcn2.clone()]);
         assert!(save_res.is_ok());
 
         let tcn = ObservedTcn {
@@ -1806,7 +1780,7 @@ mod tests {
             total_count: 1,
         };
 
-        let save_res = tcn_dao.save_batch(vec![stored_tcn1.clone(), stored_tcn2.clone(), stored_tcn3.clone()]);
+        let save_res = tcn_dao.overwrite(vec![stored_tcn1.clone(), stored_tcn2.clone(), stored_tcn3.clone()]);
         assert!(save_res.is_ok());
 
         let res = tcn_dao.find_tcns(vec![TemporaryContactNumber([0; 16]), TemporaryContactNumber([2; 16])]);
@@ -1849,7 +1823,7 @@ mod tests {
             avg_distance: 2.0,
             total_count: 1
         };
-        let save_res = tcn_dao.save_batch(vec![stored_tcn1.clone(), stored_tcn2.clone()]);
+        let save_res = tcn_dao.overwrite(vec![stored_tcn1.clone(), stored_tcn2.clone()]);
         assert!(save_res.is_ok());
 
         let tcn = ObservedTcn {
