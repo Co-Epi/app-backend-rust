@@ -124,7 +124,7 @@ where
     T: TcnDao,
 {
     tcn_dao: Arc<T>,
-    tcns_batch: Arc<Mutex<HashMap<[u8; 16], ObservedTcn>>>, // TODO Arc needed?
+    tcns_batch: Mutex<HashMap<[u8; 16], ObservedTcn>>,
     exposure_grouper: ExposureGrouper,
 }
 
@@ -135,7 +135,7 @@ where
     pub fn new(tcn_dao: Arc<T>, exposure_grouper: ExposureGrouper) -> TcnBatchesManager<T> {
         TcnBatchesManager {
             tcn_dao,
-            tcns_batch: Arc::new(Mutex::new(HashMap::new())),
+            tcns_batch: Mutex::new(HashMap::new()),
             exposure_grouper,
         }
     }
