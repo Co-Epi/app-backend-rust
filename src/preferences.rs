@@ -163,12 +163,20 @@ impl Database {
         let mut conn = expect_log!(conn_res, "Couldn't lock connection");
 
         let t = conn.transaction()?;
-        if f(&t).is_ok() {
-            t.commit()
-        } else {
-            t.rollback()
+        match f(&t) {
+            Ok(_) => t.commit().map_err(ServicesError::from),
+            Err(commit_error) => {
+                let rollback_res = t.rollback();
+                if rollback_res.is_err() {
+                    // As we're already returning error status, show only a log for rollback error.
+                    error!(
+                        "There was an error committing and rollback failed too with: {:?}",
+                        rollback_res
+                    );
+                }
+                Err(commit_error)
+            }
         }
-        .map_err(ServicesError::from)
     }
 
     pub fn new(conn: Connection) -> Database {
