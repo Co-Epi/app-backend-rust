@@ -110,6 +110,8 @@ pub struct ObservedTcn {
     contact_start: UnixTime,
     contact_end: UnixTime,
     min_distance: f32,
+    avg_distance: f32,
+    total_count: usize // Needed to calculate correctly average of averages (= average of single values)
 }
 
 pub trait ObservedTcnProcessor {
@@ -146,6 +148,7 @@ where
 
         // Do an in-memory merge with the DB TCNs and overwrite stored exposures with result.
         let merged = self.merge_with_db(tcns.clone())?;
+
         self.tcn_dao.overwrite(merged)?;
 
         tcns.clear();
@@ -254,6 +257,8 @@ where
                 contact_start: measurements.contact_start,
                 contact_end: measurements.contact_end,
                 min_distance: measurements.min_distance,
+                avg_distance: measurements.avg_distance,
+                total_count: measurements.total_count
             })
         } else {
             None
@@ -315,6 +320,8 @@ where
             contact_start: UnixTime::now(),
             contact_end: UnixTime::now(),
             min_distance: distance,
+            avg_distance: distance,
+            total_count: 1,
         };
 
         let res = self.tcn_batches_manager.lock();
@@ -350,7 +357,9 @@ impl TcnDaoImpl {
                 tcn text not null,
                 contact_start integer not null,
                 contact_end integer not null,
-                min_distance real not null
+                min_distance real not null,
+                avg_distance real not null,
+                total_count integer not null
             )",
             params![],
         );
@@ -371,6 +380,12 @@ impl TcnDaoImpl {
         let min_distance_res = row.get(3);
         let min_distance: f64 = expect_log!(min_distance_res, "Invalid row: no min distance");
 
+        let avg_distance_res = row.get(4);
+        let avg_distance: f64 = expect_log!(avg_distance_res, "Invalid row: no avg distance");
+
+        let total_count_res = row.get(5);
+        let total_count: i64 = expect_log!(total_count_res, "Invalid row: no total count");
+
         ObservedTcn {
             tcn,
             contact_start: UnixTime {
@@ -380,6 +395,8 @@ impl TcnDaoImpl {
                 value: contact_end as u64,
             },
             min_distance: min_distance as f32,
+            avg_distance: avg_distance as f32,
+            total_count: total_count as usize,
         }
     }
 
@@ -401,7 +418,7 @@ impl TcnDao for TcnDaoImpl {
     fn all(&self) -> Result<Vec<ObservedTcn>, ServicesError> {
         self.db
             .query(
-                "select tcn, contact_start, contact_end, min_distance from tcn",
+                "select tcn, contact_start, contact_end, min_distance, avg_distance, total_count from tcn",
                 NO_PARAMS,
                 |row| Self::to_tcn(row),
             )
@@ -419,7 +436,7 @@ impl TcnDao for TcnDaoImpl {
 
         self.db
             .query(
-                "select tcn, contact_start, contact_end, min_distance from tcn where tcn in rarray(?);",
+                "select tcn, contact_start, contact_end, min_distance, avg_distance, total_count from tcn where tcn in rarray(?);",
                 params![Rc::new(tcn_strs)],
                 |row| Self::to_tcn(row),
             )
@@ -433,12 +450,14 @@ impl TcnDao for TcnDaoImpl {
         self.db.transaction(|t| {
             for tcn in observed_tcns {
                 let tcn_str = hex::encode(tcn.tcn.0);
-                let res = t.execute("insert or replace into tcn(tcn, contact_start, contact_end, min_distance) values(?1, ?2, ?3, ?4)",
+                let res = t.execute("insert or replace into tcn(tcn, contact_start, contact_end, min_distance, avg_distance, total_count) values(?1, ?2, ?3, ?4, ?5, ?6)",
                 params![
                     tcn_str,
                     tcn.contact_start.value as i64,
                     tcn.contact_end.value as i64,
-                    tcn.min_distance as f64 // db requires f64 / real
+                    tcn.min_distance as f64, // db requires f64 / real
+                    tcn.avg_distance as f64, // db requires f64 / real
+                    tcn.total_count as i64
                 ]);
                 if res.is_err() {
                     return Err(ServicesError::General("Insert TCN failed".to_owned()))
@@ -466,18 +485,21 @@ impl TcnDao for TcnDaoImpl {
             // Insert up to date exposures
             for tcn in observed_tcns {
                 let tcn_str = hex::encode(tcn.tcn.0);
-                let insert_res = t.execute("insert into tcn(tcn, contact_start, contact_end, min_distance) values(?1, ?2, ?3, ?4)",
+                let insert_res = t.execute("insert into tcn(tcn, contact_start, contact_end, min_distance, avg_distance, total_count) values(?1, ?2, ?3, ?4, ?5, ?6)",
                 params![
                     tcn_str,
                     tcn.contact_start.value as i64,
                     tcn.contact_end.value as i64,
-                    tcn.min_distance as f64 // db requires f64 / real
+                    tcn.min_distance as f64, // db requires f64 / real
+                    tcn.avg_distance as f64, // db requires f64 / real
+                    tcn.total_count as i64
                 ]);
+
                 if insert_res.is_err() {
                     return Err(ServicesError::General("Insert TCN failed".to_owned()))
                 }
             }
-            
+
             Ok(())
         })
     }
@@ -507,6 +529,7 @@ pub struct Alert {
     pub contact_start: u64,
     pub contact_end: u64,
     pub min_distance: f32,
+    pub avg_distance: f32,
 }
 
 mod exposure {
@@ -555,9 +578,17 @@ mod exposure {
 
             let contact_start = first_tcn.contact_start.value;
             let contact_end = tcns.last().unwrap_or(first_tcn).contact_end.value;
-            let min_distance = tcns
-                .into_iter()
+            let tcns_iterator = tcns.into_iter();
+            let min_distance = tcns_iterator
+                .clone()
                 .fold(std::f32::MAX, |acc, el| f32::min(acc, el.min_distance));
+            let total_count: usize = tcns_iterator
+                .clone()
+                .map(|tcn| tcn.total_count).sum::<usize>();
+            let avg_distance: f32 = tcns_iterator
+                .clone()
+                .map(|tcn| tcn.avg_distance * tcn.total_count as f32)
+                .sum::<f32>() / total_count as f32;
 
             ExposureMeasurements {
                 contact_start: UnixTime {
@@ -565,6 +596,8 @@ mod exposure {
                 },
                 contact_end: UnixTime { value: contact_end },
                 min_distance,
+                avg_distance,
+                total_count
             }
         }
     }
@@ -572,6 +605,8 @@ mod exposure {
         pub contact_start: UnixTime,
         pub contact_end: UnixTime,
         pub min_distance: f32,
+        pub avg_distance: f32,
+        pub total_count: usize
     }
 }
 
@@ -687,6 +722,7 @@ where
             contact_start: measurements.contact_start.value,
             contact_end: measurements.contact_end.value,
             min_distance: measurements.min_distance,
+            avg_distance: measurements.avg_distance
         })
     }
 
@@ -993,6 +1029,8 @@ mod tests {
             contact_start: UnixTime { value: 1590528300 },
             contact_end: UnixTime { value: 1590528301 },
             min_distance: 0.0,
+            avg_distance: 0.0,
+            total_count: 1,
         };
 
         let save_res = tcn_dao.save_batch(vec![observed_tcn.clone()]);
@@ -1021,6 +1059,8 @@ mod tests {
             contact_start: UnixTime { value: 1590528300 },
             contact_end: UnixTime { value: 1590528301 },
             min_distance: 0.0,
+            avg_distance: 0.0,
+            total_count: 1,
         };
         let observed_tcn_2 = ObservedTcn {
             tcn: TemporaryContactNumber([
@@ -1029,6 +1069,8 @@ mod tests {
             contact_start: UnixTime { value: 1590518190 },
             contact_end: UnixTime { value: 1590518191 },
             min_distance: 0.0,
+            avg_distance: 0.0,
+            total_count: 1,
         };
         let observed_tcn_3 = ObservedTcn {
             tcn: TemporaryContactNumber([
@@ -1037,6 +1079,8 @@ mod tests {
             contact_start: UnixTime { value: 2230522104 },
             contact_end: UnixTime { value: 2230522105 },
             min_distance: 0.0,
+            avg_distance: 0.0,
+            total_count: 1,
         };
 
         let save_res_1 = tcn_dao.save_batch(vec![observed_tcn_1.clone()]);
@@ -1078,6 +1122,8 @@ mod tests {
         let verification_contact_start = UnixTime { value: 1590528300 };
         let verification_contact_end = UnixTime { value: 1590528301 };
         let verification_min_distance = 2.3;
+        let verification_avg_distance = 3.0;
+        let verification_total_count = 3;
         let verification_report = SignedReport::with_str(verification_report_str).unwrap();
 
         let mut reports: Vec<SignedReport> = vec![0; 20]
@@ -1095,18 +1141,24 @@ mod tests {
                 contact_start: UnixTime { value: 1590528300 },
                 contact_end: UnixTime { value: 1590528301 },
                 min_distance: 0.0,
+                avg_distance: 0.0,
+                total_count: 1,
             },
             ObservedTcn {
                 tcn: TemporaryContactNumber(verification_report_tcn),
                 contact_start: verification_contact_start.clone(),
                 contact_end: verification_contact_end.clone(),
                 min_distance: verification_min_distance,
+                avg_distance: verification_avg_distance,
+                total_count: verification_total_count,
             },
             ObservedTcn {
                 tcn: TemporaryContactNumber([1; 16]),
                 contact_start: UnixTime { value: 1590528300 },
                 contact_end: UnixTime { value: 1590528301 },
                 min_distance: 0.0,
+                avg_distance: 0.0,
+                total_count: 1,
             },
         ];
 
@@ -1146,18 +1198,24 @@ mod tests {
                 contact_start: UnixTime { value: 1590528300 },
                 contact_end: UnixTime { value: 1590528301 },
                 min_distance: 0.0,
+                avg_distance: 0.0,
+                total_count: 1,
             },
             ObservedTcn {
                 tcn: TemporaryContactNumber(verification_report_tcn),
                 contact_start: verification_contact_time.clone(),
                 contact_end: verification_contact_time.clone(),
                 min_distance: 0.0,
+                avg_distance: 0.0,
+                total_count: 1,
             },
             ObservedTcn {
                 tcn: TemporaryContactNumber([1; 16]),
                 contact_start: UnixTime { value: 1590528300 },
                 contact_end: UnixTime { value: 1590528301 },
                 min_distance: 0.0,
+                avg_distance: 0.0,
+                total_count: 1,
             },
         ];
 
@@ -1206,12 +1264,16 @@ mod tests {
                 contact_start: UnixTime { value: 1000 },
                 contact_end: UnixTime { value: 1001 },
                 min_distance: 0.0,
+                avg_distance: 0.0,
+                total_count: 1,
             },
             ObservedTcn {
                 tcn: TemporaryContactNumber([0; 16]),
                 contact_start: UnixTime { value: 1500 },
                 contact_end: UnixTime { value: 1501 },
                 min_distance: 0.0,
+                avg_distance: 0.0,
+                total_count: 1,
             },
         ];
         let groups = ExposureGrouper { threshold: 1000 }.group(tcns.clone());
@@ -1228,12 +1290,16 @@ mod tests {
                 contact_start: UnixTime { value: 1000 },
                 contact_end: UnixTime { value: 1001 },
                 min_distance: 0.0,
+                avg_distance: 0.0,
+                total_count: 1,
             },
             ObservedTcn {
                 tcn: TemporaryContactNumber([0; 16]),
                 contact_start: UnixTime { value: 1000 },
                 contact_end: UnixTime { value: 1001 },
                 min_distance: 0.0,
+                avg_distance: 0.0,
+                total_count: 1,
             },
         ];
 
@@ -1250,12 +1316,16 @@ mod tests {
                 contact_start: UnixTime { value: 1000 },
                 contact_end: UnixTime { value: 1001 },
                 min_distance: 0.0,
+                avg_distance: 0.0,
+                total_count: 1,
             },
             ObservedTcn {
                 tcn: TemporaryContactNumber([0; 16]),
                 contact_start: UnixTime { value: 2002 },
                 contact_end: UnixTime { value: 2501 },
                 min_distance: 0.0,
+                avg_distance: 0.0,
+                total_count: 1,
             },
         ];
 
@@ -1279,12 +1349,16 @@ mod tests {
                 contact_start: UnixTime { value: 2002 },
                 contact_end: UnixTime { value: 2501 },
                 min_distance: 0.0,
+                avg_distance: 0.0,
+                total_count: 1,
             },
             ObservedTcn {
                 tcn: TemporaryContactNumber([0; 16]),
                 contact_start: UnixTime { value: 1000 },
                 contact_end: UnixTime { value: 1001 },
                 min_distance: 0.0,
+                avg_distance: 0.0,
+                total_count: 1,
             },
         ];
 
@@ -1308,6 +1382,8 @@ mod tests {
                 contact_start: UnixTime { value: 1000 },
                 contact_end: UnixTime { value: 2000 },
                 min_distance: 0.0,
+                avg_distance: 0.0,
+                total_count: 1,
             },
             // starts before previous TCN ends
             ObservedTcn {
@@ -1315,6 +1391,8 @@ mod tests {
                 contact_start: UnixTime { value: 1600 },
                 contact_end: UnixTime { value: 2600 },
                 min_distance: 0.0,
+                avg_distance: 0.0,
+                total_count: 1,
             },
         ];
 
@@ -1331,30 +1409,40 @@ mod tests {
                 contact_start: UnixTime { value: 3000 },
                 contact_end: UnixTime { value: 3001 },
                 min_distance: 0.0,
+                avg_distance: 0.0,
+                total_count: 1,
             },
             ObservedTcn {
                 tcn: TemporaryContactNumber([0; 16]),
                 contact_start: UnixTime { value: 1 },
                 contact_end: UnixTime { value: 2 },
                 min_distance: 0.0,
+                avg_distance: 0.0,
+                total_count: 1,
             },
             ObservedTcn {
                 tcn: TemporaryContactNumber([0; 16]),
                 contact_start: UnixTime { value: 3900 },
                 contact_end: UnixTime { value: 4500 },
                 min_distance: 0.0,
+                avg_distance: 0.0,
+                total_count: 1,
             },
             ObservedTcn {
                 tcn: TemporaryContactNumber([0; 16]),
                 contact_start: UnixTime { value: 500 },
                 contact_end: UnixTime { value: 501 },
                 min_distance: 0.0,
+                avg_distance: 0.0,
+                total_count: 1,
             },
             ObservedTcn {
                 tcn: TemporaryContactNumber([0; 16]),
                 contact_start: UnixTime { value: 1589209754 },
                 contact_end: UnixTime { value: 1589209755 },
                 min_distance: 0.0,
+                avg_distance: 0.0,
+                total_count: 1,
             },
         ];
 
@@ -1383,19 +1471,24 @@ mod tests {
                 contact_start: UnixTime { value: 1600 },
                 contact_end: UnixTime { value: 2600 },
                 min_distance: 2.3,
+                avg_distance: 2.7, // (2.3 + 3.1) / 2
+                total_count: 2,
             },
             ObservedTcn {
                 tcn: TemporaryContactNumber([0; 16]),
                 contact_start: UnixTime { value: 2601 },
                 contact_end: UnixTime { value: 3223 },
                 min_distance: 0.845,
+                avg_distance: 0.948333333, // (0.845 + 0.5 + 1.5) / 3
+                total_count: 3,
             },
             ObservedTcn {
                 tcn: TemporaryContactNumber([0; 16]),
                 contact_start: UnixTime { value: 1000 },
                 contact_end: UnixTime { value: 2000 },
-
                 min_distance: 0.846,
+                avg_distance: 0.846,
+                total_count: 1,
             },
         ];
 
@@ -1404,6 +1497,9 @@ mod tests {
         assert_eq!(measurements.contact_start.value, 1000);
         assert_eq!(measurements.contact_end.value, 3223);
         assert_eq!(measurements.min_distance, 0.845);
+        let avg_rounded = (measurements.avg_distance * 10000.0).floor() / 10000.0;
+        assert_eq!(avg_rounded, 1.5151); // (2.3 + 3.1 + 0.845 + 0.5 + 1.5 + 0.846) / (2 + 3 + 1)
+        assert_eq!(measurements.total_count, 6); // 2 + 3 + 1
     }
 
     #[test]
@@ -1420,6 +1516,8 @@ mod tests {
             contact_start: UnixTime { value: 1600 },
             contact_end: UnixTime { value: 2600 },
             min_distance: 2.3,
+            avg_distance: 0.506, // (0.1 + 0.62 + 0.8 + 0.21 + 0.8) / 5
+            total_count: 5
         });
 
         batches_manager.push(ObservedTcn {
@@ -1427,6 +1525,8 @@ mod tests {
             contact_start: UnixTime { value: 3000 },
             contact_end: UnixTime { value: 5000 },
             min_distance: 2.0,
+            avg_distance: 0.7, // (1.2 + 0.5 + 0.4) / 3
+            total_count: 3,
         });
 
         let len_res = batches_manager.len();
@@ -1439,6 +1539,8 @@ mod tests {
             contact_start: UnixTime { value: 1600 },
             contact_end: UnixTime { value: 5000 },
             min_distance: 2.0,
+            avg_distance: 0.57875, // (0.1 + 0.62 + 0.8 + 0.21 + 0.8 + 1.2 + 0.5 + 0.4) / (5 + 3)
+            total_count: 8 // 5 + 3
         });
     }
 
@@ -1456,6 +1558,8 @@ mod tests {
             contact_start: UnixTime { value: 1600 },
             contact_end: UnixTime { value: 2600 },
             min_distance: 2.3,
+            avg_distance: 2.3,
+            total_count: 1,
         });
         let flush_res = batches_manager.flush();
         assert!(flush_res.is_ok());
@@ -1479,6 +1583,8 @@ mod tests {
             contact_start: UnixTime { value: 1600 },
             contact_end: UnixTime { value: 2600 },
             min_distance: 2.3,
+            avg_distance: 2.3,
+            total_count: 1,
         };
         batches_manager.push(tcn.clone());
 
@@ -1507,6 +1613,8 @@ mod tests {
             contact_start: UnixTime { value: 1600 },
             contact_end: UnixTime { value: 2600 },
             min_distance: 2.3,
+            avg_distance: 1.25,// (2.3 + 0.7 + 1 + 1) / 4
+            total_count: 4,
         };
         let save_res = tcn_dao.save_batch(vec![stored_tcn]);
         assert!(save_res.is_ok());
@@ -1516,6 +1624,8 @@ mod tests {
             contact_start: UnixTime { value: 3000 },
             contact_end: UnixTime { value: 5000 },
             min_distance: 1.12,
+            avg_distance: 1.0,// (1.12 + 0.88 + 1) / 3
+            total_count: 3,
         };
         batches_manager.push(tcn.clone());
 
@@ -1533,6 +1643,8 @@ mod tests {
             contact_start: UnixTime { value: 1600 },
             contact_end: UnixTime { value: 5000 },
             min_distance: 1.12,
+            avg_distance: 1.14285714, // (2.3 + 0.7 + 1 + 1 + 1.12 + 0.88 + 1) / (4 + 3)
+            total_count: 7,
         });
     }
 
@@ -1550,6 +1662,8 @@ mod tests {
             contact_start: UnixTime { value: 1600 },
             contact_end: UnixTime { value: 2600 },
             min_distance: 2.3,
+            avg_distance: 2.3,
+            total_count: 1,
         };
         let save_res = tcn_dao.save_batch(vec![stored_tcn]);
         assert!(save_res.is_ok());
@@ -1559,8 +1673,13 @@ mod tests {
             contact_start: UnixTime { value: 3000 },
             contact_end: UnixTime { value: 5000 },
             min_distance: 1.12,
+            avg_distance: 1.12,
+            total_count: 1
         };
         batches_manager.push(tcn.clone());
+
+        let loaded_tcns_res = tcn_dao.all();
+        assert!(loaded_tcns_res.is_ok());
 
         let flush_res = batches_manager.flush();
         assert!(flush_res.is_ok());
@@ -1576,12 +1695,16 @@ mod tests {
             contact_start: UnixTime { value: 1600 },
             contact_end: UnixTime { value: 2600 },
             min_distance: 2.3,
+            avg_distance: 2.3,
+            total_count: 1,
         });
         assert_eq!(loaded_tcns[1], ObservedTcn {
             tcn: TemporaryContactNumber([0; 16]),
             contact_start: UnixTime { value: 3000 },
             contact_end: UnixTime { value: 5000 },
             min_distance: 1.12,
+            avg_distance: 1.12,
+            total_count: 1
         });
     }
 
@@ -1599,6 +1722,8 @@ mod tests {
             contact_start: UnixTime { value: 1000 },
             contact_end: UnixTime { value: 6000 },
             min_distance: 0.4,
+            avg_distance: 0.4,
+            total_count: 1,
         };
 
         let stored_tcn2 = ObservedTcn {
@@ -1606,6 +1731,8 @@ mod tests {
             contact_start: UnixTime { value: 1600 },
             contact_end: UnixTime { value: 2600 },
             min_distance: 2.3,
+            avg_distance: 2.3,
+            total_count: 1,
         };
         let save_res = tcn_dao.save_batch(vec![stored_tcn1.clone(), stored_tcn2.clone()]);
         assert!(save_res.is_ok());
@@ -1615,6 +1742,8 @@ mod tests {
             contact_start: UnixTime { value: 3000 },
             contact_end: UnixTime { value: 7000 },
             min_distance: 1.12,
+            avg_distance: 1.12,
+            total_count: 1,
         };
         batches_manager.push(tcn.clone());
 
@@ -1636,6 +1765,8 @@ mod tests {
             contact_start: UnixTime { value: 1000 },
             contact_end: UnixTime { value: 7000 },
             min_distance: 0.4,
+            avg_distance: 0.76, // (0.4, + 1.12) / (1 + 1)
+            total_count: 2 // 1 + 1
         });
         assert_eq!(loaded_tcns[1], stored_tcn2);
     }
@@ -1653,6 +1784,8 @@ mod tests {
             contact_start: UnixTime { value: 1000 },
             contact_end: UnixTime { value: 6000 },
             min_distance: 0.4,
+            avg_distance: 0.4,
+            total_count: 1,
         };
 
         let stored_tcn2 = ObservedTcn {
@@ -1660,6 +1793,8 @@ mod tests {
             contact_start: UnixTime { value: 2000 },
             contact_end: UnixTime { value: 3000 },
             min_distance: 1.8,
+            avg_distance: 1.8,
+            total_count: 1,
         };
 
         let stored_tcn3 = ObservedTcn {
@@ -1667,6 +1802,8 @@ mod tests {
             contact_start: UnixTime { value: 1600 },
             contact_end: UnixTime { value: 2600 },
             min_distance: 2.3,
+            avg_distance: 2.3,
+            total_count: 1,
         };
 
         let save_res = tcn_dao.save_batch(vec![stored_tcn1.clone(), stored_tcn2.clone(), stored_tcn3.clone()]);
@@ -1700,6 +1837,8 @@ mod tests {
             contact_start: UnixTime { value: 1000 },
             contact_end: UnixTime { value: 3000 },
             min_distance: 0.4,
+            avg_distance: 0.4,
+            total_count: 1
         };
 
         let stored_tcn2 = ObservedTcn {
@@ -1707,6 +1846,8 @@ mod tests {
             contact_start: UnixTime { value: 5000 },
             contact_end: UnixTime { value: 7000 },
             min_distance: 2.0,
+            avg_distance: 2.0,
+            total_count: 1
         };
         let save_res = tcn_dao.save_batch(vec![stored_tcn1.clone(), stored_tcn2.clone()]);
         assert!(save_res.is_ok());
@@ -1716,6 +1857,8 @@ mod tests {
             contact_start: UnixTime { value: 7500 },
             contact_end: UnixTime { value: 9000 },
             min_distance: 1.0,
+            avg_distance: 1.0,
+            total_count: 1
         };
 
         batches_manager.push(tcn.clone());
@@ -1738,6 +1881,8 @@ mod tests {
             contact_start: UnixTime { value: 1000 },
             contact_end: UnixTime { value: 3000 },
             min_distance: 0.4,
+            avg_distance: 0.4,
+            total_count: 1
         });
         // The new TCN was merged with stored_tcn2
         assert_eq!(loaded_tcns[1], ObservedTcn {
@@ -1745,6 +1890,8 @@ mod tests {
             contact_start: UnixTime { value: 5000 },
             contact_end: UnixTime { value: 9000 },
             min_distance: 1.0,
+            avg_distance: 1.5, // (2.0 + 1.0) / (1 + 1),
+            total_count: 2 // 1 + 1
         });
     }
 
