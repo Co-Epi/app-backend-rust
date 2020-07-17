@@ -144,6 +144,7 @@ where
         let res = self.tcns_batch.lock();
         let mut tcns = expect_log!(res, "Couldn't lock tcns batch");
 
+        // Do an in-memory merge with the DB TCNs and overwrite stored exposures with result.
         let merged = self.merge_with_db(tcns.clone())?;
         self.tcn_dao.overwrite(merged)?;
 
@@ -155,6 +156,8 @@ where
     pub fn push(&self, tcn: ObservedTcn) {
         let res = self.tcns_batch.lock();
         let mut tcns = expect_log!(res, "Couldn't lock tcns batch");
+        
+        // TCNs in batch are merged to save memory and simplify processing / reduce logs.
         let merged_tcn = match tcns.get(&tcn.tcn.0) {
             Some(existing_tcn) => match Self::merge_tcns(&self.exposure_grouper, existing_tcn.to_owned(), tcn.clone()) {
                 Some(merged) => merged,
@@ -174,6 +177,7 @@ where
         }
     }
 
+    // Retrieves possible existing exposures from DB with same TCNs and does an in-memory merge.
     fn merge_with_db(&self, tcns: HashMap<[u8; 16], ObservedTcn>) -> Result<Vec<ObservedTcn>, ServicesError> {
         let tcns_vec: Vec<ObservedTcn> = tcns.iter().map(|(_, observed_tcn)| observed_tcn.clone()).collect();
 
@@ -197,15 +201,15 @@ where
         let db_tcns = db_tcns_map.get(&tcn.tcn.0);
 
         match db_tcns {
+            // Matching exposures in DB
             Some(db_tcns) => {
                 if let Some(last) = db_tcns.last() {
 
-                    // If contiguous to last stored TCN, merge with it, otherwise append.
+                    // If contiguous to last DB exposure, merge with it, otherwise append.
                     let tail = match Self::merge_tcns(&exposure_grouper, last.to_owned(), tcn.clone()) {
                         Some(merged ) => vec![merged],
                         None => vec![last.to_owned(), tcn]
                     };
-
                     let mut head: Vec<ObservedTcn> = db_tcns.to_owned().into_iter().take(db_tcns.len() - 1).collect();
                     head.extend(tail);
                     head
@@ -215,6 +219,7 @@ where
                     panic!();
                 }
             } 
+            // No matching exposures in DB: insert new TCN
             None => vec![tcn]
         }
     }
@@ -232,7 +237,8 @@ where
         map
     }
 
-    // Assumes: tcn contact_start always after db_tcn contact_start
+    // Returns a merged TCN, if the TCNs are contiguous, None otherwise.
+    // Assumes: tcn contact_start after db_tcn contact_start
     fn merge_tcns(
         exposure_grouper: &ExposureGrouper,
         db_tcn: ObservedTcn,
@@ -326,6 +332,8 @@ pub trait TcnDao: Send + Sync {
         with: Vec<TemporaryContactNumber>,
     ) -> Result<Vec<ObservedTcn>, ServicesError>;
     fn save_batch(&self, observed_tcns: Vec<ObservedTcn>) -> Result<(), ServicesError>;
+
+    // Removes all matching TCNs (same TCN bytes) and stores observed_tcns 
     fn overwrite(&self, observed_tcns: Vec<ObservedTcn>) -> Result<(), ServicesError>;
 }
 
