@@ -552,17 +552,18 @@ mod exposure {
 
             let contact_start = first_tcn.contact_start.value;
             let contact_end = tcns.last().unwrap_or(first_tcn).contact_end.value;
-            let tcns_iterator = tcns.into_iter();
-            let min_distance = tcns_iterator
-                .clone()
-                .fold(std::f32::MAX, |acc, el| f32::min(acc, el.min_distance));
-            let total_count: usize = tcns_iterator
-                .clone()
-                .map(|tcn| tcn.total_count).sum::<usize>();
-            let avg_distance: f32 = tcns_iterator
-                .clone()
-                .map(|tcn| tcn.avg_distance * tcn.total_count as f32)
-                .sum::<f32>() / total_count as f32;
+
+            let mut min_distance = std::f32::MAX;
+            let mut total_count: usize = 0;
+            let mut avg_distance = 0.0;
+            for tcn in tcns {
+                min_distance = f32::min(min_distance, tcn.min_distance);
+                total_count += tcn.total_count; 
+                avg_distance += tcn.avg_distance * tcn.total_count as f32;
+            }
+            // Note: this struct (Exposure) guarantees that TCNs can't be empty, 
+            // so don't have to check for 0 division.
+            avg_distance /= total_count as f32;
 
             ExposureMeasurements {
                 contact_start: UnixTime {
