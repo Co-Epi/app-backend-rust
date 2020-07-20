@@ -28,7 +28,7 @@ echo "Project root folder: $PROJECT_ROOT"
 # i686-linux-android --> x86
 
 target_triples=(aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android)
-architectures=(arm64-v8a armeabi x86_64 x86)
+architectures=(arm64-v8a armeabi-v7a x86_64 x86)
 
 if [ ${#target_triples[@]} != ${#architectures[@]} ]; then
     echo "Number of target_triples has to match number of architectures!"
@@ -53,6 +53,7 @@ done
 
 rm -fr $PATH_TO_ANDROID_MAIN/jniLibs
 mkdir $PATH_TO_ANDROID_MAIN/jniLibs
+
 for arch in ${architectures[@]}; do
     mkdir $PATH_TO_ANDROID_MAIN/jniLibs/$arch
 done
@@ -71,3 +72,4 @@ while [ "$i" -le "$limit" ]; do
 done
 
 echo "Done"
+
