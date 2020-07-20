@@ -3,18 +3,16 @@
 # to debug the script add " -x" to the shebang. Ie. "#!/bin/bash -x"
 
 # get script folder
-folder=$( cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P )
+SCRIPT_FOLDER=$( cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P )
 
-echo "$folder"
-
-# get android main folder relative to script folder
-parent="$(dirname "$folder")"
-PATH_TO_ANDROID_MAIN="$parent/core/core/src/main"
+# get android main folder relative to SCRIPT_FOLDER
+PARENT_FOLDER="$(dirname "$SCRIPT_FOLDER")"
+PATH_TO_ANDROID_MAIN="$PARENT_FOLDER/core/core/src/main"
 echo "PATH_TO_ANDROID_MAIN is $PATH_TO_ANDROID_MAIN"
 
 # get project root
-root="$(dirname "$parent")"
-echo "Root folder: $root"
+PROJECT_ROOT="$(dirname "$PARENT_FOLDER")"
+echo "Project root folder: $PROJECT_ROOT"
 
 
 # Run from repo's root folder (relative to Gradle build file. TODO do this in Gradle)
@@ -68,7 +66,7 @@ limit=$(($cnt - 1))
 
 i=0
 while [ "$i" -le "$limit" ]; do
-    cp $root/target/${target_triples[i]}/$build_type/$lib_file $PATH_TO_ANDROID_MAIN/jniLibs/${architectures[i]}/$lib_file
+    cp $PROJECT_ROOT/target/${target_triples[i]}/$build_type/$lib_file $PATH_TO_ANDROID_MAIN/jniLibs/${architectures[i]}/$lib_file
     i=$(($i + 1))
 done
 
