@@ -273,7 +273,7 @@ pub struct ObservedTcnProcessorImpl<T>
 where
     T: 'static + TcnDao,
 {
-    tcn_batches_manager: Arc<Mutex<TcnBatchesManager<T>>>,
+    tcn_batches_manager: Arc<TcnBatchesManager<T>>,
     _timer_data: TimerData
 }
 
@@ -287,7 +287,7 @@ where
     T: 'static + TcnDao,
 {
     pub fn new(tcn_batches_manager: TcnBatchesManager<T>) -> ObservedTcnProcessorImpl<T> {
-        let tcn_batches_manager = Arc::new(Mutex::new(tcn_batches_manager));
+        let tcn_batches_manager = Arc::new(tcn_batches_manager);
         let instance = ObservedTcnProcessorImpl {
             tcn_batches_manager: tcn_batches_manager.clone(),
             _timer_data: Self::schedule_process_batches(tcn_batches_manager)
@@ -295,14 +295,12 @@ where
         instance
     }
 
-    fn schedule_process_batches(tcn_batches_manager: Arc<Mutex<TcnBatchesManager<T>>>) -> TimerData {
+    fn schedule_process_batches(tcn_batches_manager: Arc<TcnBatchesManager<T>>) -> TimerData {
         let timer = Arc::new(Mutex::new(Timer::new()));
         TimerData {
             _timer: timer.clone(),
             _guard: timer.clone().lock().unwrap().schedule_repeating(chrono::Duration::seconds(10), move || {
                 debug!("Flushing TCN batches into database");
-                let tcn_batches_manager_res = tcn_batches_manager.lock();
-                let tcn_batches_manager = expect_log!(tcn_batches_manager_res, "error");
                 let flush_res = tcn_batches_manager.flush();
                 expect_log!(flush_res, "Couldn't flush TCNs");
             })
@@ -327,9 +325,7 @@ where
             total_count: 1,
         };
 
-        let res = self.tcn_batches_manager.lock();
-        let tcns = expect_log!(res, "Couldn't lock tcns batch");
-        tcns.push(observed_tcn);
+        self.tcn_batches_manager.push(observed_tcn);
 
         Ok(())
     }
