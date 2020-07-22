@@ -152,6 +152,8 @@ where
             clone
         };
 
+        debug!("Flushing TCN batch into database: {:?}", tcns);
+
         // Do an in-memory merge with the DB TCNs and overwrite stored exposures with result.
         let merged = self.merge_with_db(tcns)?;
         self.tcn_dao.overwrite(merged)?;
@@ -172,6 +174,8 @@ where
             None => tcn
         };
         tcns.insert(merged_tcn.tcn.0, merged_tcn);
+
+        // debug!("Updated TCNs batch: {:?}", tcns);
     }
 
     // Used only in tests
@@ -300,7 +304,6 @@ where
         TimerData {
             _timer: timer.clone(),
             _guard: timer.clone().lock().unwrap().schedule_repeating(chrono::Duration::seconds(10), move || {
-                debug!("Flushing TCN batches into database");
                 let flush_res = tcn_batches_manager.flush();
                 expect_log!(flush_res, "Couldn't flush TCNs");
             })
@@ -441,7 +444,7 @@ impl TcnDao for TcnDaoImpl {
     }
 
     fn overwrite(&self, observed_tcns: Vec<ObservedTcn>) -> Result<(), ServicesError> {
-        debug!("Saving TCN batch: {:?}", observed_tcns);
+        debug!("Overwriting db exposures with same TCNs, with: {:?}", observed_tcns);
 
         let tcn_strs: Vec<Value> = observed_tcns.clone().into_iter().map(|tcn| 
             Value::Text(hex::encode(tcn.tcn.0))
