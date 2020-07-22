@@ -21,7 +21,7 @@ class JniApi {
 
     external fun generateTcn(): String
 
-    external fun recordTcn(tcn: String): JniVoidResult
+    external fun recordTcn(tcn: String, distance: Float): JniVoidResult
 
     // TODO test:
     external fun setBreathlessnessCause(cause: String): JniVoidResult
@@ -133,7 +133,10 @@ data class JniAlertsArrayResult(
 data class JniAlert(
     var id: String,
     var report: JniPublicReport,
-    var contactTime: Long
+    var contactStart: Long,
+    var contactEnd: Long,
+    var minDistance: Float,
+    var avgDistance: Float
 )
 
 data class JniPublicReport(
