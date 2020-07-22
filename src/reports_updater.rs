@@ -143,17 +143,17 @@ where
     }
 
     pub fn flush(&self) -> Result<(), ServicesError> {
-        let res = self.tcns_batch.lock();
-        let mut tcns = expect_log!(res, "Couldn't lock tcns batch");
 
-        let cloned_tcns = tcns.clone();
-        tcns.clear();
-
-        // Release lock
-        drop(tcns);
+        let tcns = {
+            let res = self.tcns_batch.lock();
+            let mut tcns = expect_log!(res, "Couldn't lock tcns batch");
+            let clone = tcns.clone();
+            tcns.clear();
+            clone
+        };
 
         // Do an in-memory merge with the DB TCNs and overwrite stored exposures with result.
-        let merged = self.merge_with_db(cloned_tcns)?;
+        let merged = self.merge_with_db(tcns)?;
         self.tcn_dao.overwrite(merged)?;
 
         Ok(())
