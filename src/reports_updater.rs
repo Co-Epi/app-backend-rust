@@ -146,12 +146,15 @@ where
         let res = self.tcns_batch.lock();
         let mut tcns = expect_log!(res, "Couldn't lock tcns batch");
 
-        // Do an in-memory merge with the DB TCNs and overwrite stored exposures with result.
-        let merged = self.merge_with_db(tcns.clone())?;
-
-        self.tcn_dao.overwrite(merged)?;
-
+        let cloned_tcns = tcns.clone();
         tcns.clear();
+
+        // Release lock
+        drop(tcns);
+
+        // Do an in-memory merge with the DB TCNs and overwrite stored exposures with result.
+        let merged = self.merge_with_db(cloned_tcns)?;
+        self.tcn_dao.overwrite(merged)?;
 
         Ok(())
     }
