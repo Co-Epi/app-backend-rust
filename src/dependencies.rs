@@ -32,7 +32,7 @@ use rusqlite::Connection;
 use std::sync::Arc;
 
 #[allow(dead_code)]
-pub struct CompositionRoot<'a, A, B, C, D, F, G, H, I>
+pub struct Dependencies<'a, A, B, C, D, F, G, H, I>
 where
     A: Preferences,
     B: TcnDao,
@@ -50,8 +50,8 @@ where
     pub tcn_keys: Arc<I>,
 }
 
-pub static COMP_ROOT: OnceCell<
-    CompositionRoot<
+pub static DEPENDENCIES: OnceCell<
+    Dependencies<
         PreferencesImpl,
         TcnDaoImpl,
         TcnMatcherRayon,
@@ -77,7 +77,7 @@ pub fn bootstrap(db_path: &str) -> Result<(), ServicesError> {
     let sqlite_path = format!("{}/db.sqlite", db_path);
     debug!("Sqlite path: {:?}", sqlite_path);
 
-    if let Err(_) = COMP_ROOT.set(create_comp_root(sqlite_path.as_ref())) {
+    if let Err(_) = DEPENDENCIES.set(create_dependencies(sqlite_path.as_ref())) {
         return Err(ServicesError::General(
             "Couldn't initialize dependencies".to_owned(),
         ));
@@ -86,7 +86,7 @@ pub fn bootstrap(db_path: &str) -> Result<(), ServicesError> {
     Ok(())
 }
 
-pub fn dependencies() -> &'static CompositionRoot<
+pub fn dependencies() -> &'static Dependencies<
     'static,
     PreferencesImpl,
     TcnDaoImpl,
@@ -106,18 +106,21 @@ pub fn dependencies() -> &'static CompositionRoot<
     MemoMapperImpl,
     TcnKeysImpl<PreferencesImpl>,
 > {
-    let res = COMP_ROOT
+    let res = DEPENDENCIES
         .get()
-        .ok_or(ServicesError::General("COMP_ROOT not set".to_owned()));
+        .ok_or(ServicesError::General("DEPENDENCIES not set".to_owned()));
 
-    // Note that the error message here is unlikely to appear on Android, as if COMP_ROOT is not set
+    // Note that the error message here is unlikely to appear on Android, as if DEPENDENCIES is not set
     // most likely bootstrap hasn't been executed (which initializes the logger)
-    expect_log!(res, "COMP_ROOT not set. Maybe app didn't call bootstrap?")
+    expect_log!(
+        res,
+        "DEPENDENCIES not set. Maybe app didn't call bootstrap?"
+    )
 }
 
-fn create_comp_root(
+fn create_dependencies(
     sqlite_path: &str,
-) -> CompositionRoot<
+) -> Dependencies<
     'static,
     PreferencesImpl,
     TcnDaoImpl,
@@ -163,7 +166,7 @@ fn create_comp_root(
     let tcn_dao = Arc::new(TcnDaoImpl::new(database.clone()));
     let exposure_grouper = ExposureGrouper { threshold: 3600 };
 
-    CompositionRoot {
+    Dependencies {
         api,
         reports_updater: ReportsUpdater {
             preferences: preferences.clone(),

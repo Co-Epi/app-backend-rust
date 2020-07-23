@@ -1,7 +1,7 @@
 use crate::reporting::symptom_inputs_manager::SymptomInputsProcessor;
 use crate::tcn_ext::tcn_keys::TcnKeys;
 use crate::{
-    composition_root::{bootstrap, dependencies, COMP_ROOT},
+    dependencies::{bootstrap, dependencies, DEPENDENCIES},
     errors::ServicesError,
     networking,
 };
@@ -79,7 +79,7 @@ pub unsafe extern "C" fn record_tcn(c_tcn: *const c_char, distance: f32) -> CFSt
 pub unsafe extern "C" fn generate_tcn() -> CFStringRef {
     // TODO hex encoding in component, or send byte array directly?
     let tcn_hex = hex::encode(
-        COMP_ROOT
+        DEPENDENCIES
             .get()
             .expect("Not bootstrapped")
             .tcn_keys
