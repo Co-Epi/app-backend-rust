@@ -248,7 +248,6 @@ fn bootstrap_core(
     let db_path_java_str = env.get_string(db_path_j_string)?;
     let db_path_str = db_path_java_str.to_str()?;
 
-    info!("Bootstrapping with db path: {:?}", db_path_str);
     let db_result = bootstrap(db_path_str)?;
     info!("Bootstrapping result: {:?}", db_result);
 
@@ -270,7 +269,6 @@ fn recordTcn(env: &JNIEnv, tcn: JString, distance: jfloat) -> Result<(), Service
     let result = dependencies()
         .observed_tcn_processor
         .save(tcn_str, distance as f32);
-    info!("Recording TCN result {:?}", result);
 
     result
 }
