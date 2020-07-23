@@ -47,7 +47,6 @@ pub unsafe extern "C" fn bootstrap_core(
     let _ = simple_logger::setup_logger(filter_level, coepi_only);
 
     let db_path_str = cstring_to_str(&db_path);
-    println!("Bootstrapping with db path: {:?}", db_path_str);
     let result = db_path_str.and_then(|path| bootstrap(path).map_err(ServicesError::from));
     info!("Bootstrapping result: {:?}", result);
     return to_result_str(result);
@@ -72,7 +71,6 @@ pub unsafe extern "C" fn record_tcn(c_tcn: *const c_char, distance: f32) -> CFSt
             .observed_tcn_processor
             .save(tcn_str, distance)
     });
-    info!("Recording TCN result {:?}", result);
     return to_result_str(result);
 }
 
