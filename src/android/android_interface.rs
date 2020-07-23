@@ -1,8 +1,8 @@
 use crate::reporting::symptom_inputs_manager::SymptomInputsProcessor;
-use crate::reports_updater::ObservedTcnProcessor;
 use crate::tcn_ext::tcn_keys::TcnKeys;
+use crate::tcn_recording::observed_tcn_processor::ObservedTcnProcessor;
 use crate::{
-    composition_root::{bootstrap, dependencies},
+    dependencies::{bootstrap, dependencies},
     errors::ServicesError,
     expect_log,
     reporting::{
@@ -10,7 +10,7 @@ use crate::{
         symptom_inputs::UserInput,
     },
     reports_interval::UnixTime,
-    reports_updater::Alert,
+    reports_update::reports_updater::Alert,
     simple_logger,
 };
 use jni::{
@@ -82,7 +82,7 @@ pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_recordTcn(
     tcn: JString,
     distance: jfloat,
 ) -> jobject {
-    recordTcn(&env, tcn, distance).to_void_jni(&env)
+    record_tcn(&env, tcn, distance).to_void_jni(&env)
 }
 
 // NOTE: Returns directly success string
@@ -262,7 +262,7 @@ fn fetch_new_reports(env: &JNIEnv) -> Result<jobjectArray, ServicesError> {
     alerts_to_jobject_array(result, &env)
 }
 
-fn recordTcn(env: &JNIEnv, tcn: JString, distance: jfloat) -> Result<(), ServicesError> {
+fn record_tcn(env: &JNIEnv, tcn: JString, distance: jfloat) -> Result<(), ServicesError> {
     let tcn_java_str = env.get_string(tcn)?;
     let tcn_str = tcn_java_str.to_str()?;
 
