@@ -9,6 +9,8 @@ import org.coepi.core.domain.model.toFeverSeverity
 import org.coepi.core.domain.common.Result
 import org.coepi.core.domain.common.Result.Success
 import org.coepi.core.domain.common.Result.Failure
+import org.coepi.core.domain.model.LengthMeasurement
+import org.coepi.core.domain.model.LengthMeasurement.Meters
 import org.coepi.core.domain.model.UnixTime
 import org.coepi.core.domain.model.UserInput.None
 import org.coepi.core.domain.model.UserInput.Some
@@ -46,11 +48,11 @@ class AlertsFetcherImpl(private val api: JniApi) :
         },
         minDistance = when {
             minDistance < 0 -> error("Invalid min distance: $minDistance")
-            else -> minDistance
+            else -> Meters(minDistance)
         },
         avgDistance = when {
             avgDistance < 0 -> error("Invalid avg distance: $avgDistance")
-            else -> avgDistance
+            else -> Meters(avgDistance)
         },
         reportTime = when {
             report.reportTime < 0 -> error("Invalid report time: ${report.reportTime}")
