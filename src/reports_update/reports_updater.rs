@@ -215,7 +215,6 @@ where
             .map_err(ServicesError::from)
     }
 
-    // TODO move to tcn_matcher?
     fn find_matches(
         &self,
         reports: Vec<SignedReport>,
