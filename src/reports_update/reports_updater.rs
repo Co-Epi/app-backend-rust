@@ -262,18 +262,8 @@ where
         matched_reports
     }
 
-    // TODO move to reports_intervals
-    pub fn interval_ending_before(
-        intervals: Vec<ReportsInterval>,
-        time: &UnixTime,
-    ) -> Option<ReportsInterval> {
-        // TODO shorter version of this?
-        let reversed: Vec<ReportsInterval> = intervals.into_iter().rev().collect();
-        reversed.into_iter().find(|i| i.ends_before(&time))
-    }
-
     fn store_last_completed_interval(&self, intervals: Vec<ReportsInterval>, now: &UnixTime) {
-        let interval = Self::interval_ending_before(intervals.clone(), now);
+        let interval = ReportsInterval::interval_ending_before(intervals.clone(), now);
         debug!(
             "Storing last completed reports interval: {:?}, for intervals: {:?}",
             interval, intervals

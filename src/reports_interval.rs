@@ -55,17 +55,20 @@ impl ReportsInterval {
             length: length_seconds,
         }
     }
+
+    pub fn interval_ending_before(
+        intervals: Vec<ReportsInterval>,
+        time: &UnixTime,
+    ) -> Option<ReportsInterval> {
+        // TODO shorter version of this?
+        let reversed: Vec<ReportsInterval> = intervals.into_iter().rev().collect();
+        reversed.into_iter().find(|i| i.ends_before(&time))
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        database::{preferences::PreferencesImpl, tcn_dao::TcnDaoImpl},
-        networking::TcnApiImpl,
-        reporting::memo::MemoMapperImpl,
-        reports_update::{reports_updater::ReportsUpdater, tcn_matcher::TcnMatcherRayon},
-    };
 
     #[test]
     fn interval_ending_before_if_contained_and_one_interval() {
@@ -80,16 +83,8 @@ mod tests {
             value: containing_interval.start() + 2000, // Arbitrary value inside interval
         };
 
-        // TODO move this function outside of ReportsUpdater
         let interval_ending_before: Option<ReportsInterval> =
-            ReportsUpdater::<
-                'static,
-                PreferencesImpl,
-                TcnDaoImpl,
-                TcnMatcherRayon,
-                TcnApiImpl,
-                MemoMapperImpl,
-            >::interval_ending_before(intervals, &time);
+            ReportsInterval::interval_ending_before(intervals, &time);
 
         // time is contained in the interval, and it's the only interval, so there's no interval ending before of time's interval
         assert!(interval_ending_before.is_none());
@@ -113,16 +108,8 @@ mod tests {
             value: containing_interval.start() + 2000, // Arbitrary value inside interval
         };
 
-        // TODO move this function outside of ReportsUpdater
         let interval_ending_before: Option<ReportsInterval> =
-            ReportsUpdater::<
-                'static,
-                PreferencesImpl,
-                TcnDaoImpl,
-                TcnMatcherRayon,
-                TcnApiImpl,
-                MemoMapperImpl,
-            >::interval_ending_before(intervals, &time);
+            ReportsInterval::interval_ending_before(intervals, &time);
 
         assert!(interval_ending_before.is_some());
         assert_eq!(interval_ending_before.unwrap(), interval_before);
@@ -135,14 +122,7 @@ mod tests {
         let time = UnixTime { value: 1591706000 }; // arbitrary time
 
         let interval_ending_before: Option<ReportsInterval> =
-            ReportsUpdater::<
-                'static,
-                PreferencesImpl,
-                TcnDaoImpl,
-                TcnMatcherRayon,
-                TcnApiImpl,
-                MemoMapperImpl,
-            >::interval_ending_before(intervals, &time);
+            ReportsInterval::interval_ending_before(intervals, &time);
 
         assert!(interval_ending_before.is_none());
     }
