@@ -1,12 +1,12 @@
 use crate::networking::{TcnApi, TcnApiImpl};
-use crate::reports_updater::{
-    ExposureGrouper, ObservedTcnProcessor, ObservedTcnProcessorImpl, ReportsUpdater,
-    TcnBatchesManager, TcnDao, TcnDaoImpl, TcnMatcher, TcnMatcherRayon,
-};
 use crate::{
+    database::{
+        database::Database,
+        preferences::{Preferences, PreferencesDao, PreferencesImpl},
+        tcn_dao::{TcnDao, TcnDaoImpl},
+    },
     errors::ServicesError,
     expect_log,
-    preferences::{Database, Preferences, PreferencesDao, PreferencesImpl},
     reporting::{
         memo::{MemoMapper, MemoMapperImpl},
         symptom_inputs::{SymptomInputs, SymptomInputsSubmitterImpl},
@@ -14,7 +14,16 @@ use crate::{
             SymptomInputsManagerImpl, SymptomInputsProcessor, SymptomInputsProcessorImpl,
         },
     },
+    reports_update::{
+        exposure::ExposureGrouper,
+        reports_updater::ReportsUpdater,
+        tcn_matcher::{TcnMatcher, TcnMatcherRayon},
+    },
     tcn_ext::tcn_keys::{TcnKeys, TcnKeysImpl},
+    tcn_recording::{
+        observed_tcn_processor::{ObservedTcnProcessor, ObservedTcnProcessorImpl},
+        tcn_batches_manager::TcnBatchesManager,
+    },
 };
 use log::*;
 use once_cell::sync::OnceCell;

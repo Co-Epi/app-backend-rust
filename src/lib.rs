@@ -1,15 +1,19 @@
 #[macro_use]
 extern crate serde_big_array;
 use errors::Error;
+use std::io::Cursor;
+use tcn::SignedReport;
 mod composition_root;
+mod database;
 mod errors;
+mod extensions;
 mod networking;
-mod preferences;
 mod reporting;
 mod reports_interval;
-mod reports_updater;
+mod reports_update;
 mod simple_logger;
 mod tcn_ext;
+mod tcn_recording;
 
 #[cfg(any(target_os = "ios", target_os = "macos"))]
 mod ios;
@@ -111,3 +115,12 @@ macro_rules! expect_log {
 //         }
 //     }
 // }
+
+// For testing / debugging
+fn signed_report_to_bytes(signed_report: SignedReport) -> Vec<u8> {
+    let mut buf = Vec::new();
+    signed_report
+        .write(Cursor::new(&mut buf))
+        .expect("Couldn't write signed report bytes");
+    buf
+}

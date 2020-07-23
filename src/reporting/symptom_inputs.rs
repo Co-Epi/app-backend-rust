@@ -196,10 +196,10 @@ mod tests {
     use crate::errors;
     use crate::errors::ServicesError;
     use crate::errors::ServicesError::Error;
-    use crate::preferences::PreferencesTckMock;
     use crate::reporting::memo::MemoMapperImpl;
     use crate::simple_logger;
     use crate::{
+        database::preferences::PreferencesTckMock,
         networking::TcnApiMock,
         tcn_ext::tcn_keys::{ReportAuthorizationKeyExt, TcnKeysImpl},
     };

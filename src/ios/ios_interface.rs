@@ -1,5 +1,4 @@
 use crate::reporting::symptom_inputs_manager::SymptomInputsProcessor;
-use crate::reports_updater::ObservedTcnProcessor;
 use crate::tcn_ext::tcn_keys::TcnKeys;
 use crate::{
     composition_root::{bootstrap, dependencies, COMP_ROOT},
@@ -15,6 +14,7 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 // use mpsc::Receiver;
 use crate::simple_logger;
+use crate::tcn_recording::observed_tcn_processor::ObservedTcnProcessor;
 use simple_logger::{CoreLogLevel, CoreLogMessageThreadSafe, SENDER};
 use std::os::raw::c_char;
 use std::str::FromStr;

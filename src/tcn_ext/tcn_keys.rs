@@ -1,6 +1,6 @@
 use crate::{
+    database::preferences::{Preferences, TckBytesWrapper, TCK_SIZE_IN_BYTES},
     expect_log,
-    preferences::{Preferences, TckBytesWrapper, TCK_SIZE_IN_BYTES},
 };
 use log::*;
 use std::{io::Cursor, sync::Arc};
@@ -131,7 +131,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::preferences::PreferencesTckMock;
+    use crate::database::preferences::PreferencesTckMock;
 
     #[test]
     fn test_rak() {
