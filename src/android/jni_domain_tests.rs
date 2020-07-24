@@ -6,7 +6,7 @@ use crate::{
         symptom_inputs::UserInput,
     },
     reports_interval::UnixTime,
-    reports_updater::Alert,
+    reports_update::reports_updater::Alert,
 };
 use jni::{
     objects::{JClass, JObject},
