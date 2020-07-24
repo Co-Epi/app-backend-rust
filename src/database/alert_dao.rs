@@ -50,7 +50,8 @@ impl AlertDaoImpl {
                 diarrhea integer not null,
                 runny_nose integer not null,
                 other integer not null,
-                no_symptoms integer not null
+                no_symptoms integer not null,
+                deleted integer
             )",
             params![],
         );
@@ -166,7 +167,8 @@ impl AlertDao for AlertDaoImpl {
                 diarrhea,
                 runny_nose,
                 other,
-                no_symptoms from alert",
+                no_symptoms 
+                from alert where deleted is null",
                 NO_PARAMS,
                 |row| Self::to_alert(row),
             )
@@ -178,12 +180,12 @@ impl AlertDao for AlertDaoImpl {
 
         let delete_res = self
             .db
-            .execute_sql("delete from alert where id=?;", params![id]);
+            .execute_sql("update alert set deleted=1 where id=?;", params![id]);
 
         match delete_res {
             Ok(count) => {
                 if count > 0 {
-                    debug!("Deleted: {} rows", count);
+                    debug!("Updated: {} rows", count);
                     Ok(())
                 } else {
                     error!("Didn't find alert to delete: {}", id);
@@ -201,7 +203,7 @@ impl AlertDao for AlertDaoImpl {
         self.db.transaction(|t| {
             for alert in alerts {
                 t.execute(
-                    "insert or replace into alert(
+                    "insert or ignore into alert(
                         id,
                         start,
                         end,
@@ -319,7 +321,7 @@ mod tests {
     }
 
     #[test]
-    fn test_id_is_unique_old_replaced() {
+    fn test_new_alert_with_same_id_ignored() {
         let database = Arc::new(Database::new(
             Connection::open_in_memory().expect("Couldn't create database!"),
         ));
@@ -366,7 +368,7 @@ mod tests {
         let loaded_alerts = loaded_alerts_res.unwrap();
 
         assert_eq!(loaded_alerts.len(), 1);
-        assert_eq!(loaded_alerts[0], alert2);
+        assert_eq!(loaded_alerts[0], alert1);
     }
 
     #[test]
@@ -465,6 +467,63 @@ mod tests {
 
         let delete_res = alert_dao.delete("2".to_owned());
         assert!(delete_res.is_ok());
+
+        let loaded_alerts_res = alert_dao.all();
+        assert!(loaded_alerts_res.is_ok());
+
+        let loaded_alerts = loaded_alerts_res.unwrap();
+
+        assert_eq!(loaded_alerts.len(), 1);
+        assert_eq!(loaded_alerts[0], alert1);
+    }
+
+    #[test]
+    fn test_alert_not_restored_after_delete() {
+        let database = Arc::new(Database::new(
+            Connection::open_in_memory().expect("Couldn't create database!"),
+        ));
+        let alert_dao = AlertDaoImpl::new(database.clone());
+
+        let report = PublicReport {
+            report_time: UnixTime { value: 0 },
+            earliest_symptom_time: UserInput::Some(UnixTime { value: 1590356601 }),
+            fever_severity: FeverSeverity::Mild,
+            cough_severity: CoughSeverity::Dry,
+            breathlessness: true,
+            muscle_aches: true,
+            loss_smell_or_taste: false,
+            diarrhea: false,
+            runny_nose: true,
+            other: false,
+            no_symptoms: true,
+        };
+
+        let alert1 = Alert {
+            id: "1".to_owned(),
+            report: report.clone(),
+            contact_start: 1000,
+            contact_end: 2000,
+            min_distance: 2.3,
+            avg_distance: 4.3,
+        };
+
+        let alert2 = Alert {
+            id: "2".to_owned(),
+            report: report.clone(),
+            contact_start: 1001,
+            contact_end: 2001,
+            min_distance: 2.4,
+            avg_distance: 4.4,
+        };
+
+        let save_res = alert_dao.save(vec![alert1.clone(), alert2.clone()]);
+        assert!(save_res.is_ok());
+
+        let delete_res = alert_dao.delete("2".to_owned());
+        assert!(delete_res.is_ok());
+
+        let save_res = alert_dao.save(vec![alert2.clone()]);
+        assert!(save_res.is_ok());
 
         let loaded_alerts_res = alert_dao.all();
         assert!(loaded_alerts_res.is_ok());
