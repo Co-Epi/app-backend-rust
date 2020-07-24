@@ -19,6 +19,8 @@ class JniApi {
 
     external fun fetchNewReports(): JniAlertsArrayResult
 
+    external fun deleteAlert(id: String): JniVoidResult
+
     external fun generateTcn(): String
 
     external fun recordTcn(tcn: String, distance: Float): JniVoidResult
