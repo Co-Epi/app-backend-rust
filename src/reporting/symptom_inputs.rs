@@ -116,7 +116,7 @@ pub enum SymptomId {
     None,
 }
 
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize, Eq)]
 pub enum UserInput<T>
 where
     T: Serialize,
@@ -129,10 +129,24 @@ impl<T> UserInput<T>
 where
     T: Serialize,
 {
+    pub fn from(option: Option<T>) -> UserInput<T> {
+        match option {
+            Some(val) => UserInput::Some(val),
+            None => UserInput::None,
+        }
+    }
+
     pub fn map<F: FnOnce(T) -> U, U: Serialize>(self, f: F) -> UserInput<U> {
         match self {
             UserInput::Some(input) => UserInput::Some(f(input)),
             UserInput::None => UserInput::None,
+        }
+    }
+
+    pub fn as_opt(self) -> Option<T> {
+        match self {
+            UserInput::Some(input) => Option::Some(input),
+            UserInput::None => Option::None,
         }
     }
 }

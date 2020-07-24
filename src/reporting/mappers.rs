@@ -3,8 +3,9 @@ use super::{
     public_report::{CoughSeverity, FeverSeverity},
     symptom_inputs::UserInput,
 };
-use crate::reports_interval::UnixTime;
-
+use crate::{expect_log, reports_interval::UnixTime};
+#[cfg(target_os = "android")]
+use log::error;
 
 pub trait BitMapper<T> {
     fn bit_count(&self) -> usize;
@@ -117,25 +118,13 @@ impl BitMapper<CoughSeverity> for CoughSeverityMapper {
     }
 
     fn to_bits_unchecked(&self, value: CoughSeverity) -> BitVector {
-        (match value {
-            CoughSeverity::None => 0,
-            CoughSeverity::Existing => 1,
-            CoughSeverity::Dry => 2,
-            CoughSeverity::Wet => 3,
-        } as u8)
-            .to_bits()
-            .as_unibble_bit_vector()
+        value.raw_value().to_bits().as_unibble_bit_vector()
     }
 
     fn from_bits_unchecked(&self, bit_vector: BitVector) -> CoughSeverity {
         let value = bit_vector.as_u8();
-        match value {
-            0 => CoughSeverity::None,
-            1 => CoughSeverity::Existing,
-            2 => CoughSeverity::Dry,
-            3 => CoughSeverity::Wet,
-            _ => panic!("Not supported: {}", value),
-        }
+        let res = CoughSeverity::from(value);
+        expect_log!(res, "Not supported raw value")
     }
 }
 
@@ -146,23 +135,13 @@ impl BitMapper<FeverSeverity> for FeverSeverityMapper {
     }
 
     fn to_bits_unchecked(&self, value: FeverSeverity) -> BitVector {
-        (match value {
-            FeverSeverity::None => 0,
-            FeverSeverity::Mild => 1,
-            FeverSeverity::Serious => 2,
-        } as u8)
-            .to_bits()
-            .as_unibble_bit_vector()
+        value.raw_value().to_bits().as_unibble_bit_vector()
     }
 
     fn from_bits_unchecked(&self, bit_vector: BitVector) -> FeverSeverity {
         let value = bit_vector.as_u8();
-        match value {
-            0 => FeverSeverity::None,
-            1 => FeverSeverity::Mild,
-            2 => FeverSeverity::Serious,
-            _ => panic!("Not supported: {}", value),
-        }
+        let res = FeverSeverity::from(value);
+        expect_log!(res, "Not supported raw value")
     }
 }
 

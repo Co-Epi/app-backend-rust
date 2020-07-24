@@ -1,3 +1,4 @@
+use crate::database::alert_dao::AlertDao;
 use crate::reporting::symptom_inputs_manager::SymptomInputsProcessor;
 use crate::tcn_ext::tcn_keys::TcnKeys;
 use crate::tcn_recording::observed_tcn_processor::ObservedTcnProcessor;
@@ -73,6 +74,15 @@ pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_fetchNewReports(
             )
         }
     }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_deleteAlert(
+    env: JNIEnv,
+    _: JClass,
+    id: JString,
+) -> jobject {
+    delete_alert(&env, id).to_void_jni(&env)
 }
 
 #[no_mangle]
@@ -256,21 +266,26 @@ fn bootstrap_core(
 
 fn fetch_new_reports(env: &JNIEnv) -> Result<jobjectArray, ServicesError> {
     info!("Updating reports");
-    let result = dependencies().reports_updater.fetch_new_reports()?;
+    let result = dependencies().reports_updater.update_and_fetch_alerts()?;
     info!("New reports: {:?}", result);
 
     alerts_to_jobject_array(result, &env)
+}
+
+fn delete_alert(env: &JNIEnv, id: JString) -> Result<(), ServicesError> {
+    let id_java_str = env.get_string(id)?;
+    let id_str = id_java_str.to_str()?;
+
+    dependencies().alert_dao.delete(id_str.to_owned())
 }
 
 fn record_tcn(env: &JNIEnv, tcn: JString, distance: jfloat) -> Result<(), ServicesError> {
     let tcn_java_str = env.get_string(tcn)?;
     let tcn_str = tcn_java_str.to_str()?;
 
-    let result = dependencies()
+    dependencies()
         .observed_tcn_processor
-        .save(tcn_str, distance as f32);
-
-    result
+        .save(tcn_str, distance as f32)
 }
 
 fn set_symptom_ids(env: &JNIEnv, ids: JString) -> Result<(), ServicesError> {

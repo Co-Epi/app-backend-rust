@@ -13,6 +13,7 @@ use serde::Serialize;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 // use mpsc::Receiver;
+use crate::database::alert_dao::AlertDao;
 use crate::simple_logger;
 use crate::tcn_recording::observed_tcn_processor::ObservedTcnProcessor;
 use simple_logger::{CoreLogLevel, CoreLogMessageThreadSafe, SENDER};
@@ -54,13 +55,20 @@ pub unsafe extern "C" fn bootstrap_core(
 
 #[no_mangle]
 pub unsafe extern "C" fn fetch_new_reports() -> CFStringRef {
-    info!("Updating reports");
+    info!("Updating alerts");
 
-    let result = dependencies().reports_updater.fetch_new_reports();
+    let result = dependencies().reports_updater.update_and_fetch_alerts();
 
-    info!("New reports: {:?}", result);
+    info!("New alerts: {:?}", result);
 
     return to_result_str(result);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn delete_alert(id: *const c_char) -> CFStringRef {
+    let id_str = cstring_to_str(&id);
+    let result = id_str.and_then(|id| dependencies().alert_dao.delete(id.to_owned()));
+    to_result_str(result)
 }
 
 #[no_mangle]

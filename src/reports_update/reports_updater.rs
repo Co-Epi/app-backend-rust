@@ -3,7 +3,7 @@ use super::{
     tcn_matcher::{MatchedReport, TcnMatcher},
 };
 use crate::{
-    database::{preferences::Preferences, tcn_dao::TcnDao},
+    database::{alert_dao::AlertDao, preferences::Preferences, tcn_dao::TcnDao},
     errors::{Error, ServicesError},
     extensions::Also,
     networking::{NetworkingError, TcnApi},
@@ -22,12 +22,13 @@ use tcn::SignedReport;
 #[derive(Copy, Clone)]
 struct Element {}
 
-// Note: this struct is meant only to send to the app, thus time directly as u64.
-// Ideally these types would be separated (e.g. in an own module)
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, PartialEq, Clone)]
 pub struct Alert {
     pub id: String,
     pub report: PublicReport,
+
+    // Note: for now these fields "raw", as this struct is used for FFI.
+    // if it's needed to manipulate Alert in Rust, a separate type should be created.
     pub contact_start: u64,
     pub contact_end: u64,
     pub min_distance: f32,
@@ -53,24 +54,44 @@ pub trait SignedReportExt {
 }
 impl SignedReportExt for SignedReport {}
 
-pub struct ReportsUpdater<'a, T: Preferences, U: TcnDao, V: TcnMatcher, W: TcnApi, X: MemoMapper> {
+pub struct ReportsUpdater<
+    'a,
+    T: Preferences,
+    U: TcnDao,
+    V: TcnMatcher,
+    W: TcnApi,
+    X: MemoMapper,
+    Y: AlertDao,
+> {
     pub preferences: Arc<T>,
     pub tcn_dao: Arc<U>,
     pub tcn_matcher: V,
     pub api: &'a W,
     pub memo_mapper: &'a X,
     pub exposure_grouper: ExposureGrouper,
+    pub alert_dao: Arc<Y>,
 }
 
-impl<'a, T, U, V, W, X> ReportsUpdater<'a, T, U, V, W, X>
+impl<'a, T, U, V, W, X, Y> ReportsUpdater<'a, T, U, V, W, X, Y>
 where
     T: Preferences,
     U: TcnDao,
     V: TcnMatcher,
     W: TcnApi,
     X: MemoMapper,
+    Y: AlertDao,
 {
-    pub fn fetch_new_reports(&self) -> Result<Vec<Alert>, ServicesError> {
+    pub fn update_and_fetch_alerts(&self) -> Result<Vec<Alert>, ServicesError> {
+        self.update_alerts()?;
+        self.alert_dao.all()
+    }
+
+    fn update_alerts(&self) -> Result<(), ServicesError> {
+        let new_alerts = self.fetch_new_reports()?;
+        self.alert_dao.save(new_alerts)
+    }
+
+    fn fetch_new_reports(&self) -> Result<Vec<Alert>, ServicesError> {
         self.retrieve_and_match_new_reports().map(|signed_reports| {
             signed_reports
                 .into_iter()
