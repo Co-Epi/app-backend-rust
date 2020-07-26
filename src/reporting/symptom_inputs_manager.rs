@@ -6,7 +6,7 @@ use super::{
     },
 };
 use crate::{
-    errors::ServicesError, networking::TcnApiImpl, preferences::PreferencesImpl,
+    database::preferences::PreferencesImpl, errors::ServicesError, networking::TcnApiImpl,
     reports_interval::UnixTime, tcn_ext::tcn_keys::TcnKeysImpl,
 };
 use chrono::{Duration, Utc};

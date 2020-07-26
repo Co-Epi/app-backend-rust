@@ -1,8 +1,7 @@
 use crate::reporting::symptom_inputs_manager::SymptomInputsProcessor;
-use crate::reports_updater::ObservedTcnProcessor;
 use crate::tcn_ext::tcn_keys::TcnKeys;
 use crate::{
-    composition_root::{bootstrap, dependencies, COMP_ROOT},
+    dependencies::{bootstrap, dependencies, DEPENDENCIES},
     errors::ServicesError,
     networking,
 };
@@ -15,6 +14,7 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 // use mpsc::Receiver;
 use crate::simple_logger;
+use crate::tcn_recording::observed_tcn_processor::ObservedTcnProcessor;
 use simple_logger::{CoreLogLevel, CoreLogMessageThreadSafe, SENDER};
 use std::os::raw::c_char;
 use std::str::FromStr;
@@ -47,7 +47,6 @@ pub unsafe extern "C" fn bootstrap_core(
     let _ = simple_logger::setup_logger(filter_level, coepi_only);
 
     let db_path_str = cstring_to_str(&db_path);
-    println!("Bootstrapping with db path: {:?}", db_path_str);
     let result = db_path_str.and_then(|path| bootstrap(path).map_err(ServicesError::from));
     info!("Bootstrapping result: {:?}", result);
     return to_result_str(result);
@@ -65,10 +64,13 @@ pub unsafe extern "C" fn fetch_new_reports() -> CFStringRef {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn record_tcn(c_tcn: *const c_char) -> CFStringRef {
+pub unsafe extern "C" fn record_tcn(c_tcn: *const c_char, distance: f32) -> CFStringRef {
     let tcn_str = cstring_to_str(&c_tcn);
-    let result = tcn_str.and_then(|tcn_str| dependencies().observed_tcn_processor.save(tcn_str));
-    info!("Recording TCN result {:?}", result);
+    let result = tcn_str.and_then(|tcn_str| {
+        dependencies()
+            .observed_tcn_processor
+            .save(tcn_str, distance)
+    });
     return to_result_str(result);
 }
 
@@ -77,7 +79,7 @@ pub unsafe extern "C" fn record_tcn(c_tcn: *const c_char) -> CFStringRef {
 pub unsafe extern "C" fn generate_tcn() -> CFStringRef {
     // TODO hex encoding in component, or send byte array directly?
     let tcn_hex = hex::encode(
-        COMP_ROOT
+        DEPENDENCIES
             .get()
             .expect("Not bootstrapped")
             .tcn_keys

@@ -68,7 +68,7 @@ class JNIInterfaceBootstrappedTests {
 
     @Test
     fun recordTcn() {
-        val value = JniApi().recordTcn("2485a64b57addcaea3ed1b538d07dbce")
+        val value = JniApi().recordTcn("2485a64b57addcaea3ed1b538d07dbce", 34.03f)
         assertEquals(JniVoidResult(1, ""), value)
     }
 

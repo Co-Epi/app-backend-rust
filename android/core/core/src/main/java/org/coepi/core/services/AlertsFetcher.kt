@@ -9,6 +9,8 @@ import org.coepi.core.domain.model.toFeverSeverity
 import org.coepi.core.domain.common.Result
 import org.coepi.core.domain.common.Result.Success
 import org.coepi.core.domain.common.Result.Failure
+import org.coepi.core.domain.model.LengthMeasurement
+import org.coepi.core.domain.model.LengthMeasurement.Meters
 import org.coepi.core.domain.model.UnixTime
 import org.coepi.core.domain.model.UserInput.None
 import org.coepi.core.domain.model.UserInput.Some
@@ -36,9 +38,21 @@ class AlertsFetcherImpl(private val api: JniApi) :
 
     private fun JniAlert.toAlert() = Alert(
         id = id,
-        contactTime = when {
-            contactTime < 0 -> error("Invalid contact time: $contactTime")
-            else -> UnixTime.fromValue(contactTime)
+        contactStart = when {
+            contactStart < 0 -> error("Invalid contact start: $contactStart")
+            else -> UnixTime.fromValue(contactStart)
+        },
+        contactEnd = when {
+            contactEnd < 0 -> error("Invalid contact end: $contactEnd")
+            else -> UnixTime.fromValue(contactEnd)
+        },
+        minDistance = when {
+            minDistance < 0 -> error("Invalid min distance: $minDistance")
+            else -> Meters(minDistance)
+        },
+        avgDistance = when {
+            avgDistance < 0 -> error("Invalid avg distance: $avgDistance")
+            else -> Meters(avgDistance)
         },
         reportTime = when {
             report.reportTime < 0 -> error("Invalid report time: ${report.reportTime}")

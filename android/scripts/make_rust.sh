@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 
 # to debug the script add " -x" to the shebang. Ie. "#!/bin/bash -x"
 

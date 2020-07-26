@@ -1,8 +1,8 @@
 use crate::reporting::symptom_inputs_manager::SymptomInputsProcessor;
-use crate::reports_updater::ObservedTcnProcessor;
 use crate::tcn_ext::tcn_keys::TcnKeys;
+use crate::tcn_recording::observed_tcn_processor::ObservedTcnProcessor;
 use crate::{
-    composition_root::{bootstrap, dependencies},
+    dependencies::{bootstrap, dependencies},
     errors::ServicesError,
     expect_log,
     reporting::{
@@ -10,7 +10,7 @@ use crate::{
         symptom_inputs::UserInput,
     },
     reports_interval::UnixTime,
-    reports_updater::Alert,
+    reports_update::reports_updater::Alert,
     simple_logger,
 };
 use jni::{
@@ -80,8 +80,9 @@ pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_recordTcn(
     env: JNIEnv,
     _: JClass,
     tcn: JString,
+    distance: jfloat,
 ) -> jobject {
-    recordTcn(&env, tcn).to_void_jni(&env)
+    record_tcn(&env, tcn, distance).to_void_jni(&env)
 }
 
 // NOTE: Returns directly success string
@@ -247,7 +248,6 @@ fn bootstrap_core(
     let db_path_java_str = env.get_string(db_path_j_string)?;
     let db_path_str = db_path_java_str.to_str()?;
 
-    info!("Bootstrapping with db path: {:?}", db_path_str);
     let db_result = bootstrap(db_path_str)?;
     info!("Bootstrapping result: {:?}", db_result);
 
@@ -262,12 +262,13 @@ fn fetch_new_reports(env: &JNIEnv) -> Result<jobjectArray, ServicesError> {
     alerts_to_jobject_array(result, &env)
 }
 
-fn recordTcn(env: &JNIEnv, tcn: JString) -> Result<(), ServicesError> {
+fn record_tcn(env: &JNIEnv, tcn: JString, distance: jfloat) -> Result<(), ServicesError> {
     let tcn_java_str = env.get_string(tcn)?;
     let tcn_str = tcn_java_str.to_str()?;
 
-    let result = dependencies().observed_tcn_processor.save(tcn_str);
-    info!("Recording TCN result {:?}", result);
+    let result = dependencies()
+        .observed_tcn_processor
+        .save(tcn_str, distance as f32);
 
     result
 }
@@ -485,8 +486,8 @@ impl LogCallbackWrapper for LogCallbackWrapperImpl {
             // Note that if we panic, LogCat will also not show a message, or location.
             // TODO consider writing to file. Otherwise it's impossible to notice this.
             Err(e) => println!(
-                "Couldn't get env: Can't send log: level: {}, text: {}",
-                level, text,
+                "Couldn't get env: Can't send log: level: {}, text: {}, e: {}",
+                level, text, e
             ),
         }
     }
@@ -566,7 +567,10 @@ fn placeholder_alert() -> Alert {
     Alert {
         id: "0".to_owned(),
         report,
-        contact_time: 0,
+        contact_start: 0,
+        contact_end: 0,
+        min_distance: 0.0,
+        avg_distance: 0.0,
     }
 }
 
@@ -627,16 +631,22 @@ pub fn alert_to_jobject(alert: Alert, env: &JNIEnv) -> Result<jobject, ServicesE
     let id_j_string = env.new_string(alert.id)?;
     let id_j_value = JValue::from(JObject::from(id_j_string));
 
-    let earliest_time_j_value = JValue::from(alert.contact_time as i64);
+    let contact_start_j_value = JValue::from(alert.contact_start as i64);
+    let contact_end_j_value = JValue::from(alert.contact_end as i64);
+    let min_distance_j_value = JValue::from(alert.min_distance);
+    let avg_distance_j_value = JValue::from(alert.avg_distance);
 
     let result: Result<jobject, jni::errors::Error> = env
         .new_object(
             jni_alert_class,
-            "(Ljava/lang/String;Lorg/coepi/core/jni/JniPublicReport;J)V",
+            "(Ljava/lang/String;Lorg/coepi/core/jni/JniPublicReport;JJFF)V",
             &[
                 id_j_value,
                 JValue::from(jni_public_report_obj),
-                earliest_time_j_value,
+                contact_start_j_value,
+                contact_end_j_value,
+                min_distance_j_value,
+                avg_distance_j_value,
             ],
         )
         .map(|o| o.into_inner());
@@ -681,6 +691,10 @@ impl JniErrorMappable for ServicesError {
             ServicesError::General(msg) => JniError {
                 status: 5,
                 message: msg.to_owned(),
+            },
+            ServicesError::NotFound => JniError {
+                status: 6,
+                message: "Not found".to_owned(),
             },
         }
     }
