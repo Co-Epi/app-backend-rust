@@ -1,4 +1,4 @@
-#!/bin/bash 
+#!/bin/bash -x
 
 # to debug the script add " -x" to the shebang. Ie. "#!/bin/bash -x"
 
@@ -36,17 +36,17 @@ if [ ${#target_triples[@]} != ${#architectures[@]} ]; then
 fi
 
 platform="--platform 29"
-release=""
-build_type=debug
+release_flag=""
+build_type_folder=debug
 
 if [[ $* == *--release* ]]; then
     # release builds
-    release="--release"
-    build_type=release
+    release_flag="--release"
+    build_type_folder=release
 fi
 
 for target_triple in ${target_triples[@]}; do
-    cargo ndk $platform --target $target_triple build $release
+    cargo ndk $platform --target $target_triple build $release_flag
 done
 
 # Linking ###########################################################
@@ -67,7 +67,7 @@ limit=$(($cnt - 1))
 
 i=0
 while [ "$i" -le "$limit" ]; do
-    cp $PROJECT_ROOT/target/${target_triples[i]}/$build_type/$lib_file $PATH_TO_ANDROID_MAIN/jniLibs/${architectures[i]}/$lib_file
+    cp $PROJECT_ROOT/target/${target_triples[i]}/$build_type_folder/$lib_file $PATH_TO_ANDROID_MAIN/jniLibs/${architectures[i]}/$lib_file
     i=$(($i + 1))
 done
 
