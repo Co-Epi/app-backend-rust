@@ -9,18 +9,19 @@ import org.coepi.core.domain.model.toFeverSeverity
 import org.coepi.core.domain.common.Result
 import org.coepi.core.domain.common.Result.Success
 import org.coepi.core.domain.common.Result.Failure
-import org.coepi.core.domain.model.LengthMeasurement
 import org.coepi.core.domain.model.LengthMeasurement.Meters
 import org.coepi.core.domain.model.UnixTime
 import org.coepi.core.domain.model.UserInput.None
 import org.coepi.core.domain.model.UserInput.Some
+import org.coepi.core.jni.asResult
 
-interface AlertsFetcher {
+interface AlertsApi {
     fun fetchNewAlerts(): Result<List<Alert>, Throwable>
+    fun deleteAlert(id: String): Result<Unit, Throwable>
 }
 
 class AlertsFetcherImpl(private val api: JniApi) :
-    AlertsFetcher {
+    AlertsApi {
 
     override fun fetchNewAlerts(): Result<List<Alert>, Throwable> {
         val result = api.fetchNewReports()
@@ -29,6 +30,9 @@ class AlertsFetcherImpl(private val api: JniApi) :
             else -> Failure(Throwable(result.statusDescription()))
         }
     }
+
+    override fun deleteAlert(id: String): Result<Unit, Throwable> =
+        api.deleteAlert(id).asResult()
 
     private fun JniAlertsArrayResult.statusDescription(): String =
         statusDescription(status, message)

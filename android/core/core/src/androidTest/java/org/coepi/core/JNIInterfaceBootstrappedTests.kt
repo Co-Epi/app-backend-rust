@@ -67,6 +67,12 @@ class JNIInterfaceBootstrappedTests {
 //    }
 
     @Test
+    fun deleteAlert() {
+        val value = JniApi().deleteAlert("1")
+        assertEquals(JniVoidResult(6, "Not found"), value)
+    }
+
+    @Test
     fun recordTcn() {
         val value = JniApi().recordTcn("2485a64b57addcaea3ed1b538d07dbce", 34.03f)
         assertEquals(JniVoidResult(1, ""), value)

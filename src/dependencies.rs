@@ -1,6 +1,7 @@
 use crate::networking::{TcnApi, TcnApiImpl};
 use crate::{
     database::{
+        alert_dao::{AlertDao, AlertDaoImpl},
         database::Database,
         preferences::{Preferences, PreferencesDao, PreferencesImpl},
         tcn_dao::{TcnDao, TcnDaoImpl},
@@ -32,7 +33,7 @@ use rusqlite::Connection;
 use std::sync::Arc;
 
 #[allow(dead_code)]
-pub struct Dependencies<'a, A, B, C, D, F, G, H, I>
+pub struct Dependencies<'a, A, B, C, D, F, G, H, I, J>
 where
     A: Preferences,
     B: TcnDao,
@@ -42,12 +43,14 @@ where
     G: ObservedTcnProcessor,
     H: MemoMapper,
     I: TcnKeys,
+    J: AlertDao,
 {
     pub api: &'a D,
-    pub reports_updater: ReportsUpdater<'a, A, B, C, D, H>,
+    pub reports_updater: ReportsUpdater<'a, A, B, C, D, H, J>,
     pub symptom_inputs_processor: F,
     pub observed_tcn_processor: G,
     pub tcn_keys: Arc<I>,
+    pub alert_dao: Arc<J>,
 }
 
 pub static DEPENDENCIES: OnceCell<
@@ -68,6 +71,7 @@ pub static DEPENDENCIES: OnceCell<
         ObservedTcnProcessorImpl<TcnDaoImpl>,
         MemoMapperImpl,
         TcnKeysImpl<PreferencesImpl>,
+        AlertDaoImpl,
     >,
 > = OnceCell::new();
 
@@ -105,6 +109,7 @@ pub fn dependencies() -> &'static Dependencies<
     ObservedTcnProcessorImpl<TcnDaoImpl>,
     MemoMapperImpl,
     TcnKeysImpl<PreferencesImpl>,
+    AlertDaoImpl,
 > {
     let res = DEPENDENCIES
         .get()
@@ -139,6 +144,7 @@ fn create_dependencies(
     ObservedTcnProcessorImpl<TcnDaoImpl>,
     MemoMapperImpl,
     TcnKeysImpl<PreferencesImpl>,
+    AlertDaoImpl,
 > {
     let api = &TcnApiImpl {};
 
@@ -164,6 +170,8 @@ fn create_dependencies(
     };
 
     let tcn_dao = Arc::new(TcnDaoImpl::new(database.clone()));
+    let alert_dao = Arc::new(AlertDaoImpl::new(database));
+
     let exposure_grouper = ExposureGrouper { threshold: 3600 };
 
     Dependencies {
@@ -175,6 +183,7 @@ fn create_dependencies(
             api,
             memo_mapper,
             exposure_grouper: exposure_grouper.clone(),
+            alert_dao: alert_dao.clone(),
         },
         symptom_inputs_processor: SymptomInputsProcessorImpl {
             inputs_manager: SymptomInputsManagerImpl {
@@ -184,8 +193,9 @@ fn create_dependencies(
         },
         observed_tcn_processor: ObservedTcnProcessorImpl::new(TcnBatchesManager::new(
             tcn_dao.clone(),
-            exposure_grouper.clone(),
+            exposure_grouper,
         )),
-        tcn_keys: tcn_keys.clone(),
+        tcn_keys,
+        alert_dao,
     }
 }

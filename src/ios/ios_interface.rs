@@ -1,5 +1,8 @@
+use crate::database::alert_dao::AlertDao;
 use crate::reporting::symptom_inputs_manager::SymptomInputsProcessor;
+use crate::simple_logger;
 use crate::tcn_ext::tcn_keys::TcnKeys;
+use crate::tcn_recording::observed_tcn_processor::ObservedTcnProcessor;
 use crate::{
     dependencies::{bootstrap, dependencies, DEPENDENCIES},
     errors::ServicesError,
@@ -10,14 +13,11 @@ use core_foundation::string::{CFString, CFStringRef};
 use log::*;
 use networking::TcnApi;
 use serde::Serialize;
-use std::sync::mpsc::{self, Receiver, Sender};
-use std::thread;
-// use mpsc::Receiver;
-use crate::simple_logger;
-use crate::tcn_recording::observed_tcn_processor::ObservedTcnProcessor;
 use simple_logger::{CoreLogLevel, CoreLogMessageThreadSafe, SENDER};
 use std::os::raw::c_char;
 use std::str::FromStr;
+use std::sync::mpsc::{self, Receiver, Sender};
+use std::thread;
 
 // Generic struct to return results to app
 // For convenience, status will be HTTP status codes
@@ -54,13 +54,20 @@ pub unsafe extern "C" fn bootstrap_core(
 
 #[no_mangle]
 pub unsafe extern "C" fn fetch_new_reports() -> CFStringRef {
-    info!("Updating reports");
+    info!("Updating alerts");
 
-    let result = dependencies().reports_updater.fetch_new_reports();
+    let result = dependencies().reports_updater.update_and_fetch_alerts();
 
-    info!("New reports: {:?}", result);
+    info!("New alerts: {:?}", result);
 
     return to_result_str(result);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn delete_alert(id: *const c_char) -> CFStringRef {
+    let id_str = cstring_to_str(&id);
+    let result = id_str.and_then(|id| dependencies().alert_dao.delete(id.to_owned()));
+    to_result_str(result)
 }
 
 #[no_mangle]

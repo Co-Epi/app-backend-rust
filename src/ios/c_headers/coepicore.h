@@ -60,6 +60,10 @@ CFStringRef clear_symptoms(void);
 #endif
 
 #if (defined(TARGET_OS_IOS) || defined(TARGET_OS_MACOS))
+CFStringRef delete_alert(const char *id);
+#endif
+
+#if (defined(TARGET_OS_IOS) || defined(TARGET_OS_MACOS))
 CFStringRef fetch_new_reports(void);
 #endif
 

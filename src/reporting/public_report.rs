@@ -1,15 +1,38 @@
 use super::symptom_inputs::{Cough, CoughType, Fever, SymptomId, SymptomInputs, UserInput};
-use crate::reports_interval::UnixTime;
+use crate::{errors::ServicesError, reports_interval::UnixTime};
 use log::info;
 use serde::Serialize;
 
-#[derive(Debug, PartialEq, Clone, Serialize)]
+#[derive(Debug, PartialEq, Clone, Serialize, Eq)]
 pub enum FeverSeverity {
     None,
     Mild,
     Serious,
 }
-#[derive(Debug, PartialEq, Clone, Serialize)]
+
+impl FeverSeverity {
+    pub fn raw_value(&self) -> u8 {
+        match self {
+            FeverSeverity::None => 0,
+            FeverSeverity::Mild => 1,
+            FeverSeverity::Serious => 2,
+        }
+    }
+
+    pub fn from(raw_value: u8) -> Result<FeverSeverity, ServicesError> {
+        match raw_value {
+            0 => Ok(FeverSeverity::None),
+            1 => Ok(FeverSeverity::Mild),
+            2 => Ok(FeverSeverity::Serious),
+            _ => Err(ServicesError::General(format!(
+                "Not supported: {}",
+                raw_value
+            ))),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, Serialize, Eq)]
 pub enum CoughSeverity {
     None,
     Existing,
@@ -17,7 +40,31 @@ pub enum CoughSeverity {
     Dry,
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize)]
+impl CoughSeverity {
+    pub fn raw_value(&self) -> u8 {
+        match self {
+            CoughSeverity::None => 0,
+            CoughSeverity::Existing => 1,
+            CoughSeverity::Dry => 2,
+            CoughSeverity::Wet => 3,
+        }
+    }
+
+    pub fn from(raw_value: u8) -> Result<CoughSeverity, ServicesError> {
+        match raw_value {
+            0 => Ok(CoughSeverity::None),
+            1 => Ok(CoughSeverity::Existing),
+            2 => Ok(CoughSeverity::Dry),
+            3 => Ok(CoughSeverity::Wet),
+            _ => Err(ServicesError::General(format!(
+                "Not supported: {}",
+                raw_value
+            ))),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, Serialize, Eq)]
 pub struct PublicReport {
     pub report_time: UnixTime,
     pub earliest_symptom_time: UserInput<UnixTime>,
