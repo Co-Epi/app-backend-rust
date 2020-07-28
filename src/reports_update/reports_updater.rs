@@ -128,7 +128,10 @@ where
         let measurements = exposure.measurements();
 
         Ok(Alert {
-            id: format!("{:?}", signed_report.sig), // TODO this is wrong now: one report can have multiple alerts
+            id: format!(
+                "{:?}#{}",
+                signed_report.sig, measurements.contact_start.value
+            ),
             report_id: format!("{:?}", signed_report.sig),
             symptoms: public_symptoms,
             contact_start: measurements.contact_start.value,
