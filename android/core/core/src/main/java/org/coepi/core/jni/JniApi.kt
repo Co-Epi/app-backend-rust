@@ -134,14 +134,14 @@ data class JniAlertsArrayResult(
 
 data class JniAlert(
     var id: String,
-    var report: JniPublicReport,
+    var report: JniPublicSymptoms,
     var contactStart: Long,
     var contactEnd: Long,
     var minDistance: Float,
     var avgDistance: Float
 )
 
-data class JniPublicReport(
+data class JniPublicSymptoms(
     val reportTime: Long,
     val earliestSymptomTime: Long, // -1 -> no input
     val feverSeverity: Int,

@@ -1,4 +1,4 @@
-use super::{memo::MemoMapper, public_report::*};
+use super::{memo::MemoMapper, public_symptoms::*};
 use crate::{
     errors::ServicesError, expect_log, networking::TcnApi, reports_interval::UnixTime,
     tcn_ext::tcn_keys::TcnKeys,
@@ -170,7 +170,7 @@ impl<'a, T: MemoMapper, U: TcnKeys, V: TcnApi> SymptomInputsSubmitter<T, U, V>
     for SymptomInputsSubmitterImpl<'a, T, U, V>
 {
     fn submit_inputs(&self, inputs: SymptomInputs) -> Result<(), ServicesError> {
-        if let Some(report) = PublicReport::with_inputs(inputs, UnixTime::now()) {
+        if let Some(report) = PublicSymptoms::with_inputs(inputs, UnixTime::now()) {
             self.send_report(report)
         } else {
             debug!("Nothing to send.");
@@ -180,7 +180,7 @@ impl<'a, T: MemoMapper, U: TcnKeys, V: TcnApi> SymptomInputsSubmitter<T, U, V>
 }
 
 impl<'a, T: MemoMapper, U: TcnKeys, V: TcnApi> SymptomInputsSubmitterImpl<'a, T, U, V> {
-    fn send_report(&self, report: PublicReport) -> Result<(), ServicesError> {
+    fn send_report(&self, report: PublicSymptoms) -> Result<(), ServicesError> {
         debug!("Will send public report: {:?}", report);
 
         let memo = self.memo_mapper.to_memo(report);
@@ -220,7 +220,7 @@ mod tests {
     use tcn::{ReportAuthorizationKey, TemporaryContactKey};
 
     #[test]
-    fn test_public_report_with_inputs() {
+    fn test_public_symptoms_with_inputs() {
         simple_logger::setup();
 
         let breathlessness = Breathlessness {
@@ -259,13 +259,13 @@ mod tests {
             earliest_symptom,
         };
 
-        let public_report = PublicReport::with_inputs(inputs, UnixTime { value: 0 }).unwrap();
+        let public_symptoms = PublicSymptoms::with_inputs(inputs, UnixTime { value: 0 }).unwrap();
 
-        debug!("{:?}", public_report);
+        debug!("{:?}", public_symptoms);
 
-        info!(target: "test_events", "Logging PublicReport: {:?}", public_report);
+        info!(target: "test_events", "Logging PublicSymptoms: {:?}", public_symptoms);
         /*
-          PublicReport {
+          PublicSymptoms {
             earliest_symptom_time: Some(
                 UnixTime {
                     value: 1590356601,
@@ -277,14 +277,14 @@ mod tests {
         }
           */
 
-        assert_eq!(CoughSeverity::Dry, public_report.cough_severity);
-        assert_eq!(FeverSeverity::Mild, public_report.fever_severity);
-        assert_eq!(true, public_report.breathlessness);
+        assert_eq!(CoughSeverity::Dry, public_symptoms.cough_severity);
+        assert_eq!(FeverSeverity::Mild, public_symptoms.fever_severity);
+        assert_eq!(true, public_symptoms.breathlessness);
     }
 
     #[test]
-    fn test_public_report_to_signed_report() {
-        let report_which_should_be_sent = PublicReport {
+    fn test_public_symptoms_to_signed_report() {
+        let report_which_should_be_sent = PublicSymptoms {
             report_time: UnixTime { value: 0 },
             earliest_symptom_time: UserInput::Some(UnixTime { value: 1590356601 }),
             fever_severity: FeverSeverity::Mild,

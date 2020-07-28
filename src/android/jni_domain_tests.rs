@@ -2,7 +2,7 @@ use super::android_interface::{alert_to_jobject, jni_obj_result};
 use crate::{
     expect_log,
     reporting::{
-        public_report::{CoughSeverity, FeverSeverity, PublicReport},
+        public_report::{CoughSeverity, FeverSeverity, PublicSymptoms},
         symptom_inputs::UserInput,
     },
     reports_interval::UnixTime,
@@ -64,7 +64,7 @@ pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_testReturnMultipleAlerts
 }
 
 fn create_test_alert(id: &str, report_time: u64) -> Alert {
-    let report = PublicReport {
+    let report = PublicSymptoms {
         report_time: UnixTime { value: report_time },
         earliest_symptom_time: UserInput::Some(UnixTime { value: 1590356601 }),
         fever_severity: FeverSeverity::Mild,

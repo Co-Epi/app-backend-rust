@@ -63,7 +63,7 @@ class JNIInterfaceTests {
             JniAlertsArrayResult(
                 1, "", arrayOf(
                     JniAlert(
-                        "123", JniPublicReport(
+                        "123", JniPublicSymptoms(
                             reportTime = 131321,
                             earliestSymptomTime = 1590356601,
                             feverSeverity = 1,
@@ -78,7 +78,7 @@ class JNIInterfaceTests {
                         ), 1592567315, 1592567335, 1.2f, 2.1f
                     ),
                     JniAlert(
-                        "343356", JniPublicReport(
+                        "343356", JniPublicSymptoms(
                             reportTime = 32516899200,
                             earliestSymptomTime = 1590356601,
                             feverSeverity = 1,

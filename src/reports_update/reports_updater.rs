@@ -9,7 +9,7 @@ use crate::{
     networking::{NetworkingError, TcnApi},
     reporting::{
         memo::{Memo, MemoMapper},
-        public_report::PublicReport,
+        public_symptoms::PublicSymptoms,
     },
     reports_interval, signed_report_to_bytes,
 };
@@ -27,7 +27,7 @@ pub struct Alert {
     pub id: String,
     pub report_id: String,
 
-    pub report: PublicReport,
+    pub symptoms: PublicSymptoms,
 
     // Note: for now these fields "raw", as this struct is used for FFI.
     // if it's needed to manipulate Alert in Rust, a separate type should be created.
@@ -121,7 +121,7 @@ where
     ) -> Result<Alert, ServicesError> {
         let report = signed_report.clone().verify()?;
 
-        let public_report = self.memo_mapper.to_report(Memo {
+        let public_symptoms = self.memo_mapper.to_report(Memo {
             bytes: report.memo_data().to_vec(),
         });
 
@@ -130,7 +130,7 @@ where
         Ok(Alert {
             id: format!("{:?}", signed_report.sig), // TODO this is wrong now: one report can have multiple alerts
             report_id: format!("{:?}", signed_report.sig),
-            report: public_report,
+            symptoms: public_symptoms,
             contact_start: measurements.contact_start.value,
             contact_end: measurements.contact_end.value,
             min_distance: measurements.min_distance,
