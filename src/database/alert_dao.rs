@@ -51,6 +51,7 @@ impl AlertDaoImpl {
                 runny_nose integer not null,
                 other integer not null,
                 no_symptoms integer not null,
+                report_id text not null,
                 deleted integer
             )",
             params![],
@@ -60,7 +61,7 @@ impl AlertDaoImpl {
 
     fn to_alert(row: &Row) -> Alert {
         let id_res = row.get(0);
-        let id: String = expect_log!(id_res, "Invalid row: no id");
+        let id = expect_log!(id_res, "Invalid row: no id");
 
         let start_res = row.get(1);
         let start: i64 = expect_log!(start_res, "Invalid row: no start");
@@ -122,8 +123,12 @@ impl AlertDaoImpl {
         let no_symptoms_res = row.get(15);
         let no_symptoms: i8 = expect_log!(no_symptoms_res, "Invalid row: no no_symptoms");
 
+        let report_id_res = row.get(16);
+        let report_id = expect_log!(report_id_res, "Invalid row: no report_id");
+
         Alert {
             id,
+            report_id,
             report: PublicReport {
                 report_time: UnixTime {
                     value: report_time as u64,
@@ -167,7 +172,8 @@ impl AlertDao for AlertDaoImpl {
                 diarrhea,
                 runny_nose,
                 other,
-                no_symptoms 
+                no_symptoms,
+                report_id
                 from alert where deleted is null",
                 NO_PARAMS,
                 |row| Self::to_alert(row),
@@ -207,7 +213,7 @@ impl AlertDao for AlertDaoImpl {
                         id,
                         start,
                         end,
-                        min_distance ,
+                        min_distance,
                         avg_distance,
                         report_time,
                         earliest_symptom_time,
@@ -219,8 +225,9 @@ impl AlertDao for AlertDaoImpl {
                         diarrhea,
                         runny_nose,
                         other,
-                        no_symptoms
-                    ) values(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
+                        no_symptoms,
+                        report_id
+                    ) values(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
                     params![
                         alert.id,
                         alert.contact_start as i64,
@@ -241,7 +248,8 @@ impl AlertDao for AlertDaoImpl {
                         to_db_int(alert.report.diarrhea),
                         to_db_int(alert.report.runny_nose),
                         to_db_int(alert.report.other),
-                        to_db_int(alert.report.no_symptoms)
+                        to_db_int(alert.report.no_symptoms),
+                        alert.report_id
                     ],
                 )?;
             }
@@ -301,6 +309,7 @@ mod tests {
 
         let alert = Alert {
             id: "1".to_owned(),
+            report_id: "1".to_owned(),
             report,
             contact_start: 1000,
             contact_end: 2000,
@@ -343,6 +352,7 @@ mod tests {
 
         let alert1 = Alert {
             id: "1".to_owned(),
+            report_id: "1".to_owned(),
             report: report.clone(),
             contact_start: 1000,
             contact_end: 2000,
@@ -352,6 +362,7 @@ mod tests {
 
         let alert2 = Alert {
             id: "1".to_owned(),
+            report_id: "1".to_owned(),
             report: report.clone(),
             contact_start: 1001,
             contact_end: 2001,
@@ -394,6 +405,7 @@ mod tests {
 
         let alert1 = Alert {
             id: "1".to_owned(),
+            report_id: "1".to_owned(),
             report: report.clone(),
             contact_start: 1000,
             contact_end: 2000,
@@ -403,6 +415,7 @@ mod tests {
 
         let alert2 = Alert {
             id: "2".to_owned(),
+            report_id: "1".to_owned(),
             report: report.clone(),
             contact_start: 1001,
             contact_end: 2001,
@@ -446,6 +459,7 @@ mod tests {
 
         let alert1 = Alert {
             id: "1".to_owned(),
+            report_id: "1".to_owned(),
             report: report.clone(),
             contact_start: 1000,
             contact_end: 2000,
@@ -455,6 +469,7 @@ mod tests {
 
         let alert2 = Alert {
             id: "2".to_owned(),
+            report_id: "1".to_owned(),
             report: report.clone(),
             contact_start: 1001,
             contact_end: 2001,
@@ -500,6 +515,7 @@ mod tests {
 
         let alert1 = Alert {
             id: "1".to_owned(),
+            report_id: "1".to_owned(),
             report: report.clone(),
             contact_start: 1000,
             contact_end: 2000,
@@ -509,6 +525,7 @@ mod tests {
 
         let alert2 = Alert {
             id: "2".to_owned(),
+            report_id: "1".to_owned(),
             report: report.clone(),
             contact_start: 1001,
             contact_end: 2001,

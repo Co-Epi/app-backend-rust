@@ -25,6 +25,8 @@ struct Element {}
 #[derive(Debug, Serialize, PartialEq, Clone)]
 pub struct Alert {
     pub id: String,
+    pub report_id: String,
+
     pub report: PublicReport,
 
     // Note: for now these fields "raw", as this struct is used for FFI.
@@ -127,6 +129,7 @@ where
 
         Ok(Alert {
             id: format!("{:?}", signed_report.sig), // TODO this is wrong now: one report can have multiple alerts
+            report_id: format!("{:?}", signed_report.sig),
             report: public_report,
             contact_start: measurements.contact_start.value,
             contact_end: measurements.contact_end.value,
