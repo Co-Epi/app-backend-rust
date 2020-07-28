@@ -3,7 +3,7 @@ use crate::{
     errors::ServicesError,
     expect_log,
     reporting::{
-        public_report::{CoughSeverity, FeverSeverity, PublicReport},
+        public_symptoms::{CoughSeverity, FeverSeverity, PublicSymptoms},
         symptom_inputs::UserInput,
     },
     reports_interval,
@@ -51,6 +51,7 @@ impl AlertDaoImpl {
                 runny_nose integer not null,
                 other integer not null,
                 no_symptoms integer not null,
+                report_id text not null,
                 deleted integer
             )",
             params![],
@@ -60,7 +61,7 @@ impl AlertDaoImpl {
 
     fn to_alert(row: &Row) -> Alert {
         let id_res = row.get(0);
-        let id: String = expect_log!(id_res, "Invalid row: no id");
+        let id = expect_log!(id_res, "Invalid row: no id");
 
         let start_res = row.get(1);
         let start: i64 = expect_log!(start_res, "Invalid row: no start");
@@ -122,9 +123,13 @@ impl AlertDaoImpl {
         let no_symptoms_res = row.get(15);
         let no_symptoms: i8 = expect_log!(no_symptoms_res, "Invalid row: no no_symptoms");
 
+        let report_id_res = row.get(16);
+        let report_id = expect_log!(report_id_res, "Invalid row: no report_id");
+
         Alert {
             id,
-            report: PublicReport {
+            report_id,
+            symptoms: PublicSymptoms {
                 report_time: UnixTime {
                     value: report_time as u64,
                 },
@@ -167,7 +172,8 @@ impl AlertDao for AlertDaoImpl {
                 diarrhea,
                 runny_nose,
                 other,
-                no_symptoms 
+                no_symptoms,
+                report_id
                 from alert where deleted is null",
                 NO_PARAMS,
                 |row| Self::to_alert(row),
@@ -207,7 +213,7 @@ impl AlertDao for AlertDaoImpl {
                         id,
                         start,
                         end,
-                        min_distance ,
+                        min_distance,
                         avg_distance,
                         report_time,
                         earliest_symptom_time,
@@ -219,29 +225,31 @@ impl AlertDao for AlertDaoImpl {
                         diarrhea,
                         runny_nose,
                         other,
-                        no_symptoms
-                    ) values(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
+                        no_symptoms,
+                        report_id
+                    ) values(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
                     params![
                         alert.id,
                         alert.contact_start as i64,
                         alert.contact_end as i64,
                         alert.min_distance as f64,
                         alert.avg_distance as f64,
-                        alert.report.report_time.value as i64,
+                        alert.symptoms.report_time.value as i64,
                         alert
-                            .report
+                            .symptoms
                             .earliest_symptom_time
                             .as_opt()
                             .map(|unix_time| unix_time.value as i64),
-                        alert.report.fever_severity.raw_value() as i64,
-                        alert.report.cough_severity.raw_value() as i64,
-                        to_db_int(alert.report.breathlessness),
-                        to_db_int(alert.report.muscle_aches),
-                        to_db_int(alert.report.loss_smell_or_taste),
-                        to_db_int(alert.report.diarrhea),
-                        to_db_int(alert.report.runny_nose),
-                        to_db_int(alert.report.other),
-                        to_db_int(alert.report.no_symptoms)
+                        alert.symptoms.fever_severity.raw_value() as i64,
+                        alert.symptoms.cough_severity.raw_value() as i64,
+                        to_db_int(alert.symptoms.breathlessness),
+                        to_db_int(alert.symptoms.muscle_aches),
+                        to_db_int(alert.symptoms.loss_smell_or_taste),
+                        to_db_int(alert.symptoms.diarrhea),
+                        to_db_int(alert.symptoms.runny_nose),
+                        to_db_int(alert.symptoms.other),
+                        to_db_int(alert.symptoms.no_symptoms),
+                        alert.report_id
                     ],
                 )?;
             }
@@ -285,7 +293,7 @@ mod tests {
         ));
         let alert_dao = AlertDaoImpl::new(database.clone());
 
-        let report = PublicReport {
+        let symptoms = PublicSymptoms {
             report_time: UnixTime { value: 0 },
             earliest_symptom_time: UserInput::Some(UnixTime { value: 1590356601 }),
             fever_severity: FeverSeverity::Mild,
@@ -301,7 +309,8 @@ mod tests {
 
         let alert = Alert {
             id: "1".to_owned(),
-            report,
+            report_id: "1".to_owned(),
+            symptoms,
             contact_start: 1000,
             contact_end: 2000,
             min_distance: 2.3,
@@ -327,7 +336,7 @@ mod tests {
         ));
         let alert_dao = AlertDaoImpl::new(database.clone());
 
-        let report = PublicReport {
+        let symptoms = PublicSymptoms {
             report_time: UnixTime { value: 0 },
             earliest_symptom_time: UserInput::Some(UnixTime { value: 1590356601 }),
             fever_severity: FeverSeverity::Mild,
@@ -343,7 +352,8 @@ mod tests {
 
         let alert1 = Alert {
             id: "1".to_owned(),
-            report: report.clone(),
+            report_id: "1".to_owned(),
+            symptoms: symptoms.clone(),
             contact_start: 1000,
             contact_end: 2000,
             min_distance: 2.3,
@@ -352,7 +362,8 @@ mod tests {
 
         let alert2 = Alert {
             id: "1".to_owned(),
-            report: report.clone(),
+            report_id: "1".to_owned(),
+            symptoms: symptoms.clone(),
             contact_start: 1001,
             contact_end: 2001,
             min_distance: 2.4,
@@ -378,7 +389,7 @@ mod tests {
         ));
         let alert_dao = AlertDaoImpl::new(database.clone());
 
-        let report = PublicReport {
+        let symptoms = PublicSymptoms {
             report_time: UnixTime { value: 0 },
             earliest_symptom_time: UserInput::Some(UnixTime { value: 1590356601 }),
             fever_severity: FeverSeverity::Mild,
@@ -394,7 +405,8 @@ mod tests {
 
         let alert1 = Alert {
             id: "1".to_owned(),
-            report: report.clone(),
+            report_id: "1".to_owned(),
+            symptoms: symptoms.clone(),
             contact_start: 1000,
             contact_end: 2000,
             min_distance: 2.3,
@@ -403,7 +415,8 @@ mod tests {
 
         let alert2 = Alert {
             id: "2".to_owned(),
-            report: report.clone(),
+            report_id: "1".to_owned(),
+            symptoms: symptoms.clone(),
             contact_start: 1001,
             contact_end: 2001,
             min_distance: 2.4,
@@ -430,7 +443,7 @@ mod tests {
         ));
         let alert_dao = AlertDaoImpl::new(database.clone());
 
-        let report = PublicReport {
+        let symptoms = PublicSymptoms {
             report_time: UnixTime { value: 0 },
             earliest_symptom_time: UserInput::Some(UnixTime { value: 1590356601 }),
             fever_severity: FeverSeverity::Mild,
@@ -446,7 +459,8 @@ mod tests {
 
         let alert1 = Alert {
             id: "1".to_owned(),
-            report: report.clone(),
+            report_id: "1".to_owned(),
+            symptoms: symptoms.clone(),
             contact_start: 1000,
             contact_end: 2000,
             min_distance: 2.3,
@@ -455,7 +469,8 @@ mod tests {
 
         let alert2 = Alert {
             id: "2".to_owned(),
-            report: report.clone(),
+            report_id: "1".to_owned(),
+            symptoms: symptoms.clone(),
             contact_start: 1001,
             contact_end: 2001,
             min_distance: 2.4,
@@ -484,7 +499,7 @@ mod tests {
         ));
         let alert_dao = AlertDaoImpl::new(database.clone());
 
-        let report = PublicReport {
+        let symptoms = PublicSymptoms {
             report_time: UnixTime { value: 0 },
             earliest_symptom_time: UserInput::Some(UnixTime { value: 1590356601 }),
             fever_severity: FeverSeverity::Mild,
@@ -500,7 +515,8 @@ mod tests {
 
         let alert1 = Alert {
             id: "1".to_owned(),
-            report: report.clone(),
+            report_id: "1".to_owned(),
+            symptoms: symptoms.clone(),
             contact_start: 1000,
             contact_end: 2000,
             min_distance: 2.3,
@@ -509,7 +525,8 @@ mod tests {
 
         let alert2 = Alert {
             id: "2".to_owned(),
-            report: report.clone(),
+            report_id: "1".to_owned(),
+            symptoms: symptoms.clone(),
             contact_start: 1001,
             contact_end: 2001,
             min_distance: 2.4,

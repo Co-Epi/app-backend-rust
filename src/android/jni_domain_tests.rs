@@ -2,7 +2,7 @@ use super::android_interface::{alert_to_jobject, jni_obj_result};
 use crate::{
     expect_log,
     reporting::{
-        public_report::{CoughSeverity, FeverSeverity, PublicReport},
+        public_symptoms::{CoughSeverity, FeverSeverity, PublicSymptoms},
         symptom_inputs::UserInput,
     },
     reports_interval::UnixTime,
@@ -64,7 +64,7 @@ pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_testReturnMultipleAlerts
 }
 
 fn create_test_alert(id: &str, report_time: u64) -> Alert {
-    let report = PublicReport {
+    let symptoms = PublicSymptoms {
         report_time: UnixTime { value: report_time },
         earliest_symptom_time: UserInput::Some(UnixTime { value: 1590356601 }),
         fever_severity: FeverSeverity::Mild,
@@ -80,7 +80,8 @@ fn create_test_alert(id: &str, report_time: u64) -> Alert {
 
     Alert {
         id: id.to_owned(),
-        report,
+        report_id: id.to_owned(), // re-use alert id, not particular reason other than we don't need separate id for now
+        symptoms,
         contact_start: 1592567315,
         contact_end: 1592567335,
         min_distance: 1.2,

@@ -90,7 +90,7 @@ mod tests {
     use crate::{
         reporting::{
             memo::{MemoMapper, MemoMapperImpl},
-            public_report::{CoughSeverity, FeverSeverity, PublicReport},
+            public_symptoms::{CoughSeverity, FeverSeverity, PublicSymptoms},
             symptom_inputs::UserInput,
         },
         reports_interval::UnixTime,
@@ -223,7 +223,7 @@ mod tests {
 
     fn create_test_report() -> SignedReport {
         let memo_mapper = MemoMapperImpl {};
-        let public_report = PublicReport {
+        let public_symptoms = PublicSymptoms {
             report_time: UnixTime { value: 1589209754 },
             earliest_symptom_time: UserInput::Some(UnixTime { value: 1589209754 }),
             fever_severity: FeverSeverity::Serious,
@@ -237,7 +237,7 @@ mod tests {
             no_symptoms: true,
         };
         let rak = ReportAuthorizationKey::new(rand::thread_rng());
-        let memo_data = memo_mapper.to_memo(public_report);
+        let memo_data = memo_mapper.to_memo(public_symptoms);
         rak.create_report(MemoType::CoEpiV1, memo_data.bytes, 1, 10000)
             .unwrap()
     }

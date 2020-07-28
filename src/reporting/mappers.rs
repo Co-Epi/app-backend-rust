@@ -1,6 +1,6 @@
 use super::{
     bit_vector::BitVector,
-    public_report::{CoughSeverity, FeverSeverity},
+    public_symptoms::{CoughSeverity, FeverSeverity},
     symptom_inputs::UserInput,
 };
 use crate::{expect_log, reports_interval::UnixTime};

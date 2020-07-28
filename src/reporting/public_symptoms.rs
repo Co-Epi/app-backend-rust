@@ -65,7 +65,7 @@ impl CoughSeverity {
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Eq)]
-pub struct PublicReport {
+pub struct PublicSymptoms {
     pub report_time: UnixTime,
     pub earliest_symptom_time: UserInput<UnixTime>,
     pub fever_severity: FeverSeverity,
@@ -79,8 +79,8 @@ pub struct PublicReport {
     pub no_symptoms: bool, // https://github.com/Co-Epi/app-ios/issues/268#issuecomment-645583717
 }
 
-impl PublicReport {
-    pub fn with_inputs(inputs: SymptomInputs, report_time: UnixTime) -> Option<PublicReport> {
+impl PublicSymptoms {
+    pub fn with_inputs(inputs: SymptomInputs, report_time: UnixTime) -> Option<PublicSymptoms> {
         let earliest_symptom_time = inputs.earliest_symptom.time.clone();
         let fever_severity = to_fever_severity(&inputs.fever);
         let cough_severity =
@@ -103,7 +103,7 @@ impl PublicReport {
             || other
             || no_symptoms
         {
-            Some(PublicReport {
+            Some(PublicSymptoms {
                 report_time,
                 earliest_symptom_time,
                 fever_severity,
