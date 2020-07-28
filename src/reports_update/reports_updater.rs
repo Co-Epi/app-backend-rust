@@ -126,9 +126,14 @@ where
         });
 
         let measurements = exposure.measurements();
+        let report_sig_bytes: [u8; 64] = signed_report.sig.into();
 
         Ok(Alert {
-            id: format!("{:?}", signed_report.sig), // TODO this is wrong now: one report can have multiple alerts
+            id: format!(
+                "{}-{}",
+                hex::encode(report_sig_bytes.to_vec()),
+                measurements.contact_start.value
+            ),
             report_id: format!("{:?}", signed_report.sig),
             symptoms: public_symptoms,
             contact_start: measurements.contact_start.value,
