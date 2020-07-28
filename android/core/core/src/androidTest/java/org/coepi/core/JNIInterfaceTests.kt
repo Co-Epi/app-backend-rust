@@ -7,7 +7,7 @@ import org.coepi.core.jni.JniAlert
 import org.coepi.core.jni.JniAlertsArrayResult
 import org.coepi.core.jni.JniApi
 import org.coepi.core.jni.JniOneAlertResult
-import org.coepi.core.jni.JniPublicReport
+import org.coepi.core.jni.JniPublicSymptoms
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
@@ -36,7 +36,7 @@ class JNIInterfaceTests {
         assertEquals(
             JniOneAlertResult(
                 1, "", JniAlert(
-                    "123", JniPublicReport(
+                    "123", JniPublicSymptoms(
                         reportTime = 234324,
                         earliestSymptomTime = 1590356601,
                         feverSeverity = 1,

@@ -565,7 +565,7 @@ fn register_callback_internal(callback: Box<dyn LogCallbackWrapper>) {
 
 // To prefill the JNI array (TODO can this be skipped?)
 fn placeholder_alert() -> Alert {
-    let report = PublicSymptoms {
+    let symptoms = PublicSymptoms {
         report_time: UnixTime { value: 0 },
         earliest_symptom_time: UserInput::Some(UnixTime { value: 0 }),
         fever_severity: FeverSeverity::None,
@@ -581,7 +581,8 @@ fn placeholder_alert() -> Alert {
 
     Alert {
         id: "0".to_owned(),
-        report,
+        report_id: "0".to_owned(),
+        symptoms,
         contact_start: 0,
         contact_end: 0,
         min_distance: 0.0,
@@ -592,22 +593,22 @@ fn placeholder_alert() -> Alert {
 pub fn alert_to_jobject(alert: Alert, env: &JNIEnv) -> Result<jobject, ServicesError> {
     let jni_public_symptoms_class = env.find_class("org/coepi/core/jni/JniPublicSymptoms")?;
 
-    let report_time_j_value = JValue::from(alert.report.report_time.value as i64);
+    let report_time_j_value = JValue::from(alert.symptoms.report_time.value as i64);
 
-    let earliest_time = match &alert.report.earliest_symptom_time {
+    let earliest_time = match &alert.symptoms.earliest_symptom_time {
         UserInput::Some(time) => time.value as i64,
         UserInput::None => -1,
     };
     let earliest_time_j_value = JValue::from(earliest_time);
 
-    let fever_severity = match &alert.report.fever_severity {
+    let fever_severity = match &alert.symptoms.fever_severity {
         FeverSeverity::None => 0,
         FeverSeverity::Mild => 1,
         FeverSeverity::Serious => 2,
     };
     let fever_severity_j_value = JValue::from(fever_severity);
 
-    let cough_severity = match &alert.report.cough_severity {
+    let cough_severity = match &alert.symptoms.cough_severity {
         CoughSeverity::None => 0,
         CoughSeverity::Existing => 1,
         CoughSeverity::Wet => 2,
@@ -615,13 +616,13 @@ pub fn alert_to_jobject(alert: Alert, env: &JNIEnv) -> Result<jobject, ServicesE
     };
     let cough_severity_j_value = JValue::from(cough_severity);
 
-    let breathlessness_j_value = JValue::from(alert.report.breathlessness);
-    let muscle_aches_j_value = JValue::from(alert.report.muscle_aches);
-    let loss_smell_or_taste_j_value = JValue::from(alert.report.loss_smell_or_taste);
-    let diarrhea_j_value = JValue::from(alert.report.diarrhea);
-    let runny_nose_j_value = JValue::from(alert.report.runny_nose);
-    let other_j_value = JValue::from(alert.report.other);
-    let no_symptoms_j_value = JValue::from(alert.report.no_symptoms);
+    let breathlessness_j_value = JValue::from(alert.symptoms.breathlessness);
+    let muscle_aches_j_value = JValue::from(alert.symptoms.muscle_aches);
+    let loss_smell_or_taste_j_value = JValue::from(alert.symptoms.loss_smell_or_taste);
+    let diarrhea_j_value = JValue::from(alert.symptoms.diarrhea);
+    let runny_nose_j_value = JValue::from(alert.symptoms.runny_nose);
+    let other_j_value = JValue::from(alert.symptoms.other);
+    let no_symptoms_j_value = JValue::from(alert.symptoms.no_symptoms);
 
     let jni_public_symptoms_obj = env.new_object(
         jni_public_symptoms_class,
