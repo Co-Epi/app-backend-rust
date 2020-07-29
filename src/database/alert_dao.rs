@@ -629,8 +629,8 @@ mod tests {
         let save_res = alert_dao.save(vec![alert.clone()]);
         assert!(save_res.is_ok());
 
-        let delete_res = alert_dao.update_is_read("1".to_owned(), true);
-        assert!(delete_res.is_ok());
+        let update_res = alert_dao.update_is_read("1".to_owned(), true);
+        assert!(update_res.is_ok());
 
         let loaded_alerts_res = alert_dao.all();
         assert!(loaded_alerts_res.is_ok());
@@ -682,8 +682,8 @@ mod tests {
         let save_res = alert_dao.save(vec![alert.clone()]);
         assert!(save_res.is_ok());
 
-        let delete_res = alert_dao.update_is_read("1".to_owned(), false);
-        assert!(delete_res.is_ok());
+        let update_res = alert_dao.update_is_read("1".to_owned(), false);
+        assert!(update_res.is_ok());
 
         let loaded_alerts_res = alert_dao.all();
         assert!(loaded_alerts_res.is_ok());
@@ -735,8 +735,8 @@ mod tests {
         let save_res = alert_dao.save(vec![alert1.clone()]);
         assert!(save_res.is_ok());
 
-        let delete_res = alert_dao.update_is_read("1".to_owned(), true);
-        assert!(delete_res.is_ok());
+        let update_res = alert_dao.update_is_read("1".to_owned(), true);
+        assert!(update_res.is_ok());
 
         let loaded_alerts_res = alert_dao.all();
         assert!(loaded_alerts_res.is_ok());
