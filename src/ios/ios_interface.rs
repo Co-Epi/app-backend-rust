@@ -71,7 +71,7 @@ pub unsafe extern "C" fn delete_alert(id: *const c_char) -> CFStringRef {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn udpate_alert_is_read(id: *const c_char, is_read: u8) -> CFStringRef {
+pub unsafe extern "C" fn update_alert_is_read(id: *const c_char, is_read: u8) -> CFStringRef {
     let id_str = cstring_to_str(&id);
     let result = id_str.and_then(|id| {
         dependencies()
