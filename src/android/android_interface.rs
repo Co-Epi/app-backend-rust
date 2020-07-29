@@ -86,6 +86,16 @@ pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_deleteAlert(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_updateAlertIsRead(
+    env: JNIEnv,
+    _: JClass,
+    id: JString,
+    is_read: jint,
+) -> jobject {
+    update_alert_is_read(&env, id, is_read).to_void_jni(&env)
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn Java_org_coepi_core_jni_JniApi_recordTcn(
     env: JNIEnv,
     _: JClass,
@@ -277,6 +287,15 @@ fn delete_alert(env: &JNIEnv, id: JString) -> Result<(), ServicesError> {
     let id_str = id_java_str.to_str()?;
 
     dependencies().alert_dao.delete(id_str.to_owned())
+}
+
+fn update_alert_is_read(env: &JNIEnv, id: JString, is_read: jint) -> Result<(), ServicesError> {
+    let id_java_str = env.get_string(id)?;
+    let id_str = id_java_str.to_str()?;
+
+    dependencies()
+        .alert_dao
+        .update_is_read(id_str.to_owned(), is_read == 1)
 }
 
 fn record_tcn(env: &JNIEnv, tcn: JString, distance: jfloat) -> Result<(), ServicesError> {
@@ -587,6 +606,7 @@ fn placeholder_alert() -> Alert {
         contact_end: 0,
         min_distance: 0.0,
         avg_distance: 0.0,
+        is_read: false,
     }
 }
 
@@ -651,11 +671,12 @@ pub fn alert_to_jobject(alert: Alert, env: &JNIEnv) -> Result<jobject, ServicesE
     let contact_end_j_value = JValue::from(alert.contact_end as i64);
     let min_distance_j_value = JValue::from(alert.min_distance);
     let avg_distance_j_value = JValue::from(alert.avg_distance);
+    let is_read_j_value = JValue::from(alert.is_read);
 
     let result: Result<jobject, jni::errors::Error> = env
         .new_object(
             jni_alert_class,
-            "(Ljava/lang/String;Lorg/coepi/core/jni/JniPublicSymptoms;JJFF)V",
+            "(Ljava/lang/String;Lorg/coepi/core/jni/JniPublicSymptoms;JJFFZ)V",
             &[
                 id_j_value,
                 JValue::from(jni_public_symptoms_obj),
@@ -663,6 +684,7 @@ pub fn alert_to_jobject(alert: Alert, env: &JNIEnv) -> Result<jobject, ServicesE
                 contact_end_j_value,
                 min_distance_j_value,
                 avg_distance_j_value,
+                is_read_j_value,
             ],
         )
         .map(|o| o.into_inner());

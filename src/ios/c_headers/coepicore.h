@@ -154,3 +154,7 @@ int32_t trigger_callback(const char *my_str);
 #if (defined(TARGET_OS_IOS) || defined(TARGET_OS_MACOS))
 int32_t trigger_logging_macros(void);
 #endif
+
+#if (defined(TARGET_OS_IOS) || defined(TARGET_OS_MACOS))
+CFStringRef update_alert_is_read(const char *id, uint8_t is_read);
+#endif

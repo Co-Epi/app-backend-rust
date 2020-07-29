@@ -71,6 +71,17 @@ pub unsafe extern "C" fn delete_alert(id: *const c_char) -> CFStringRef {
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn update_alert_is_read(id: *const c_char, is_read: u8) -> CFStringRef {
+    let id_str = cstring_to_str(&id);
+    let result = id_str.and_then(|id| {
+        dependencies()
+            .alert_dao
+            .update_is_read(id.to_owned(), is_read == 1)
+    });
+    to_result_str(result)
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn record_tcn(c_tcn: *const c_char, distance: f32) -> CFStringRef {
     let tcn_str = cstring_to_str(&c_tcn);
     let result = tcn_str.and_then(|tcn_str| {

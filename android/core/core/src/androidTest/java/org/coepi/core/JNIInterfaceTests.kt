@@ -48,7 +48,7 @@ class JNIInterfaceTests {
                         runnyNose = true,
                         other = false,
                         noSymptoms = true
-                    ), 1592567315, 1592567335, 1.2f, 2.1f
+                    ), 1592567315, 1592567335, 1.2f, 2.1f, false
                 )
             ),
             value
@@ -75,7 +75,7 @@ class JNIInterfaceTests {
                             runnyNose = true,
                             other = false,
                             noSymptoms = true
-                        ), 1592567315, 1592567335, 1.2f, 2.1f
+                        ), 1592567315, 1592567335, 1.2f, 2.1f, false
                     ),
                     JniAlert(
                         "343356", JniPublicSymptoms(
@@ -90,7 +90,7 @@ class JNIInterfaceTests {
                             runnyNose = true,
                             other = false,
                             noSymptoms = true
-                        ), 1592567315, 1592567335, 1.2f, 2.1f
+                        ), 1592567315, 1592567335, 1.2f, 2.1f, false
                     )
                 )
             ),

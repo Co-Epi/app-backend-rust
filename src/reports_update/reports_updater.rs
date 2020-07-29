@@ -35,6 +35,7 @@ pub struct Alert {
     pub contact_end: u64,
     pub min_distance: f32,
     pub avg_distance: f32,
+    pub is_read: bool,
 }
 
 pub trait SignedReportExt {
@@ -114,6 +115,7 @@ where
             .collect()
     }
 
+    // Creates a new alert, corresponding to an exposure
     fn to_alert(
         &self,
         signed_report: SignedReport,
@@ -140,6 +142,7 @@ where
             contact_end: measurements.contact_end.value,
             min_distance: measurements.min_distance,
             avg_distance: measurements.avg_distance,
+            is_read: false,
         })
     }
 
