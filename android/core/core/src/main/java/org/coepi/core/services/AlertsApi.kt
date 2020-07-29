@@ -14,7 +14,6 @@ import org.coepi.core.domain.model.UnixTime
 import org.coepi.core.domain.model.UserInput.None
 import org.coepi.core.domain.model.UserInput.Some
 import org.coepi.core.jni.asResult
-import java.io.InputStreamReader
 
 interface AlertsApi {
     fun fetchNewAlerts(): Result<List<Alert>, Throwable>
@@ -60,26 +59,26 @@ class AlertsFetcherImpl(private val api: JniApi) :
             else -> Meters(avgDistance)
         },
         reportTime = when {
-            report.reportTime < 0 -> error("Invalid report time: ${report.reportTime}")
-            else -> UnixTime.fromValue(report.reportTime)
+            symptoms.reportTime < 0 -> error("Invalid report time: ${symptoms.reportTime}")
+            else -> UnixTime.fromValue(symptoms.reportTime)
         },
         earliestSymptomTime = when {
-            report.earliestSymptomTime == -1L ->
+            symptoms.earliestSymptomTime == -1L ->
                 None
-            report.earliestSymptomTime < -1L ->
-                error("Invalid earliestSymptomTime: ${report.earliestSymptomTime}")
+            symptoms.earliestSymptomTime < -1L ->
+                error("Invalid earliestSymptomTime: ${symptoms.earliestSymptomTime}")
             else ->
-                Some(UnixTime.fromValue(report.earliestSymptomTime))
+                Some(UnixTime.fromValue(symptoms.earliestSymptomTime))
         },
-        feverSeverity = toFeverSeverity(report.feverSeverity),
-        coughSeverity = toCoughSeverity(report.coughSeverity),
-        breathlessness = report.breathlessness,
-        muscleAches = report.muscleAches,
-        lossSmellOrTaste = report.lossSmellOrTaste,
-        diarrhea = report.diarrhea,
-        runnyNose = report.runnyNose,
-        other = report.other,
-        noSymptoms = report.noSymptoms,
+        feverSeverity = toFeverSeverity(symptoms.feverSeverity),
+        coughSeverity = toCoughSeverity(symptoms.coughSeverity),
+        breathlessness = symptoms.breathlessness,
+        muscleAches = symptoms.muscleAches,
+        lossSmellOrTaste = symptoms.lossSmellOrTaste,
+        diarrhea = symptoms.diarrhea,
+        runnyNose = symptoms.runnyNose,
+        other = symptoms.other,
+        noSymptoms = symptoms.noSymptoms,
         isRead = isRead
     )
 }
