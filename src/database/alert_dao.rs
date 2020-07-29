@@ -615,7 +615,7 @@ mod tests {
             no_symptoms: true,
         };
 
-        let alert1 = Alert {
+        let alert = Alert {
             id: "1".to_owned(),
             report_id: "1".to_owned(),
             symptoms: symptoms.clone(),
@@ -626,7 +626,7 @@ mod tests {
             is_read: false,
         };
 
-        let save_res = alert_dao.save(vec![alert1.clone()]);
+        let save_res = alert_dao.save(vec![alert.clone()]);
         assert!(save_res.is_ok());
 
         let delete_res = alert_dao.update_is_read("1".to_owned(), true);
@@ -642,7 +642,7 @@ mod tests {
             loaded_alerts[0],
             Alert {
                 is_read: true,
-                ..alert1
+                ..alert
             }
         );
     }
@@ -668,7 +668,7 @@ mod tests {
             no_symptoms: true,
         };
 
-        let alert1 = Alert {
+        let alert = Alert {
             id: "1".to_owned(),
             report_id: "1".to_owned(),
             symptoms: symptoms.clone(),
@@ -679,7 +679,7 @@ mod tests {
             is_read: true,
         };
 
-        let save_res = alert_dao.save(vec![alert1.clone()]);
+        let save_res = alert_dao.save(vec![alert.clone()]);
         assert!(save_res.is_ok());
 
         let delete_res = alert_dao.update_is_read("1".to_owned(), false);
@@ -695,7 +695,7 @@ mod tests {
             loaded_alerts[0],
             Alert {
                 is_read: false,
-                ..alert1
+                ..alert
             }
         );
     }
