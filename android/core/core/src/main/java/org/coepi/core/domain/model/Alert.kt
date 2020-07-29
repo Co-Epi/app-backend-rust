@@ -20,7 +20,8 @@ data class Alert(
     var contactStart: UnixTime,
     var contactEnd: UnixTime,
     var minDistance: LengthMeasurement,
-    var avgDistance: LengthMeasurement
+    var avgDistance: LengthMeasurement,
+    var isRead: Boolean
 ) : Parcelable
 
 enum class FeverSeverity {

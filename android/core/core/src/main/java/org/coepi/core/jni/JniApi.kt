@@ -21,6 +21,8 @@ class JniApi {
 
     external fun deleteAlert(id: String): JniVoidResult
 
+    external fun updateAlertIsRead(id: String, isRead: Int): JniVoidResult
+
     external fun generateTcn(): String
 
     external fun recordTcn(tcn: String, distance: Float): JniVoidResult
@@ -138,7 +140,8 @@ data class JniAlert(
     var contactStart: Long,
     var contactEnd: Long,
     var minDistance: Float,
-    var avgDistance: Float
+    var avgDistance: Float,
+    var isRead: Boolean
 )
 
 data class JniPublicSymptoms(

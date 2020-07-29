@@ -14,6 +14,7 @@ import org.coepi.core.domain.model.UnixTime
 import org.coepi.core.domain.model.UserInput.None
 import org.coepi.core.domain.model.UserInput.Some
 import org.coepi.core.jni.asResult
+import java.io.InputStreamReader
 
 interface AlertsApi {
     fun fetchNewAlerts(): Result<List<Alert>, Throwable>
@@ -78,6 +79,7 @@ class AlertsFetcherImpl(private val api: JniApi) :
         diarrhea = report.diarrhea,
         runnyNose = report.runnyNose,
         other = report.other,
-        noSymptoms = report.noSymptoms
+        noSymptoms = report.noSymptoms,
+        isRead = isRead
     )
 }

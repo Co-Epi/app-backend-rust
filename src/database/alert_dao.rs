@@ -18,6 +18,7 @@ pub trait AlertDao {
     fn all(&self) -> Result<Vec<Alert>, ServicesError>;
     fn save(&self, alerts: Vec<Alert>) -> Result<(), ServicesError>;
     fn delete(&self, id: String) -> Result<(), ServicesError>;
+    fn update_is_read(&self, id: String, is_read: bool) -> Result<(), ServicesError>;
 }
 
 pub struct AlertDaoImpl {
@@ -52,6 +53,7 @@ impl AlertDaoImpl {
                 other integer not null,
                 no_symptoms integer not null,
                 report_id text not null,
+                read integer not null,
                 deleted integer
             )",
             params![],
@@ -126,6 +128,9 @@ impl AlertDaoImpl {
         let report_id_res = row.get(16);
         let report_id = expect_log!(report_id_res, "Invalid row: no report_id");
 
+        let read_res = row.get(17);
+        let read: i8 = expect_log!(read_res, "Invalid row: no read");
+
         Alert {
             id,
             report_id,
@@ -148,6 +153,7 @@ impl AlertDaoImpl {
             contact_end: end as u64,
             min_distance: min_distance as f32,
             avg_distance: avg_distance as f32,
+            is_read: to_bool(read),
         }
     }
 }
@@ -173,7 +179,8 @@ impl AlertDao for AlertDaoImpl {
                 runny_nose,
                 other,
                 no_symptoms,
-                report_id
+                report_id,
+                read
                 from alert where deleted is null",
                 NO_PARAMS,
                 |row| Self::to_alert(row),
@@ -205,6 +212,31 @@ impl AlertDao for AlertDaoImpl {
         }
     }
 
+    fn update_is_read(&self, id: String, is_read: bool) -> Result<(), ServicesError> {
+        debug!("Marking alert as read with id: {}", id);
+
+        let delete_res = self.db.execute_sql(
+            "update alert set read=? where id=?;",
+            params![to_db_int(is_read), id],
+        );
+
+        match delete_res {
+            Ok(count) => {
+                if count > 0 {
+                    debug!("Updated: {} rows", count);
+                    Ok(())
+                } else {
+                    error!("Didn't find alert to mark as read: {}", id);
+                    Err(ServicesError::NotFound)
+                }
+            }
+            Err(e) => Err(ServicesError::General(format!(
+                "Error marking alert as read: {}",
+                e
+            ))),
+        }
+    }
+
     fn save(&self, alerts: Vec<Alert>) -> Result<(), ServicesError> {
         self.db.transaction(|t| {
             for alert in alerts {
@@ -226,8 +258,9 @@ impl AlertDao for AlertDaoImpl {
                         runny_nose,
                         other,
                         no_symptoms,
-                        report_id
-                    ) values(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
+                        report_id,
+                        read
+                    ) values(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)",
                     params![
                         alert.id,
                         alert.contact_start as i64,
@@ -249,7 +282,8 @@ impl AlertDao for AlertDaoImpl {
                         to_db_int(alert.symptoms.runny_nose),
                         to_db_int(alert.symptoms.other),
                         to_db_int(alert.symptoms.no_symptoms),
-                        alert.report_id
+                        alert.report_id,
+                        to_db_int(alert.is_read)
                     ],
                 )?;
             }
@@ -315,6 +349,7 @@ mod tests {
             contact_end: 2000,
             min_distance: 2.3,
             avg_distance: 4.3,
+            is_read: false,
         };
 
         let save_res = alert_dao.save(vec![alert.clone()]);
@@ -358,6 +393,7 @@ mod tests {
             contact_end: 2000,
             min_distance: 2.3,
             avg_distance: 4.3,
+            is_read: false,
         };
 
         let alert2 = Alert {
@@ -368,6 +404,7 @@ mod tests {
             contact_end: 2001,
             min_distance: 2.4,
             avg_distance: 4.4,
+            is_read: false,
         };
 
         let save_res = alert_dao.save(vec![alert1.clone(), alert2.clone()]);
@@ -411,6 +448,7 @@ mod tests {
             contact_end: 2000,
             min_distance: 2.3,
             avg_distance: 4.3,
+            is_read: false,
         };
 
         let alert2 = Alert {
@@ -421,6 +459,7 @@ mod tests {
             contact_end: 2001,
             min_distance: 2.4,
             avg_distance: 4.4,
+            is_read: true,
         };
 
         let save_res = alert_dao.save(vec![alert1.clone(), alert2.clone()]);
@@ -465,6 +504,7 @@ mod tests {
             contact_end: 2000,
             min_distance: 2.3,
             avg_distance: 4.3,
+            is_read: false,
         };
 
         let alert2 = Alert {
@@ -475,6 +515,7 @@ mod tests {
             contact_end: 2001,
             min_distance: 2.4,
             avg_distance: 4.4,
+            is_read: true,
         };
 
         let save_res = alert_dao.save(vec![alert1.clone(), alert2.clone()]);
@@ -521,6 +562,7 @@ mod tests {
             contact_end: 2000,
             min_distance: 2.3,
             avg_distance: 4.3,
+            is_read: false,
         };
 
         let alert2 = Alert {
@@ -531,6 +573,7 @@ mod tests {
             contact_end: 2001,
             min_distance: 2.4,
             avg_distance: 4.4,
+            is_read: true,
         };
 
         let save_res = alert_dao.save(vec![alert1.clone(), alert2.clone()]);
@@ -549,5 +592,164 @@ mod tests {
 
         assert_eq!(loaded_alerts.len(), 1);
         assert_eq!(loaded_alerts[0], alert1);
+    }
+
+    #[test]
+    fn test_marks_alert_as_read() {
+        let database = Arc::new(Database::new(
+            Connection::open_in_memory().expect("Couldn't create database!"),
+        ));
+        let alert_dao = AlertDaoImpl::new(database.clone());
+
+        let symptoms = PublicSymptoms {
+            report_time: UnixTime { value: 0 },
+            earliest_symptom_time: UserInput::Some(UnixTime { value: 1590356601 }),
+            fever_severity: FeverSeverity::Mild,
+            cough_severity: CoughSeverity::Dry,
+            breathlessness: true,
+            muscle_aches: true,
+            loss_smell_or_taste: false,
+            diarrhea: false,
+            runny_nose: true,
+            other: false,
+            no_symptoms: true,
+        };
+
+        let alert1 = Alert {
+            id: "1".to_owned(),
+            report_id: "1".to_owned(),
+            symptoms: symptoms.clone(),
+            contact_start: 1000,
+            contact_end: 2000,
+            min_distance: 2.3,
+            avg_distance: 4.3,
+            is_read: false,
+        };
+
+        let save_res = alert_dao.save(vec![alert1.clone()]);
+        assert!(save_res.is_ok());
+
+        let delete_res = alert_dao.update_is_read("1".to_owned(), true);
+        assert!(delete_res.is_ok());
+
+        let loaded_alerts_res = alert_dao.all();
+        assert!(loaded_alerts_res.is_ok());
+
+        let loaded_alerts = loaded_alerts_res.unwrap();
+
+        assert_eq!(loaded_alerts.len(), 1);
+        assert_eq!(
+            loaded_alerts[0],
+            Alert {
+                is_read: true,
+                ..alert1
+            }
+        );
+    }
+
+    #[test]
+    fn test_marks_alert_as_unread() {
+        let database = Arc::new(Database::new(
+            Connection::open_in_memory().expect("Couldn't create database!"),
+        ));
+        let alert_dao = AlertDaoImpl::new(database.clone());
+
+        let symptoms = PublicSymptoms {
+            report_time: UnixTime { value: 0 },
+            earliest_symptom_time: UserInput::Some(UnixTime { value: 1590356601 }),
+            fever_severity: FeverSeverity::Mild,
+            cough_severity: CoughSeverity::Dry,
+            breathlessness: true,
+            muscle_aches: true,
+            loss_smell_or_taste: false,
+            diarrhea: false,
+            runny_nose: true,
+            other: false,
+            no_symptoms: true,
+        };
+
+        let alert1 = Alert {
+            id: "1".to_owned(),
+            report_id: "1".to_owned(),
+            symptoms: symptoms.clone(),
+            contact_start: 1000,
+            contact_end: 2000,
+            min_distance: 2.3,
+            avg_distance: 4.3,
+            is_read: true,
+        };
+
+        let save_res = alert_dao.save(vec![alert1.clone()]);
+        assert!(save_res.is_ok());
+
+        let delete_res = alert_dao.update_is_read("1".to_owned(), false);
+        assert!(delete_res.is_ok());
+
+        let loaded_alerts_res = alert_dao.all();
+        assert!(loaded_alerts_res.is_ok());
+
+        let loaded_alerts = loaded_alerts_res.unwrap();
+
+        assert_eq!(loaded_alerts.len(), 1);
+        assert_eq!(
+            loaded_alerts[0],
+            Alert {
+                is_read: false,
+                ..alert1
+            }
+        );
+    }
+
+    #[test]
+    fn test_marks_alert_as_read_if_already_read_does_nothing() {
+        let database = Arc::new(Database::new(
+            Connection::open_in_memory().expect("Couldn't create database!"),
+        ));
+        let alert_dao = AlertDaoImpl::new(database.clone());
+
+        let symptoms = PublicSymptoms {
+            report_time: UnixTime { value: 0 },
+            earliest_symptom_time: UserInput::Some(UnixTime { value: 1590356601 }),
+            fever_severity: FeverSeverity::Mild,
+            cough_severity: CoughSeverity::Dry,
+            breathlessness: true,
+            muscle_aches: true,
+            loss_smell_or_taste: false,
+            diarrhea: false,
+            runny_nose: true,
+            other: false,
+            no_symptoms: true,
+        };
+
+        let alert1 = Alert {
+            id: "1".to_owned(),
+            report_id: "1".to_owned(),
+            symptoms: symptoms.clone(),
+            contact_start: 1000,
+            contact_end: 2000,
+            min_distance: 2.3,
+            avg_distance: 4.3,
+            is_read: true,
+        };
+
+        let save_res = alert_dao.save(vec![alert1.clone()]);
+        assert!(save_res.is_ok());
+
+        let delete_res = alert_dao.update_is_read("1".to_owned(), true);
+        assert!(delete_res.is_ok());
+
+        let loaded_alerts_res = alert_dao.all();
+        assert!(loaded_alerts_res.is_ok());
+
+        let loaded_alerts = loaded_alerts_res.unwrap();
+
+        assert_eq!(loaded_alerts.len(), 1);
+        assert_eq!(
+            loaded_alerts[0],
+            Alert {
+                is_read: true,
+                ..alert1
+            }
+        );
     }
 }
