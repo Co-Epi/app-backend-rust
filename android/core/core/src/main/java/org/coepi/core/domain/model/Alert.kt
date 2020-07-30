@@ -6,6 +6,7 @@ import kotlinx.android.parcel.Parcelize
 @Parcelize
 data class Alert(
     var id: String,
+    var reportId: String,
     val reportTime: UnixTime,
     val earliestSymptomTime: UserInput<UnixTime>,
     val feverSeverity: FeverSeverity,

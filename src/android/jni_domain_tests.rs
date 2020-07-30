@@ -80,7 +80,7 @@ fn create_test_alert(id: &str, report_time: u64) -> Alert {
 
     Alert {
         id: id.to_owned(),
-        report_id: id.to_owned(), // re-use alert id, not particular reason other than we don't need separate id for now
+        report_id: "224".to_owned(),
         symptoms,
         contact_start: 1592567315,
         contact_end: 1592567335,

@@ -666,6 +666,8 @@ pub fn alert_to_jobject(alert: Alert, env: &JNIEnv) -> Result<jobject, ServicesE
 
     let id_j_string = env.new_string(alert.id)?;
     let id_j_value = JValue::from(JObject::from(id_j_string));
+    let report_id_j_string = env.new_string(alert.report_id)?;
+    let report_id_j_value = JValue::from(JObject::from(report_id_j_string));
 
     let contact_start_j_value = JValue::from(alert.contact_start as i64);
     let contact_end_j_value = JValue::from(alert.contact_end as i64);
@@ -676,9 +678,10 @@ pub fn alert_to_jobject(alert: Alert, env: &JNIEnv) -> Result<jobject, ServicesE
     let result: Result<jobject, jni::errors::Error> = env
         .new_object(
             jni_alert_class,
-            "(Ljava/lang/String;Lorg/coepi/core/jni/JniPublicSymptoms;JJFFZ)V",
+            "(Ljava/lang/String;Ljava/lang/String;Lorg/coepi/core/jni/JniPublicSymptoms;JJFFZ)V",
             &[
                 id_j_value,
+                report_id_j_value,
                 JValue::from(jni_public_symptoms_obj),
                 contact_start_j_value,
                 contact_end_j_value,

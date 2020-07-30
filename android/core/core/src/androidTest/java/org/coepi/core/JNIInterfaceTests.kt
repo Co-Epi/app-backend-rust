@@ -36,7 +36,7 @@ class JNIInterfaceTests {
         assertEquals(
             JniOneAlertResult(
                 1, "", JniAlert(
-                    "123", JniPublicSymptoms(
+                    "123", "224", JniPublicSymptoms(
                         reportTime = 234324,
                         earliestSymptomTime = 1590356601,
                         feverSeverity = 1,
@@ -63,7 +63,7 @@ class JNIInterfaceTests {
             JniAlertsArrayResult(
                 1, "", arrayOf(
                     JniAlert(
-                        "123", JniPublicSymptoms(
+                        "123", "224", JniPublicSymptoms(
                             reportTime = 131321,
                             earliestSymptomTime = 1590356601,
                             feverSeverity = 1,
@@ -78,7 +78,7 @@ class JNIInterfaceTests {
                         ), 1592567315, 1592567335, 1.2f, 2.1f, false
                     ),
                     JniAlert(
-                        "343356", JniPublicSymptoms(
+                        "343356", "224", JniPublicSymptoms(
                             reportTime = 32516899200,
                             earliestSymptomTime = 1590356601,
                             feverSeverity = 1,
