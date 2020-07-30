@@ -42,6 +42,7 @@ class AlertsFetcherImpl(private val api: JniApi) :
 
     private fun JniAlert.toAlert() = Alert(
         id = id,
+        reportId = reportId,
         contactStart = when {
             contactStart < 0 -> error("Invalid contact start: $contactStart")
             else -> UnixTime.fromValue(contactStart)

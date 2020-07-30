@@ -136,6 +136,7 @@ data class JniAlertsArrayResult(
 
 data class JniAlert(
     var id: String,
+    var reportId: String,
     var symptoms: JniPublicSymptoms,
     var contactStart: Long,
     var contactEnd: Long,
