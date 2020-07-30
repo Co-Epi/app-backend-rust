@@ -18,10 +18,10 @@ import org.coepi.core.jni.asResult
 interface AlertsApi {
     fun fetchNewAlerts(): Result<List<Alert>, Throwable>
     fun deleteAlert(id: String): Result<Unit, Throwable>
+    fun updateIsRead(id: String, isRead: Boolean): Result<Unit, Throwable>
 }
 
-class AlertsFetcherImpl(private val api: JniApi) :
-    AlertsApi {
+class AlertsFetcherImpl(private val api: JniApi) : AlertsApi {
 
     override fun fetchNewAlerts(): Result<List<Alert>, Throwable> {
         val result = api.fetchNewReports()
@@ -33,6 +33,9 @@ class AlertsFetcherImpl(private val api: JniApi) :
 
     override fun deleteAlert(id: String): Result<Unit, Throwable> =
         api.deleteAlert(id).asResult()
+
+    override fun updateIsRead(id: String, isRead: Boolean): Result<Unit, Throwable> =
+        api.updateAlertIsRead(id, if (isRead) 1 else 0).asResult()
 
     private fun JniAlertsArrayResult.statusDescription(): String =
         statusDescription(status, message)
