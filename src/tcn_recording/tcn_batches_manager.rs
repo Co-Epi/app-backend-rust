@@ -196,7 +196,7 @@ mod tests {
         let database = Arc::new(Database::new(
             Connection::open_in_memory().expect("Couldn't create database!"),
         ));
-        let tcn_dao = TcnDaoImpl::new(database.clone());
+        let tcn_dao = TcnDaoImpl::new(database);
 
         let batches_manager =
             TcnBatchesManager::new(Arc::new(tcn_dao), ExposureGrouper { threshold: 1000 });
@@ -242,7 +242,7 @@ mod tests {
         let database = Arc::new(Database::new(
             Connection::open_in_memory().expect("Couldn't create database!"),
         ));
-        let tcn_dao = TcnDaoImpl::new(database.clone());
+        let tcn_dao = TcnDaoImpl::new(database);
 
         let batches_manager =
             TcnBatchesManager::new(Arc::new(tcn_dao), ExposureGrouper { threshold: 1000 });
@@ -268,7 +268,7 @@ mod tests {
         let database = Arc::new(Database::new(
             Connection::open_in_memory().expect("Couldn't create database!"),
         ));
-        let tcn_dao = Arc::new(TcnDaoImpl::new(database.clone()));
+        let tcn_dao = Arc::new(TcnDaoImpl::new(database));
 
         let batches_manager =
             TcnBatchesManager::new(tcn_dao.clone(), ExposureGrouper { threshold: 1000 });
@@ -299,7 +299,7 @@ mod tests {
         let database = Arc::new(Database::new(
             Connection::open_in_memory().expect("Couldn't create database!"),
         ));
-        let tcn_dao = Arc::new(TcnDaoImpl::new(database.clone()));
+        let tcn_dao = Arc::new(TcnDaoImpl::new(database));
 
         let batches_manager =
             TcnBatchesManager::new(tcn_dao.clone(), ExposureGrouper { threshold: 1000 });
@@ -352,7 +352,7 @@ mod tests {
         let database = Arc::new(Database::new(
             Connection::open_in_memory().expect("Couldn't create database!"),
         ));
-        let tcn_dao = Arc::new(TcnDaoImpl::new(database.clone()));
+        let tcn_dao = Arc::new(TcnDaoImpl::new(database));
 
         let batches_manager =
             TcnBatchesManager::new(tcn_dao.clone(), ExposureGrouper { threshold: 1000 });
@@ -419,7 +419,7 @@ mod tests {
         let database = Arc::new(Database::new(
             Connection::open_in_memory().expect("Couldn't create database!"),
         ));
-        let tcn_dao = Arc::new(TcnDaoImpl::new(database.clone()));
+        let tcn_dao = Arc::new(TcnDaoImpl::new(database));
 
         let batches_manager =
             TcnBatchesManager::new(tcn_dao.clone(), ExposureGrouper { threshold: 1000 });

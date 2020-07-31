@@ -236,7 +236,7 @@ mod tests {
         let database = Arc::new(Database::new(
             Connection::open_in_memory().expect("Couldn't create database!"),
         ));
-        let preferences_dao = PreferencesDao::new(database.clone());
+        let preferences_dao = PreferencesDao::new(database);
         let preferences = PreferencesImpl {
             dao: preferences_dao,
         };
@@ -258,7 +258,7 @@ mod tests {
         let database = Arc::new(Database::new(
             Connection::open_in_memory().expect("Couldn't create database!"),
         ));
-        let preferences_dao = PreferencesDao::new(database.clone());
+        let preferences_dao = PreferencesDao::new(database);
         let preferences = PreferencesImpl {
             dao: preferences_dao,
         };
@@ -275,7 +275,7 @@ mod tests {
         let database = Arc::new(Database::new(
             Connection::open_in_memory().expect("Couldn't create database!"),
         ));
-        let preferences_dao = PreferencesDao::new(database.clone());
+        let preferences_dao = PreferencesDao::new(database);
         let preferences = PreferencesImpl {
             dao: preferences_dao,
         };
