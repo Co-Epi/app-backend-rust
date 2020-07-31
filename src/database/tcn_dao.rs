@@ -172,7 +172,7 @@ mod tests {
         let database = Arc::new(Database::new(
             Connection::open_in_memory().expect("Couldn't create database!"),
         ));
-        let tcn_dao = TcnDaoImpl::new(database.clone());
+        let tcn_dao = TcnDaoImpl::new(database);
 
         let observed_tcn = ObservedTcn {
             tcn: TemporaryContactNumber([
@@ -202,7 +202,7 @@ mod tests {
         let database = Arc::new(Database::new(
             Connection::open_in_memory().expect("Couldn't create database!"),
         ));
-        let tcn_dao = TcnDaoImpl::new(database.clone());
+        let tcn_dao = TcnDaoImpl::new(database);
 
         let observed_tcn_1 = ObservedTcn {
             tcn: TemporaryContactNumber([
@@ -258,7 +258,7 @@ mod tests {
         let database = Arc::new(Database::new(
             Connection::open_in_memory().expect("Couldn't create database!"),
         ));
-        let tcn_dao = Arc::new(TcnDaoImpl::new(database.clone()));
+        let tcn_dao = Arc::new(TcnDaoImpl::new(database));
 
         let stored_tcn1 = ObservedTcn {
             tcn: TemporaryContactNumber([0; 16]),
@@ -316,7 +316,7 @@ mod tests {
         let database = Arc::new(Database::new(
             Connection::open_in_memory().expect("Couldn't create database!"),
         ));
-        let tcn_dao = Arc::new(TcnDaoImpl::new(database.clone()));
+        let tcn_dao = Arc::new(TcnDaoImpl::new(database));
 
         let batches_manager =
             TcnBatchesManager::new(tcn_dao.clone(), ExposureGrouper { threshold: 1000 });

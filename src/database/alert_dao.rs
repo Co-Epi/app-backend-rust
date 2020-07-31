@@ -325,7 +325,7 @@ mod tests {
         let database = Arc::new(Database::new(
             Connection::open_in_memory().expect("Couldn't create database!"),
         ));
-        let alert_dao = AlertDaoImpl::new(database.clone());
+        let alert_dao = AlertDaoImpl::new(database);
 
         let symptoms = PublicSymptoms {
             report_time: UnixTime { value: 0 },
@@ -369,7 +369,7 @@ mod tests {
         let database = Arc::new(Database::new(
             Connection::open_in_memory().expect("Couldn't create database!"),
         ));
-        let alert_dao = AlertDaoImpl::new(database.clone());
+        let alert_dao = AlertDaoImpl::new(database);
 
         let symptoms = PublicSymptoms {
             report_time: UnixTime { value: 0 },
@@ -424,7 +424,7 @@ mod tests {
         let database = Arc::new(Database::new(
             Connection::open_in_memory().expect("Couldn't create database!"),
         ));
-        let alert_dao = AlertDaoImpl::new(database.clone());
+        let alert_dao = AlertDaoImpl::new(database);
 
         let symptoms = PublicSymptoms {
             report_time: UnixTime { value: 0 },
@@ -480,7 +480,7 @@ mod tests {
         let database = Arc::new(Database::new(
             Connection::open_in_memory().expect("Couldn't create database!"),
         ));
-        let alert_dao = AlertDaoImpl::new(database.clone());
+        let alert_dao = AlertDaoImpl::new(database);
 
         let symptoms = PublicSymptoms {
             report_time: UnixTime { value: 0 },
@@ -538,7 +538,7 @@ mod tests {
         let database = Arc::new(Database::new(
             Connection::open_in_memory().expect("Couldn't create database!"),
         ));
-        let alert_dao = AlertDaoImpl::new(database.clone());
+        let alert_dao = AlertDaoImpl::new(database);
 
         let symptoms = PublicSymptoms {
             report_time: UnixTime { value: 0 },
@@ -599,7 +599,7 @@ mod tests {
         let database = Arc::new(Database::new(
             Connection::open_in_memory().expect("Couldn't create database!"),
         ));
-        let alert_dao = AlertDaoImpl::new(database.clone());
+        let alert_dao = AlertDaoImpl::new(database);
 
         let symptoms = PublicSymptoms {
             report_time: UnixTime { value: 0 },
@@ -652,7 +652,7 @@ mod tests {
         let database = Arc::new(Database::new(
             Connection::open_in_memory().expect("Couldn't create database!"),
         ));
-        let alert_dao = AlertDaoImpl::new(database.clone());
+        let alert_dao = AlertDaoImpl::new(database);
 
         let symptoms = PublicSymptoms {
             report_time: UnixTime { value: 0 },
@@ -705,7 +705,7 @@ mod tests {
         let database = Arc::new(Database::new(
             Connection::open_in_memory().expect("Couldn't create database!"),
         ));
-        let alert_dao = AlertDaoImpl::new(database.clone());
+        let alert_dao = AlertDaoImpl::new(database);
 
         let symptoms = PublicSymptoms {
             report_time: UnixTime { value: 0 },
