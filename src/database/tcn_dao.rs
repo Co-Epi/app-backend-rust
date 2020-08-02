@@ -200,8 +200,8 @@ mod tests {
     #[test]
     fn test_alter_table_with_data(){
         let database = Arc::new(Database::new(
-            // Connection::open_in_memory().expect("Couldn't create database!"),
-            Connection::open("./testdb.sqlite").expect("Problem opening db"),
+            Connection::open_in_memory().expect("Couldn't create database!"),
+            // Connection::open("./testdb1.sqlite").expect("Problem opening db"),
         ));
         let res = database.execute_sql(
             "create table if not exists tcn(
@@ -211,7 +211,6 @@ mod tests {
             params![],
         );
         expect_log!(res, "Couldn't create tcn table");
-        // let tcn_dao = TcnDaoImpl::new(database.clone());
 
         let observed_tcn = ObservedTcn {
             tcn: TemporaryContactNumber([
@@ -245,25 +244,12 @@ mod tests {
 
         println!("g: {:#?}", g);
 
-        // let _record = database.transaction(|t| {
-        //     datab
-        //     let load_res: Result<Vec<ObservedTcn>, Error> = t.query_row("SELECT * FROM tcn",
-        //     NO_PARAMS,
-        //     |row| to_tcn_conditional(row));
-            
-        //     // ("select * from tcn", params![]);
-        //     let loaded_tcn = load_res.expect("Error while loading tcn");
-        //     // assert_eq!(false, load_res.is_err());
-        //     println!("tcn {:#?}", loaded_tcn);
-        //     Ok(())
-        // });
-
         let columns_3 = core_table_info("tcn", database.clone());
         assert_eq!(3, columns_3.len());
 
-        database.execute_sql("alter table tcn add column min_distance real;", params![]).unwrap();
-        database.execute_sql("alter table tcn add column avg_distance real;", params![]).unwrap();
-        database.execute_sql("alter table tcn add column total_count integer;", params![]).unwrap();
+        database.execute_sql("alter table tcn add column min_distance real default 32.0;", params![]).unwrap();
+        database.execute_sql("alter table tcn add column avg_distance real default 56.0;", params![]).unwrap();
+        database.execute_sql("alter table tcn add column total_count integer default 48;", params![]).unwrap();
 
         let columns_6 = core_table_info("tcn", database.clone());
         assert_eq!(6, columns_6.len());
@@ -344,18 +330,6 @@ mod tests {
 
 
     }
-
-/*
-"create table if not exists tcn(
-                tcn text not null,
-                contact_start integer not null,
-                contact_end integer not null,
-                min_distance real not null,
-                avg_distance real not null,
-                total_count integer not null
-            )",
-
-*/
 
     fn core_table_info(table_name: &str, database: Arc<Database>) -> Vec<String>{
         // let mut columns: Vec<String> = Vec::new();
