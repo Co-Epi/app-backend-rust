@@ -243,7 +243,8 @@ mod tests {
 
         let columns_2 = core_table_info("tcn", database.clone());
         assert_eq!(2, columns_2.len());
-        
+
+        database.execute_sql("alter table tcn rename column contact_time to contact_start;", params![]).unwrap();
         database.execute_sql("alter table tcn add column contact_end integer not null default 0;", params![]).unwrap();
         database.execute_sql("alter table tcn add column min_distance real default 32.0;", params![]).unwrap();
         database.execute_sql("alter table tcn add column avg_distance real default 56.0;", params![]).unwrap();
