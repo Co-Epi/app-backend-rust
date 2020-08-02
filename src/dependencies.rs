@@ -3,6 +3,7 @@ use crate::{
     database::{
         alert_dao::{AlertDao, AlertDaoImpl},
         database::Database,
+        migration::Migration,
         preferences::{Preferences, PreferencesDao, PreferencesImpl},
         tcn_dao::{TcnDao, TcnDaoImpl},
     },
@@ -151,6 +152,9 @@ fn create_dependencies(
     let connection_res = Connection::open(sqlite_path);
     let connection = expect_log!(connection_res, "Couldn't create database!");
     let database = Arc::new(Database::new(connection));
+
+    let migration_handler = Migration::new(database.clone());
+    migration_handler.run_db_migrations();
 
     let preferences_dao = PreferencesDao::new(database.clone());
     let preferences = Arc::new(PreferencesImpl {

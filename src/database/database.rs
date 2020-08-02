@@ -20,7 +20,7 @@ impl Database {
         let conn = expect_log!(res, "Couldn't lock mutex");
         conn.execute(sql, pars)
     }
-
+    #[allow(dead_code)]
     pub fn execute_batch(&self, sql: &str) -> Result<()>
     {
         let res = self.conn.lock();
@@ -40,7 +40,7 @@ impl Database {
         value
     }
 
-    pub fn core_pragma_update(&self, pragma_varible_name: &str, new_value: &i32){
+    pub fn core_pragma_update(&self, pragma_variable_name: &str, new_value: &i32){
         let res = self.conn.lock();
         let conn = expect_log!(res, "Couldn't lock mutex");
         // let mut value = 0;
@@ -48,7 +48,7 @@ impl Database {
         // let value = conn.pragma_update_and_check(None, pragma_varible_name, new_value, |row|{row.get(0)}).unwrap();
         // value
 
-        let _ = conn.pragma_update(None, pragma_varible_name, new_value);
+        let _ = conn.pragma_update(None, pragma_variable_name, new_value);
 
     }
 
