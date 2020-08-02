@@ -198,13 +198,37 @@ mod tests {
     }
 
     #[test]
-    fn prep_data_03(){
+    fn test_migration_03_to_04(){
         let database = Arc::new(Database::new(
             Connection::open_in_memory().expect("Couldn't create database!"),
-            // Connection::open("./testdb2.sqlite").expect("Problem opening db"),
         ));
+        prep_data_03(database.clone());
+        migrate_data_03_to_04(database.clone());
 
-        // let db = Connection::open_in_memory().unwrap();
+    }
+
+    fn migrate_data_03_to_04(database: Arc<Database>){
+        database.execute_sql("alter table tcn rename column contact_time to contact_start;", params![]).unwrap();
+        database.execute_sql("alter table tcn add column contact_end integer not null default 0;", params![]).unwrap();
+        database.execute_sql("alter table tcn add column min_distance real default 32.0;", params![]).unwrap();
+        database.execute_sql("alter table tcn add column avg_distance real default 56.0;", params![]).unwrap();
+        database.execute_sql("alter table tcn add column total_count integer default 48;", params![]).unwrap();
+
+        let columns_6 = core_table_info("tcn", database.clone());
+        assert_eq!(6, columns_6.len());
+
+        let migrated_tcns = database.query("SELECT * FROM tcn",
+        NO_PARAMS,
+        |row| to_tcn_conditional(row));
+
+        println!("migrated_tcns: {:#?}", migrated_tcns);
+    }
+
+    fn prep_data_03(database: Arc<Database>){
+        // let database = Arc::new(Database::new(
+        //     Connection::open_in_memory().expect("Couldn't create database!"),
+        //     // Connection::open("./testdb2.sqlite").expect("Problem opening db"),
+        // ));
 
         let exported_db_sql = "BEGIN TRANSACTION;
         CREATE TABLE IF NOT EXISTS tcn(
@@ -243,7 +267,8 @@ mod tests {
 
         let columns_2 = core_table_info("tcn", database.clone());
         assert_eq!(2, columns_2.len());
-
+        
+        /*
         database.execute_sql("alter table tcn rename column contact_time to contact_start;", params![]).unwrap();
         database.execute_sql("alter table tcn add column contact_end integer not null default 0;", params![]).unwrap();
         database.execute_sql("alter table tcn add column min_distance real default 32.0;", params![]).unwrap();
@@ -258,6 +283,7 @@ mod tests {
         |row| to_tcn_conditional(row));
 
         println!("migrated_tcns: {:#?}", migrated_tcns);
+        */
 
     }
 
