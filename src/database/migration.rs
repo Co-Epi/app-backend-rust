@@ -45,6 +45,7 @@ impl Migration {
     }
 
     pub fn run_db_migrations(&self) {
+        
         let required_db_version = 1;
         let pragma_variable_name = "user_version";
         let mut db_version = self.database.core_pragma_query(pragma_variable_name);
@@ -60,5 +61,6 @@ impl Migration {
         }
 
         self.database.core_pragma_update(pragma_variable_name, &db_version);
+        
     }
 }

@@ -209,7 +209,7 @@ mod tests {
 
         match db_version {
             0 => {println!("db version is 0");
-            migrate_data_03_to_04(database.clone());
+            test_migrate_data_03_to_04(database.clone());
             },
             _ => println!("db ver is incorrect")
         }
@@ -219,7 +219,7 @@ mod tests {
         assert_eq!(1, new_db_version);
     }
 
-    fn migrate_data_03_to_04(database: Arc<Database>){
+    fn test_migrate_data_03_to_04(database: Arc<Database>){
         database.execute_sql("alter table tcn rename column contact_time to contact_start;", params![]).unwrap();
         database.execute_sql("alter table tcn add column contact_end integer not null default 0;", params![]).unwrap();
         database.execute_sql("alter table tcn add column min_distance real default 32.0;", params![]).unwrap();
@@ -235,7 +235,7 @@ mod tests {
 
         // println!("migrated_tcns: {:#?}", migrated_tcns);
     }
-
+    //moved
     fn prep_data_03(database: Arc<Database>){
 
         let exported_db_sql = "BEGIN TRANSACTION;
@@ -342,6 +342,7 @@ mod tests {
 
     }
 
+
     fn to_tcn_conditional(row: &Row) -> ObservedTcn {
         let tcn: Result<String, _> = row.get(0);
         let tcn_value = expect_log!(tcn, "Invalid row: no TCN");
@@ -404,13 +405,13 @@ mod tests {
 
 
     }
-
+    //moved
     fn core_table_info(table_name: &str, database: Arc<Database>) -> Vec<String>{
         let columns = database.query("SELECT * FROM pragma_table_info(?)", params![table_name], |row: &Row|{to_table_information(row)}).unwrap();
         println!("Core rows: {:#?}", columns);
         columns
     }
-
+    //moved
     fn to_table_information(row: &Row) -> String {
         let ord: Result<i32, _> = row.get(0);
         let ord_value = expect_log!(ord, "Invalid row: no ordinal");
