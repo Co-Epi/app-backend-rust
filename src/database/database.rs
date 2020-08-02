@@ -21,8 +21,7 @@ impl Database {
         conn.execute(sql, pars)
     }
     #[allow(dead_code)]
-    pub fn execute_batch(&self, sql: &str) -> Result<()>
-    {
+    pub fn execute_batch(&self, sql: &str) -> Result<()> {
         let res = self.conn.lock();
         let conn = expect_log!(res, "Couldn't lock mutex");
         conn.execute_batch(sql)
@@ -33,23 +32,17 @@ impl Database {
         let conn = expect_log!(res, "Couldn't lock mutex");
         let mut value = 0;
         let _ = conn.pragma_query(None, pragma_variable_name, |row| {
-                let value_res= row.get(0);
-                value = value_res.unwrap();
-                Ok(())
+            let value_res = row.get(0);
+            value = value_res.unwrap();
+            Ok(())
         });
         value
     }
 
-    pub fn core_pragma_update(&self, pragma_variable_name: &str, new_value: &i32){
+    pub fn core_pragma_update(&self, pragma_variable_name: &str, new_value: &i32) {
         let res = self.conn.lock();
         let conn = expect_log!(res, "Couldn't lock mutex");
-        // let mut value = 0;
-
-        // let value = conn.pragma_update_and_check(None, pragma_varible_name, new_value, |row|{row.get(0)}).unwrap();
-        // value
-
         let _ = conn.pragma_update(None, pragma_variable_name, new_value);
-
     }
 
     pub fn query<T, P, F>(&self, sql: &str, params: P, f: F) -> Result<Vec<T>, rusqlite::Error>

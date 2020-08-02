@@ -321,47 +321,6 @@ mod tests {
     use rusqlite::Connection;
 
     #[test]
-    fn test_pragma_logic() {
-        let db = Connection::open_in_memory().unwrap();
-        let mut user_version = -1;
-        db.pragma_query(None, "user_version", |row| {
-            user_version = row.get(0)?;
-            Ok(())
-        })
-        .unwrap();
-        assert_eq!(0, user_version);
-
-        db.pragma_update(None, "user_version", &1).unwrap();
-        
-        db.pragma_query(None, "user_version", |row| {
-            user_version = row.get(0)?;
-            Ok(())
-        })
-        .unwrap();
-        
-        assert_eq!(1, user_version);
-
-
-        match user_version {
-            0 => migrate_db_to_version_1(),
-            1 => migrate_db_to_version_2(),
-            2 | 3 | 5 | 7 | 11 => println!("This is a prime"),
-            13..=19 => println!("A teen"),
-            _ => println!("Ain't special"),
-        }
-    }
-
-    fn migrate_db_to_version_1(){
-        println!("Migrating to version 1");
-    }
-
-    fn migrate_db_to_version_2(){
-        println!("Migrating to version 2");
-    } 
-
-   
-
-    #[test]
     fn test_saves_and_loads_alert() {
         let database = Arc::new(Database::new(
             Connection::open_in_memory().expect("Couldn't create database!"),
