@@ -39,6 +39,10 @@ where
             clone
         };
 
+        if tcns.is_empty() {
+            return Ok(());
+        };
+
         debug!("Flushing TCN batch into database: {:?}", tcns);
 
         // Do an in-memory merge with the DB TCNs and overwrite stored exposures with result.
