@@ -165,7 +165,6 @@ impl TcnDao for TcnDaoImpl {
 mod tests {
     use super::*;
     use rusqlite::Connection;
-    use rusqlite::Error;
     use crate::{tcn_recording::tcn_batches_manager::TcnBatchesManager, reports_update::exposure::ExposureGrouper};
 
     #[test]
@@ -197,6 +196,70 @@ mod tests {
         assert_eq!(loaded_tcns.len(), 1);
         assert_eq!(loaded_tcns[0], observed_tcn);
     }
+
+    #[test]
+    fn prep_data_03(){
+        let database = Arc::new(Database::new(
+            Connection::open_in_memory().expect("Couldn't create database!"),
+            // Connection::open("./testdb2.sqlite").expect("Problem opening db"),
+        ));
+
+        // let db = Connection::open_in_memory().unwrap();
+
+        let exported_db_sql = "BEGIN TRANSACTION;
+        CREATE TABLE IF NOT EXISTS tcn(
+                        tcn text not null,
+                        contact_time integer not null
+                    );
+        INSERT INTO `tcn` (tcn,contact_time) VALUES ('f3c939d7741f4a9be1c3c44dae084e7a',1595240743);
+        INSERT INTO `tcn` (tcn,contact_time) VALUES ('4d621482b4aff1a6680d46a589269fd3',1596387734);
+        INSERT INTO `tcn` (tcn,contact_time) VALUES ('188c9bfc1e675c7e0797cc43a015a60d',1596387735);
+        INSERT INTO `tcn` (tcn,contact_time) VALUES ('c65a443a6563ad2d328ae8594f96b27b',1596387741);
+        INSERT INTO `tcn` (tcn,contact_time) VALUES ('67347e90140555affb4c59795febbdde',1596387991);
+        INSERT INTO `tcn` (tcn,contact_time) VALUES ('244a3961eb0e8407346ad525f16172ff',1596388633);
+        INSERT INTO `tcn` (tcn,contact_time) VALUES ('39c195bd27dae245577f03dd5c48f244',1596388633);
+        INSERT INTO `tcn` (tcn,contact_time) VALUES ('30afb71fd9db5dea604c52cc11969c54',1596388638);
+        INSERT INTO `tcn` (tcn,contact_time) VALUES ('b2c4247d156106ccae799e530df63d61',1596388645);
+        INSERT INTO `tcn` (tcn,contact_time) VALUES ('c76101bb7831e8a15d9e54978660a801',1596389536);
+        INSERT INTO `tcn` (tcn,contact_time) VALUES ('264592dc4f280a31923cbe1f178ee16f',1596389537);
+        INSERT INTO `tcn` (tcn,contact_time) VALUES ('e3f4b9bad40de7bbb91af599196cc07c',1596389539);
+        INSERT INTO `tcn` (tcn,contact_time) VALUES ('c32b29785387807c13edc8ac3c5b030e',1596389539);
+        CREATE TABLE IF NOT EXISTS preferences(
+                        key text primary key,
+                        value text not null
+                    );
+        INSERT INTO `preferences` (key,value) VALUES ('authorization_key','2c7b4db36907af8210e9b33291e258fe8807ea559bcb34a77e08a4456e1bb1b2');
+        INSERT INTO `preferences` (key,value) VALUES ('tck','{\"tck_bytes\":[5,0,234,97,198,59,187,80,159,108,28,198,76,17,130,191,93,232,201,219,3,72,121,187,251,216,226,210,121,33,106,87,96,62,169,210,206,118,177,218,152,86,98,60,3,229,82,31,224,66,43,75,47,211,185,199,121,227,222,20,111,10,161,154,135,109]}');
+        COMMIT;"; 
+
+        let res = database.execute_batch(exported_db_sql);
+        expect_log!(res, "Couldn't recreate db for version 0.3");
+
+        let original_tcns = database.query("SELECT * FROM tcn",
+        NO_PARAMS,
+        |row| to_tcn_conditional(row));
+
+        println!("original_tcns: {:#?}", original_tcns);
+
+        let columns_2 = core_table_info("tcn", database.clone());
+        assert_eq!(2, columns_2.len());
+        
+        database.execute_sql("alter table tcn add column contact_end integer not null default 0;", params![]).unwrap();
+        database.execute_sql("alter table tcn add column min_distance real default 32.0;", params![]).unwrap();
+        database.execute_sql("alter table tcn add column avg_distance real default 56.0;", params![]).unwrap();
+        database.execute_sql("alter table tcn add column total_count integer default 48;", params![]).unwrap();
+
+        let columns_6 = core_table_info("tcn", database.clone());
+        assert_eq!(6, columns_6.len());
+
+        let migrated_tcns = database.query("SELECT * FROM tcn",
+        NO_PARAMS,
+        |row| to_tcn_conditional(row));
+
+        println!("migrated_tcns: {:#?}", migrated_tcns);
+
+    }
+
     #[test]
     fn test_alter_table_with_data(){
         let database = Arc::new(Database::new(
@@ -238,11 +301,11 @@ mod tests {
         });
 
 
-        let g = database.query("SELECT * FROM tcn",
+        let original_tcns = database.query("SELECT * FROM tcn",
         NO_PARAMS,
         |row| to_tcn_conditional(row));
 
-        println!("g: {:#?}", g);
+        println!("original_tcns: {:#?}", original_tcns);
 
         let columns_3 = core_table_info("tcn", database.clone());
         assert_eq!(3, columns_3.len());
@@ -271,22 +334,16 @@ mod tests {
         let contact_start: i64 = expect_log!(contact_start_res, "Invalid row: no contact start");
 
         let contact_end_res = row.get(2);
-        let contact_end: i64 = expect_log!(contact_end_res, "Invalid row: no contact end");
+        let contact_end: i64 = contact_end_res.or::<Result<i64, &str>> (Ok(-1)).unwrap(); //expect_log!(contact_end_res, "Invalid row: no contact end");
 
         let min_distance_res = row.get(3);
-        let mut min_distance: f64 = 0.0;
-        min_distance = min_distance_res.or::<Result<f64, &str>> (Ok(-1.0)).unwrap();
-        // expect_log!(min_distance_res, "Invalid row: no min distance");
+        let min_distance = min_distance_res.or::<Result<f64, &str>> (Ok(-1.0)).unwrap();
 
         let avg_distance_res = row.get(4);
-        let mut avg_distance: f64 = 0.0;
-        avg_distance = avg_distance_res.or::<Result<f64, &str>> (Ok(-1.0)).unwrap();
-        // expect_log!(avg_distance_res, "Invalid row: no avg distance");
+        let avg_distance = avg_distance_res.or::<Result<f64, &str>> (Ok(-1.0)).unwrap();
 
         let total_count_res = row.get(5);
-        let mut total_count: i64 = 0;
-        total_count = total_count_res.or::<Result<i64, &str>> (Ok(-1)).unwrap();
-        // expect_log!(total_count_res, "Invalid row: no total count");
+        let total_count = total_count_res.or::<Result<i64, &str>> (Ok(-1)).unwrap();
 
         ObservedTcn {
             tcn,
@@ -332,13 +389,8 @@ mod tests {
     }
 
     fn core_table_info(table_name: &str, database: Arc<Database>) -> Vec<String>{
-        // let mut columns: Vec<String> = Vec::new();
         let columns = database.query("SELECT * FROM pragma_table_info(?)", params![table_name], |row: &Row|{to_table_information(row)}).unwrap();
         println!("Core rows: {:#?}", columns);
-        // while let Some(line) = rows.into_iter().next() {
-        //     let column = row.get(1).unwrap();
-        //     columns.push(column);
-        // }
         columns
     }
 
