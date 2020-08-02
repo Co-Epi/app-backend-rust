@@ -319,8 +319,6 @@ fn to_db_int(b: bool) -> i8 {
 mod tests {
     use super::*;
     use rusqlite::Connection;
-    use rusqlite::Error;
-    use rusqlite::types::FromSql;
 
     #[test]
     fn test_pragma_logic() {
@@ -361,62 +359,7 @@ mod tests {
         println!("Migrating to version 2");
     } 
 
-    #[test]
-    // #[cfg(feature = "modern_sqlite")]
-    fn test_alter_table(){
-        let db = Connection::open_in_memory().unwrap();
-        let res = db.execute(
-            "create table if not exists tcn(
-                tcn text not null,
-                contact_start integer not null,
-                contact_end integer not null)",
-            params![],
-        );
-        expect_log!(res, "Couldn't create tcn table");
-
-        let columns_3 = pragma_table_info("tcn", &db);
-        assert_eq!(3, columns_3.len());
-
-        db.execute("alter table tcn add column min_distance real;", params![]).unwrap();
-
-        let columns_4 = pragma_table_info("tcn", &db);
-        assert_eq!(4, columns_4.len());
-
-        db.execute("alter table tcn add column avg_distance real;", params![]).unwrap();
-        db.execute("alter table tcn add column total_count integer;", params![]).unwrap();
-
-        let columns_6 = pragma_table_info("tcn", &db);
-        assert_eq!(6, columns_6.len());
-
-
-    }
-
-/*
-"create table if not exists tcn(
-                tcn text not null,
-                contact_start integer not null,
-                contact_end integer not null,
-                min_distance real not null,
-                avg_distance real not null,
-                total_count integer not null
-            )",
-
-*/
-
-    fn pragma_table_info(table_name: &str, db: &Connection) -> Vec<String> {
-        // let db = Connection::open_in_memory().unwrap();
-        let mut table_info = db.prepare("SELECT * FROM pragma_table_info(?)").unwrap();
-        let mut columns = Vec::new();
-        let mut rows = table_info.query(&[table_name]).unwrap();
-
-        while let Some(row) = rows.next().unwrap() {
-            let row = row;
-            let column : String = row.get(1).unwrap();
-            columns.push(column);
-        }
-        println!("Columns: {:?}", columns);
-        columns
-    }
+   
 
     #[test]
     fn test_saves_and_loads_alert() {

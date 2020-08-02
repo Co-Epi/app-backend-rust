@@ -165,6 +165,7 @@ impl TcnDao for TcnDaoImpl {
 mod tests {
     use super::*;
     use rusqlite::Connection;
+    use rusqlite::Error;
     use crate::{tcn_recording::tcn_batches_manager::TcnBatchesManager, reports_update::exposure::ExposureGrouper};
 
     #[test]
@@ -195,6 +196,140 @@ mod tests {
 
         assert_eq!(loaded_tcns.len(), 1);
         assert_eq!(loaded_tcns[0], observed_tcn);
+    }
+    #[test]
+    fn test_alter_table_with_data(){
+        let database = Arc::new(Database::new(
+            Connection::open_in_memory().expect("Couldn't create database!"),
+        ));
+        let res = database.execute_sql(
+            "create table if not exists tcn(
+                tcn text not null,
+                contact_start integer not null,
+                contact_end integer not null)",
+            params![],
+        );
+        expect_log!(res, "Couldn't create tcn table");
+        let tcn_dao = TcnDaoImpl::new(database.clone());
+
+        let observed_tcn = ObservedTcn {
+            tcn: TemporaryContactNumber([
+                24, 229, 125, 245, 98, 86, 219, 221, 172, 25, 232, 150, 206, 66, 164, 173,
+            ]),
+            contact_start: UnixTime { value: 1590528300 },
+            contact_end: UnixTime { value: 1590528301 },
+            min_distance: 0.0,
+            avg_distance: 0.0,
+            total_count: 1,
+        };
+        let _ = database.transaction(|t| {
+
+            let tcn_str = hex::encode(observed_tcn.tcn.0);
+            println!("tcs_str {}", tcn_str);
+            let insert_res = t.execute("insert into tcn(tcn, contact_start, contact_end) values(?1, ?2, ?3)",
+            params![
+                tcn_str,
+                observed_tcn.contact_start.value as i64,
+                observed_tcn.contact_end.value as i64,
+            ]);
+
+            assert_eq!(false, insert_res.is_err());
+            Ok(())
+        });
+
+        let record = database.transaction(|t| {
+            let load_res: Result<String, Error> = t.query_row("SELECT * FROM tcn",
+            NO_PARAMS,
+            |row| row.get(0));
+            
+            // ("select * from tcn", params![]);
+            let loaded_tcn = load_res.expect("Error while loading tcn");
+            // assert_eq!(false, load_res.is_err());
+            println!("tcn {}", loaded_tcn);
+            Ok(())
+        });
+
+        let columns_3 = pragma_table_info("tcn", &database);
+        assert_eq!(3, columns_3.len());
+
+        database.execute_sql("alter table tcn add column min_distance real;", params![]).unwrap();
+        database.execute_sql("alter table tcn add column avg_distance real;", params![]).unwrap();
+        database.execute_sql("alter table tcn add column total_count integer;", params![]).unwrap();
+
+        let columns_6 = pragma_table_info("tcn", &database);
+        assert_eq!(6, columns_6.len());
+
+    }
+
+    #[test]
+    fn test_alter_table(){
+        let db = Connection::open_in_memory().unwrap();
+        let res = db.execute(
+            "create table if not exists tcn(
+                tcn text not null,
+                contact_start integer not null,
+                contact_end integer not null)",
+            params![],
+        );
+        expect_log!(res, "Couldn't create tcn table");
+
+        let columns_3 = pragma_table_info("tcn", &db);
+        assert_eq!(3, columns_3.len());
+
+        db.execute("alter table tcn add column min_distance real;", params![]).unwrap();
+
+        let columns_4 = pragma_table_info("tcn", &db);
+        assert_eq!(4, columns_4.len());
+
+        db.execute("alter table tcn add column avg_distance real;", params![]).unwrap();
+        db.execute("alter table tcn add column total_count integer;", params![]).unwrap();
+
+        let columns_6 = pragma_table_info("tcn", &db);
+        assert_eq!(6, columns_6.len());
+
+
+    }
+
+/*
+"create table if not exists tcn(
+                tcn text not null,
+                contact_start integer not null,
+                contact_end integer not null,
+                min_distance real not null,
+                avg_distance real not null,
+                total_count integer not null
+            )",
+
+*/
+
+    fn core_table_info(database: Arc<Database>, table_name: &str){
+        database.query("SELECT * FROM pragma_table_info(?)", params![table_name], |row: &Row|{to_table_information(row)});
+
+    }
+
+    fn to_table_information(row: &Row) {
+        let ord: Result<i32, _> = row.get(0);
+        let ord_value = expect_log!(ord, "Invalid row: no ordinal");
+        println!("Ordinal: {}", ord_value);
+
+        let column_name_res = row.get(1);
+        let column_name: String = expect_log!(column_name_res, "Invalid row: no column name");
+        println!("Column name: {}", column_name);
+    }
+
+    fn pragma_table_info(table_name: &str, db: &Connection) -> Vec<String> {
+        // let db = Connection::open_in_memory().unwrap();
+        let mut table_info = db.prepare("SELECT * FROM pragma_table_info(?)").unwrap();
+        let mut columns = Vec::new();
+        let mut rows = table_info.query(&[table_name]).unwrap();
+
+        while let Some(row) = rows.next().unwrap() {
+            let row = row;
+            let column : String = row.get(1).unwrap();
+            columns.push(column);
+        }
+        println!("Columns: {:?}", columns);
+        columns
     }
 
     #[test]
