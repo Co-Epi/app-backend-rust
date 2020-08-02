@@ -86,7 +86,7 @@ pub fn bootstrap(db_path: &str) -> Result<(), ServicesError> {
     let connection = expect_log!(connection_res, "Couldn't create database!");
     let database = Arc::new(Database::new(connection));
 
-    if let Err(_) = DEPENDENCIES.set(create_dependencies(database)) {
+    if let Err(_) = DEPENDENCIES.set(create_dependencies(database, 1)) {
         return Err(ServicesError::General(
             "Couldn't initialize dependencies".to_owned(),
         ));
@@ -130,6 +130,7 @@ pub fn dependencies() -> &'static Dependencies<
 
 fn create_dependencies(
     database: Arc<Database>,
+    required_db_version: i32,
 ) -> Dependencies<
     'static,
     PreferencesImpl,
@@ -158,7 +159,7 @@ fn create_dependencies(
     // let database = Arc::new(Database::new(connection));
 
     let migration_handler = Migration::new(database.clone());
-    migration_handler.run_db_migrations();
+    migration_handler.run_db_migrations(required_db_version);
 
     let preferences_dao = PreferencesDao::new(database.clone());
     let preferences = Arc::new(PreferencesImpl {
@@ -210,15 +211,13 @@ fn create_dependencies(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rusqlite::{params, Row, NO_PARAMS, types::Value};
-    use crate::{
-        reports_interval,
-        tcn_recording::observed_tcn_processor::ObservedTcn,
-    };
-    use reports_interval::UnixTime;
+    use rusqlite::{params, Row};
+
+
     #[test]
-    fn test_create_dependencies_with_migration_03_to_04(){
+    fn test_create_dependencies_with_migration_from_03_to_04(){
         let database = Arc::new(Database::new(
+        //   Connection::open("./testdb2-copy.sqlite").expect("Problem opening db"),
             Connection::open_in_memory().expect("Couldn't create database!"),
         ));
 
@@ -228,7 +227,7 @@ mod tests {
 
         assert_eq!(0, db_version);
 
-        create_dependencies(database.clone());
+        create_dependencies(database.clone(), 3);
 
         let new_db_version = database.core_pragma_query(pragma_variable_name);
         assert_eq!(1, new_db_version);
@@ -279,40 +278,7 @@ mod tests {
         assert_eq!(2, columns_2.len());
     }
 
-    // fn to_tcn_conditional(row: &Row) -> ObservedTcn {
-    //     let tcn: Result<String, _> = row.get(0);
-    //     let tcn_value = expect_log!(tcn, "Invalid row: no TCN");
-    //     let tcn = TcnDaoImpl::db_tcn_str_to_tcn(tcn_value);
-
-    //     let contact_start_res = row.get(1);
-    //     let contact_start: i64 = expect_log!(contact_start_res, "Invalid row: no contact start");
-
-    //     let contact_end_res = row.get(2);
-    //     let contact_end: i64 = contact_end_res.or::<Result<i64, &str>> (Ok(-1)).unwrap(); //expect_log!(contact_end_res, "Invalid row: no contact end");
-
-    //     let min_distance_res = row.get(3);
-    //     let min_distance = min_distance_res.or::<Result<f64, &str>> (Ok(-1.0)).unwrap();
-
-    //     let avg_distance_res = row.get(4);
-    //     let avg_distance = avg_distance_res.or::<Result<f64, &str>> (Ok(-1.0)).unwrap();
-
-    //     let total_count_res = row.get(5);
-    //     let total_count = total_count_res.or::<Result<i64, &str>> (Ok(-1)).unwrap();
-
-    //     ObservedTcn {
-    //         tcn,
-    //         contact_start: UnixTime {
-    //             value: contact_start as u64,
-    //         },
-    //         contact_end: UnixTime {
-    //             value: contact_end as u64,
-    //         },
-    //         min_distance: min_distance as f32,
-    //         avg_distance: avg_distance as f32,
-    //         total_count: total_count as usize,
-    //     }
-    // }
-
+    
     fn core_table_info(table_name: &str, database: Arc<Database>) -> Vec<String>{
         let columns = database.query("SELECT * FROM pragma_table_info(?)", params![table_name], |row: &Row|{to_table_information(row)}).unwrap();
         println!("Core rows: {:#?}", columns);

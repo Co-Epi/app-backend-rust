@@ -44,9 +44,7 @@ impl Migration {
         Migration { database: database }
     }
 
-    pub fn run_db_migrations(&self) {
-        
-        let required_db_version = 1;
+    pub fn run_db_migrations(&self, required_db_version: i32) {
         let pragma_variable_name = "user_version";
         let mut db_version = self.database.core_pragma_query(pragma_variable_name);
         while db_version < required_db_version {
@@ -56,7 +54,8 @@ impl Migration {
                     self.migrate_data_03_to_04();
                     db_version += 1;
                 }
-                _ => println!("db ver is incorrect"),
+                _ => {println!("db ver is incorrect");
+                    break},
             }
         }
 
