@@ -153,11 +153,6 @@ fn create_dependencies(
     AlertDaoImpl,
 > {
     let api = &TcnApiImpl {};
-
-    // let connection_res = Connection::open(sqlite_path);
-    // let connection = expect_log!(connection_res, "Couldn't create database!");
-    // let database = Arc::new(Database::new(connection));
-
     let migration_handler = Migration::new(database.clone());
     migration_handler.run_db_migrations(required_db_version);
 
@@ -267,12 +262,6 @@ mod tests {
 
         let res = database.execute_batch(exported_db_sql);
         expect_log!(res, "Couldn't recreate db for version 0.3");
-
-        // let _original_tcns = database.query("SELECT * FROM tcn",
-        // NO_PARAMS,
-        // |row| to_tcn_conditional(row));
-
-        // println!("original_tcns: {:#?}", original_tcns);
 
         let columns_2 = core_table_info("tcn", database.clone());
         assert_eq!(2, columns_2.len());
