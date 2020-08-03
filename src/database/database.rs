@@ -1,7 +1,7 @@
 use crate::{errors::ServicesError, expect_log};
 use log::*;
-use rusqlite::{Connection, Error, Result, Row, ToSql, Transaction};
 use rusqlite::types::FromSql;
+use rusqlite::{Connection, Error, Result, Row, ToSql, Transaction};
 use std::sync::Mutex;
 
 pub struct Database {
@@ -111,5 +111,28 @@ impl Database {
         Database {
             conn: Mutex::new(conn),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+
+    #[test]
+    fn test_pragma_logic() {
+        let database = Arc::new(Database::new(
+            Connection::open_in_memory().expect("Couldn't create database!"),
+        ));
+        let pragma_variable_name = "user_version";
+        let db_version: i32 = database.core_pragma_query(pragma_variable_name);
+        assert_eq!(0, db_version);
+        database.core_pragma_update(pragma_variable_name, &17);
+        let db_version_17: i32 = database.core_pragma_query(pragma_variable_name);
+        assert_eq!(17, db_version_17);
+
+        database.core_pragma_update(pragma_variable_name, &1024);
+        let db_version_1024: i32 = database.core_pragma_query(pragma_variable_name);
+        assert_eq!(1024, db_version_1024);
     }
 }
