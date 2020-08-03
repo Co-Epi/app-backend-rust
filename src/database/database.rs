@@ -1,7 +1,7 @@
 use crate::{errors::ServicesError, expect_log};
 use log::*;
-use rusqlite::{Connection, Result};
-use rusqlite::{Row, ToSql, Transaction};
+use rusqlite::{Connection, Error, Result, Row, ToSql, Transaction};
+use rusqlite::types::FromSql;
 use std::sync::Mutex;
 
 pub struct Database {
@@ -27,16 +27,18 @@ impl Database {
         conn.execute_batch(sql)
     }
 
-    pub fn core_pragma_query(&self, pragma_variable_name: &str) -> i32 {
+    pub fn core_pragma_query<T>(&self, pragma_variable_name: &str) -> T
+    where
+        T: FromSql,
+    {
         let res = self.conn.lock();
         let conn = expect_log!(res, "Couldn't lock mutex");
-        let mut value = 0;
+        let mut value_res: Result<T, Error> = Err(Error::QueryReturnedNoRows);
         let _ = conn.pragma_query(None, pragma_variable_name, |row| {
-            let value_res = row.get(0);
-            value = value_res.unwrap();
+            value_res = row.get(0);
             Ok(())
         });
-        value
+        expect_log!(value_res, "Failed to retrieve pragma value")
     }
 
     pub fn core_pragma_update(&self, pragma_variable_name: &str, new_value: &i32) {

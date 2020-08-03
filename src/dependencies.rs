@@ -212,19 +212,18 @@ mod tests {
     #[test]
     fn test_create_dependencies_with_migration_from_03_to_04(){
         let database = Arc::new(Database::new(
-        //   Connection::open("./testdb2-copy.sqlite").expect("Problem opening db"),
             Connection::open_in_memory().expect("Couldn't create database!"),
         ));
 
         prep_data_03(database.clone());
         let pragma_variable_name = "user_version";
-        let db_version = database.core_pragma_query(pragma_variable_name);
+        let db_version: i32 = database.core_pragma_query(pragma_variable_name);
 
         assert_eq!(0, db_version);
 
         create_dependencies(database.clone(), 3);
 
-        let new_db_version = database.core_pragma_query(pragma_variable_name);
+        let new_db_version: i32 = database.core_pragma_query(pragma_variable_name);
         assert_eq!(1, new_db_version);
 
         let columns_6 = core_table_info("tcn", database.clone());
