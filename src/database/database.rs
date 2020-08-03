@@ -44,7 +44,8 @@ impl Database {
     pub fn core_pragma_update(&self, pragma_variable_name: &str, new_value: &i32) {
         let res = self.conn.lock();
         let conn = expect_log!(res, "Couldn't lock mutex");
-        let _ = conn.pragma_update(None, pragma_variable_name, new_value);
+        let update_res = conn.pragma_update(None, pragma_variable_name, new_value);
+        expect_log!(update_res, "Failed to update pragma value");
     }
 
     pub fn query<T, P, F>(&self, sql: &str, params: P, f: F) -> Result<Vec<T>, rusqlite::Error>

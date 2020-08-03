@@ -1,5 +1,6 @@
 use super::database::Database;
-use rusqlite::{params};
+use log::*;
+use rusqlite::params;
 use std::sync::Arc;
 
 pub struct Migration {
@@ -7,7 +8,32 @@ pub struct Migration {
 }
 
 impl Migration {
-    pub fn migrate_data_03_to_04(&self) {
+    pub fn new(database: Arc<Database>) -> Migration {
+        Migration { database: database }
+    }
+
+    pub fn run_db_migrations(&self, required_db_version: i32) {
+        let pragma_variable_name = "user_version";
+        let mut db_version = self.database.core_pragma_query(pragma_variable_name);
+        while db_version < required_db_version {
+            debug!("DB version is {}", db_version);
+            match db_version {
+                0 => {
+                    self.migrate_data_03_to_04();
+                    db_version += 1;
+                }
+                _ => {
+                    warn!("Migration from DB version {} not handled!", db_version);
+                    break;
+                }
+            }
+        }
+
+        self.database
+            .core_pragma_update(pragma_variable_name, &db_version);
+    }
+
+    fn migrate_data_03_to_04(&self) {
         self.database
             .execute_sql(
                 "alter table tcn rename column contact_time to contact_start;",
@@ -38,28 +64,5 @@ impl Migration {
                 params![],
             )
             .unwrap();
-    }
-
-    pub fn new(database: Arc<Database>) -> Migration {
-        Migration { database: database }
-    }
-
-    pub fn run_db_migrations(&self, required_db_version: i32) {
-        let pragma_variable_name = "user_version";
-        let mut db_version = self.database.core_pragma_query(pragma_variable_name);
-        while db_version < required_db_version {
-            match db_version {
-                0 => {
-                    println!("db version is 0");
-                    self.migrate_data_03_to_04();
-                    db_version += 1;
-                }
-                _ => {println!("db ver is incorrect");
-                    break},
-            }
-        }
-
-        self.database.core_pragma_update(pragma_variable_name, &db_version);
-        
     }
 }

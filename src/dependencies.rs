@@ -226,7 +226,7 @@ mod tests {
         let new_db_version: i32 = database.core_pragma_query(pragma_variable_name);
         assert_eq!(1, new_db_version);
 
-        let columns_6 = core_table_info("tcn", database.clone());
+        let columns_6 = core_table_info("tcn", database);
         assert_eq!(6, columns_6.len());
 
     }
@@ -262,14 +262,14 @@ mod tests {
         let res = database.execute_batch(exported_db_sql);
         expect_log!(res, "Couldn't recreate db for version 0.3");
 
-        let columns_2 = core_table_info("tcn", database.clone());
+        let columns_2 = core_table_info("tcn", database);
         assert_eq!(2, columns_2.len());
     }
 
     
     fn core_table_info(table_name: &str, database: Arc<Database>) -> Vec<String>{
         let columns = database.query("SELECT * FROM pragma_table_info(?)", params![table_name], |row: &Row|{to_table_information(row)}).unwrap();
-        println!("Core rows: {:#?}", columns);
+        println!("Table columns: {:#?}", columns);
         columns
     }
 
