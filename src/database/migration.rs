@@ -1,3 +1,4 @@
+use crate::expect_log;
 use super::database::Database;
 use log::*;
 use rusqlite::params;
@@ -49,12 +50,12 @@ impl Migration {
     }
 
     fn drop_tcn_table(&self){
-        self.database
+        let exec_res = self.database
         .execute_sql(
-            "drop table tcn;",
+            "drop table if exists tcn;",
             params![],
-        )
-        .unwrap();
+        );
+        expect_log!(exec_res, "Dropping tcn table failed!");
     }
 }
 
