@@ -1,11 +1,12 @@
 package org.coepi.core.services
 
+import org.coepi.core.domain.common.Result
+import org.coepi.core.domain.model.Tcn
 import org.coepi.core.jni.JniApi
 import org.coepi.core.jni.asResult
-import org.coepi.core.domain.model.Tcn
-import org.coepi.core.domain.common.Result
 
 interface ObservedTcnsRecorder {
+    // Meters
     fun recordTcn(tcn: Tcn, distance: Float): Result<Unit, Throwable>
 }
 

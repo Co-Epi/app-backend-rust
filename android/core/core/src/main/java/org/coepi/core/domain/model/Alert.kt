@@ -20,8 +20,8 @@ data class Alert(
     val noSymptoms: Boolean, // https://github.com/Co-Epi/app-ios/issues/268#issuecomment-645583717
     var contactStart: UnixTime,
     var contactEnd: UnixTime,
-    var minDistance: LengthMeasurement,
-    var avgDistance: LengthMeasurement,
+    var minDistance: Length,
+    var avgDistance: Length,
     var isRead: Boolean
 ) : Parcelable
 

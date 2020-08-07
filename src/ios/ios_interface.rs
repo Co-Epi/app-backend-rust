@@ -81,6 +81,7 @@ pub unsafe extern "C" fn update_alert_is_read(id: *const c_char, is_read: u8) ->
     to_result_str(result)
 }
 
+// Meters
 #[no_mangle]
 pub unsafe extern "C" fn record_tcn(c_tcn: *const c_char, distance: f32) -> CFStringRef {
     let tcn_str = cstring_to_str(&c_tcn);
