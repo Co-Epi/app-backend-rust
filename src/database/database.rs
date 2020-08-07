@@ -1,7 +1,7 @@
 use crate::{errors::ServicesError, expect_log};
 use log::*;
-use rusqlite::{Connection, Result};
-use rusqlite::{Row, ToSql, Transaction};
+use rusqlite::types::FromSql;
+use rusqlite::{Connection, Error, Result, Row, ToSql, Transaction};
 use std::sync::Mutex;
 
 pub struct Database {
@@ -19,6 +19,33 @@ impl Database {
         let res = self.conn.lock();
         let conn = expect_log!(res, "Couldn't lock mutex");
         conn.execute(sql, pars)
+    }
+    #[allow(dead_code)]
+    pub fn execute_batch(&self, sql: &str) -> Result<()> {
+        let res = self.conn.lock();
+        let conn = expect_log!(res, "Couldn't lock mutex");
+        conn.execute_batch(sql)
+    }
+
+    pub fn core_pragma_query<T>(&self, pragma_variable_name: &str) -> T
+    where
+        T: FromSql,
+    {
+        let res = self.conn.lock();
+        let conn = expect_log!(res, "Couldn't lock mutex");
+        let mut value_res: Result<T, Error> = Err(Error::QueryReturnedNoRows);
+        let _ = conn.pragma_query(None, pragma_variable_name, |row| {
+            value_res = row.get(0);
+            Ok(())
+        });
+        expect_log!(value_res, "Failed to retrieve pragma value")
+    }
+
+    pub fn core_pragma_update(&self, pragma_variable_name: &str, new_value: &i32) {
+        let res = self.conn.lock();
+        let conn = expect_log!(res, "Couldn't lock mutex");
+        let update_res = conn.pragma_update(None, pragma_variable_name, new_value);
+        expect_log!(update_res, "Failed to update pragma value");
     }
 
     pub fn query<T, P, F>(&self, sql: &str, params: P, f: F) -> Result<Vec<T>, rusqlite::Error>
@@ -84,5 +111,28 @@ impl Database {
         Database {
             conn: Mutex::new(conn),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+
+    #[test]
+    fn test_pragma_logic() {
+        let database = Arc::new(Database::new(
+            Connection::open_in_memory().expect("Couldn't create database!"),
+        ));
+        let pragma_variable_name = "user_version";
+        let db_version: i32 = database.core_pragma_query(pragma_variable_name);
+        assert_eq!(0, db_version);
+        database.core_pragma_update(pragma_variable_name, &17);
+        let db_version_17: i32 = database.core_pragma_query(pragma_variable_name);
+        assert_eq!(17, db_version_17);
+
+        database.core_pragma_update(pragma_variable_name, &1024);
+        let db_version_1024: i32 = database.core_pragma_query(pragma_variable_name);
+        assert_eq!(1024, db_version_1024);
     }
 }
