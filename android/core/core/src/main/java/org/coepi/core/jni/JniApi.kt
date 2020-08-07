@@ -25,6 +25,7 @@ class JniApi {
 
     external fun generateTcn(): String
 
+    // Meters
     external fun recordTcn(tcn: String, distance: Float): JniVoidResult
 
     // TODO test:

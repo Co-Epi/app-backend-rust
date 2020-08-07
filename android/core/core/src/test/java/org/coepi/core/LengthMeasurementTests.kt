@@ -1,7 +1,7 @@
 package org.coepi.core
 
-import org.coepi.core.domain.model.LengthMeasurement.Feet
-import org.coepi.core.domain.model.LengthMeasurement.Meters
+import org.coepi.core.domain.model.Length.Feet
+import org.coepi.core.domain.model.Length.Meters
 import org.junit.Test
 import org.junit.Assert.assertEquals
 

@@ -33,8 +33,10 @@ pub struct Alert {
     // if it's needed to manipulate Alert in Rust, a separate type should be created.
     pub contact_start: u64,
     pub contact_end: u64,
-    pub min_distance: f32,
-    pub avg_distance: f32,
+    
+    pub min_distance: f32, // Meters
+    pub avg_distance: f32, // Meters
+
     pub is_read: bool,
 }
 

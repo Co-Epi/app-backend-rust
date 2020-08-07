@@ -1,18 +1,19 @@
 package org.coepi.core.services
 
-import org.coepi.core.jni.JniAlert
-import org.coepi.core.jni.JniAlertsArrayResult
-import org.coepi.core.jni.JniApi
-import org.coepi.core.domain.model.Alert
-import org.coepi.core.domain.model.toCoughSeverity
-import org.coepi.core.domain.model.toFeverSeverity
 import org.coepi.core.domain.common.Result
-import org.coepi.core.domain.common.Result.Success
 import org.coepi.core.domain.common.Result.Failure
-import org.coepi.core.domain.model.LengthMeasurement.Meters
+import org.coepi.core.domain.common.Result.Success
+import org.coepi.core.domain.model.Alert
+import org.coepi.core.domain.model.Length
+import org.coepi.core.domain.model.LengthtUnit.METERS
 import org.coepi.core.domain.model.UnixTime
 import org.coepi.core.domain.model.UserInput.None
 import org.coepi.core.domain.model.UserInput.Some
+import org.coepi.core.domain.model.toCoughSeverity
+import org.coepi.core.domain.model.toFeverSeverity
+import org.coepi.core.jni.JniAlert
+import org.coepi.core.jni.JniAlertsArrayResult
+import org.coepi.core.jni.JniApi
 import org.coepi.core.jni.asResult
 
 interface AlertsApi {
@@ -56,11 +57,11 @@ class AlertsFetcherImpl(private val api: JniApi) : AlertsApi {
         },
         minDistance = when {
             minDistance < 0 -> error("Invalid min distance: $minDistance")
-            else -> Meters(minDistance)
+            else -> Length(minDistance, METERS)
         },
         avgDistance = when {
             avgDistance < 0 -> error("Invalid avg distance: $avgDistance")
-            else -> Meters(avgDistance)
+            else -> Length(avgDistance, METERS)
         },
         reportTime = when {
             symptoms.reportTime < 0 -> error("Invalid report time: ${symptoms.reportTime}")
