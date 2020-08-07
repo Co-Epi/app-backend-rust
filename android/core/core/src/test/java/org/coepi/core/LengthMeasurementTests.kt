@@ -1,7 +1,9 @@
 package org.coepi.core
 
-import org.coepi.core.domain.model.Length.Feet
-import org.coepi.core.domain.model.Length.Meters
+import org.coepi.core.domain.model.Length
+import org.coepi.core.domain.model.LengthtUnit
+import org.coepi.core.domain.model.LengthtUnit.FEET
+import org.coepi.core.domain.model.LengthtUnit.METERS
 import org.junit.Test
 import org.junit.Assert.assertEquals
 
@@ -9,48 +11,48 @@ class LengthMeasurementTests {
     @Test
     fun metersToFeetPositiveIsCorrect() {
         assertEquals(
-            Feet(40.682415f),
-            Meters(12.4f).toFeet()
+            Length(40.682415f, FEET),
+            Length(12.4f, METERS).convert(FEET)
         )
     }
 
     @Test
     fun metersToFeetNegativeIsCorrect() {
         assertEquals(
-            Feet(-1.9685041f),
-            Meters(-0.6f).toFeet()
+            Length(-1.9685041f, FEET),
+            Length(-0.6f, METERS).convert(FEET)
         )
     }
 
     @Test
     fun metersToFeet0IsCorrect() {
         assertEquals(
-            Feet(0f),
-            Meters(0f).toFeet()
+            Length(0f, FEET),
+            Length(0f, METERS).convert(FEET)
         )
     }
 
     @Test
     fun feetToMetersPositiveIsCorrect() {
         assertEquals(
-            Meters(3.77952f),
-            Feet(12.4f).toMeters()
+            Length(3.77952f, METERS),
+            Length(12.4f, FEET).convert(METERS)
         )
     }
 
     @Test
     fun feetToMetersNegativeIsCorrect() {
         assertEquals(
-            Meters(-3761.96352f),
-            Feet(-12342.4f).toMeters()
+            Length(-3761.96352f, METERS),
+            Length(-12342.4f, FEET).convert(METERS)
         )
     }
 
     @Test
     fun feetToMeters0IsCorrect() {
         assertEquals(
-            Meters(0f),
-            Feet(0f).toMeters()
+            Length(0f, METERS),
+            Length(0f, FEET).convert(METERS)
         )
     }
 }
