@@ -34,7 +34,7 @@ impl Migration {
         let mut db_version = from_version;
         while db_version < to_version {
             debug!("DB version is {}", db_version);
-            match db_version {
+            match db_version { 
                 0 => {
                     self.migration_0_drop_tcn_table();
                     db_version += 1;
@@ -58,28 +58,6 @@ impl Migration {
         expect_log!(exec_res, "Dropping tcn table failed!");
     }
 
-    fn migration_0_alter_tcn_table(&self){
-        let exec_res = self.
-        database.execute_sql("alter table tcn rename column contact_time to contact_start;", params![]);
-        expect_log!(exec_res, "Renaming tcn table contact_time failed!");
-        let exec_res = self.database.execute_sql("alter table tcn add column contact_end integer not null default 0;", params![]);
-        expect_log!(exec_res, "Altering tcn table failed");
-        let exec_res = self.database.execute_sql("alter table tcn add column min_distance real default 32.0;", params![]);
-        expect_log!(exec_res, "Altering tcn table failed");
-        let exec_res = self.database.execute_sql("alter table tcn add column avg_distance real default 56.0;", params![]);
-        expect_log!(exec_res, "Altering tcn table failed");
-        let exec_res = self.database.execute_sql("alter table tcn add column total_count integer default 48;", params![]);
-        expect_log!(exec_res, "Altering tcn table failed");
-        // let columns_6 = core_table_info("tcn", self.database.clone());
-        // assert_eq!(6, columns_6.len());
-
-        // let _migrated_tcns = database.query("SELECT * FROM tcn",
-        // NO_PARAMS,
-        // |row| to_tcn_conditional(row));
-
-        // println!("migrated_tcns: {:#?}", migrated_tcns);
-    }
-
 }
 
 #[cfg(test)]
@@ -92,6 +70,7 @@ mod tests {
     use crate::tcn_recording::tcn_batches_manager::TcnBatchesManager;
     use crate::reports_update::exposure::ExposureGrouper;
     use tcn::TemporaryContactNumber;
+    use crate::simple_logger;
     
     #[test]
     fn test_migration_to_the_same_or_lower_version(){
@@ -123,6 +102,8 @@ mod tests {
 
     #[test]
     fn test_tcn_flush_after_migration() {
+        simple_logger::setup();
+        let table_name = "tcn";
         let database = Arc::new(Database::new(
             Connection::open_in_memory().expect("Couldn't create database!"),
         ));
@@ -132,11 +113,11 @@ mod tests {
         //migrate DB
         let migration_handler = Migration::new(database.clone());
         migration_handler.run_db_migrations(3);
-        core_table_info("tcn", database.clone());
+        core_table_info(table_name, database.clone());
 
         //verify flushing works
         let tcn_dao = TcnDaoImpl::new(database.clone());
-        core_table_info("tcn", database.clone());
+        core_table_info(table_name, database);
         let batches_manager =
             TcnBatchesManager::new(Arc::new(tcn_dao), ExposureGrouper { threshold: 1000 });
 
@@ -167,6 +148,38 @@ mod tests {
         expect_log!(flush_res, "Tcn flushing failed");
     }
 
+    #[test]
+    fn test_migration_with_tcn_table_altering(){
+        simple_logger::setup();
+        let table_name = "tcn";
+        let database = Arc::new(Database::new(
+            Connection::open_in_memory().expect("Couldn't create database!"),
+        ));
+        //set up database structure for version 0.3
+        prep_data_structure_for_app_version_03(database.clone());
+        let table_columns_ver_03 = core_table_info(table_name, database.clone());
+        assert_eq!(2, table_columns_ver_03.len());
+
+        //alter tcn table
+        migration_0_alter_tcn_table(database.clone());
+        let table_columns_after_migration = core_table_info(table_name, database);
+        assert_eq!(6, table_columns_after_migration.len());
+
+    }
+    
+    fn migration_0_alter_tcn_table(database: Arc<Database>){
+        let exec_res = database.execute_sql("alter table tcn rename column contact_time to contact_start;", params![]);
+        expect_log!(exec_res, "Renaming tcn table contact_time failed!");
+        let exec_res = database.execute_sql("alter table tcn add column contact_end integer not null default 0;", params![]);
+        expect_log!(exec_res, "Altering tcn table failed");
+        let exec_res = database.execute_sql("alter table tcn add column min_distance real default 32.0;", params![]);
+        expect_log!(exec_res, "Altering tcn table failed");
+        let exec_res = database.execute_sql("alter table tcn add column avg_distance real default 56.0;", params![]);
+        expect_log!(exec_res, "Altering tcn table failed");
+        let exec_res = database.execute_sql("alter table tcn add column total_count integer default 48;", params![]);
+        expect_log!(exec_res, "Altering tcn table failed");
+
+    }
    
     fn prep_data_structure_for_app_version_03(database: Arc<Database>){
 
@@ -199,14 +212,12 @@ mod tests {
         let res = database.execute_batch(exported_db_sql);
         expect_log!(res, "Couldn't recreate db for version 0.3");
 
-        let columns_2 = core_table_info("tcn", database);
-        assert_eq!(2, columns_2.len());
     }
 
     
     fn core_table_info(table_name: &str, database: Arc<Database>) -> Vec<String>{
         let columns = database.query("SELECT * FROM pragma_table_info(?)", params![table_name], |row: &Row|{to_table_information(row)}).unwrap();
-        println!("{} table columns: {:#?}", table_name, columns);
+        debug!("{} table columns: {:#?}", table_name, columns);
         columns
     }
 
@@ -216,10 +227,8 @@ mod tests {
 
         let column_name_res = row.get(1);
         let column_name: String = expect_log!(column_name_res, "Invalid row: no column name");
-        println!("Column {}: {}", ord_value, column_name);
+        debug!("Column {}: {}", ord_value, column_name);
         column_name
     }
-
-
 
 }
