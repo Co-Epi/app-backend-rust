@@ -86,7 +86,10 @@ pub fn bootstrap(db_path: &str) -> Result<(), ServicesError> {
     let connection = expect_log!(connection_res, "Couldn't create database!");
     let database = Arc::new(Database::new(connection));
 
-    if let Err(_) = DEPENDENCIES.set(create_dependencies(database, 1)) {
+    let migration_handler = Migration::new(database.clone());
+    migration_handler.run_db_migrations(1);
+
+    if let Err(_) = DEPENDENCIES.set(create_dependencies(database)) {
         return Err(ServicesError::General(
             "Couldn't initialize dependencies".to_owned(),
         ));
@@ -130,7 +133,7 @@ pub fn dependencies() -> &'static Dependencies<
 
 fn create_dependencies(
     database: Arc<Database>,
-    required_db_version: i32,
+    // required_db_version: i32,
 ) -> Dependencies<
     'static,
     PreferencesImpl,
@@ -153,8 +156,6 @@ fn create_dependencies(
     AlertDaoImpl,
 > {
     let api = &TcnApiImpl {};
-    let migration_handler = Migration::new(database.clone());
-    migration_handler.run_db_migrations(required_db_version);
 
     let preferences_dao = PreferencesDao::new(database.clone());
     let preferences = Arc::new(PreferencesImpl {
@@ -203,7 +204,4 @@ fn create_dependencies(
         alert_dao,
     }
 }
-#[cfg(test)]
-mod tests {
 
-}

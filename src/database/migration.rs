@@ -1,5 +1,5 @@
-use crate::expect_log;
 use super::database::Database;
+use crate::expect_log;
 use log::*;
 use rusqlite::params;
 use std::sync::Arc;
@@ -16,25 +16,28 @@ impl Migration {
     pub fn run_db_migrations(&self, required_db_version: i32) {
         let pragma_variable_name = "user_version";
         let db_version_before_migration = self.database.core_pragma_query(pragma_variable_name);
-   
-        let db_version_after_migration = self.migrate_db(db_version_before_migration, required_db_version);
+
+        let db_version_after_migration =
+            self.migrate_db(db_version_before_migration, required_db_version);
 
         if db_version_after_migration > db_version_before_migration {
             self.database
-            .core_pragma_update(pragma_variable_name, &db_version_after_migration);
+                .core_pragma_update(pragma_variable_name, &db_version_after_migration);
         }
-
     }
 
-    fn migrate_db(&self, from_version:i32, to_version: i32) -> i32{
+    fn migrate_db(&self, from_version: i32, to_version: i32) -> i32 {
         if from_version >= to_version {
-            warn!("DB version is greater than required: {} >= {}", from_version, to_version);
-            return from_version
+            warn!(
+                "DB version is greater than required: {} >= {}",
+                from_version, to_version
+            );
+            return from_version;
         }
         let mut db_version = from_version;
         while db_version < to_version {
             debug!("DB version is {}", db_version);
-            match db_version { 
+            match db_version {
                 0 => {
                     self.migration_0_drop_tcn_table();
                     db_version += 1;
@@ -49,31 +52,28 @@ impl Migration {
         db_version
     }
 
-    fn migration_0_drop_tcn_table(&self){
-        let exec_res = self.database
-        .execute_sql(
-            "drop table if exists tcn;",
-            params![],
-        );
+    fn migration_0_drop_tcn_table(&self) {
+        let exec_res = self
+            .database
+            .execute_sql("drop table if exists tcn;", params![]);
         expect_log!(exec_res, "Dropping tcn table failed!");
     }
-
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rusqlite::{Connection, params, Row};
     use crate::database::tcn_dao::TcnDaoImpl;
     use crate::reports_interval::UnixTime;
+    use crate::reports_update::exposure::ExposureGrouper;
+    use crate::simple_logger;
     use crate::tcn_recording::observed_tcn_processor::ObservedTcn;
     use crate::tcn_recording::tcn_batches_manager::TcnBatchesManager;
-    use crate::reports_update::exposure::ExposureGrouper;
+    use rusqlite::{params, Connection, Row};
     use tcn::TemporaryContactNumber;
-    use crate::simple_logger;
-    
+
     #[test]
-    fn test_migration_to_the_same_or_lower_version(){
+    fn test_migration_to_the_same_or_lower_version() {
         let database = Arc::new(Database::new(
             Connection::open_in_memory().expect("Couldn't create database!"),
         ));
@@ -96,9 +96,7 @@ mod tests {
         migration_handler.run_db_migrations(target_db_version - 1);
         let db_version_after_migration: i32 = database.core_pragma_query(pragma_variable_name);
         assert_eq!(target_db_version, db_version_after_migration);
-
     }
-
 
     #[test]
     fn test_tcn_flush_after_migration() {
@@ -149,7 +147,7 @@ mod tests {
     }
 
     #[test]
-    fn test_migration_with_tcn_table_altering(){
+    fn test_migration_with_tcn_table_altering() {
         simple_logger::setup();
         let table_name = "tcn";
         let database = Arc::new(Database::new(
@@ -164,25 +162,37 @@ mod tests {
         migration_0_alter_tcn_table(database.clone());
         let table_columns_after_migration = core_table_info(table_name, database);
         assert_eq!(6, table_columns_after_migration.len());
-
     }
-    
-    fn migration_0_alter_tcn_table(database: Arc<Database>){
-        let exec_res = database.execute_sql("alter table tcn rename column contact_time to contact_start;", params![]);
+
+    fn migration_0_alter_tcn_table(database: Arc<Database>) {
+        let exec_res = database.execute_sql(
+            "alter table tcn rename column contact_time to contact_start;",
+            params![],
+        );
         expect_log!(exec_res, "Renaming tcn table contact_time failed!");
-        let exec_res = database.execute_sql("alter table tcn add column contact_end integer not null default 0;", params![]);
+        let exec_res = database.execute_sql(
+            "alter table tcn add column contact_end integer not null default 0;",
+            params![],
+        );
         expect_log!(exec_res, "Altering tcn table failed");
-        let exec_res = database.execute_sql("alter table tcn add column min_distance real default 32.0;", params![]);
+        let exec_res = database.execute_sql(
+            "alter table tcn add column min_distance real default 32.0;",
+            params![],
+        );
         expect_log!(exec_res, "Altering tcn table failed");
-        let exec_res = database.execute_sql("alter table tcn add column avg_distance real default 56.0;", params![]);
+        let exec_res = database.execute_sql(
+            "alter table tcn add column avg_distance real default 56.0;",
+            params![],
+        );
         expect_log!(exec_res, "Altering tcn table failed");
-        let exec_res = database.execute_sql("alter table tcn add column total_count integer default 48;", params![]);
+        let exec_res = database.execute_sql(
+            "alter table tcn add column total_count integer default 48;",
+            params![],
+        );
         expect_log!(exec_res, "Altering tcn table failed");
-
     }
-   
-    fn prep_data_structure_for_app_version_03(database: Arc<Database>){
 
+    fn prep_data_structure_for_app_version_03(database: Arc<Database>) {
         let exported_db_sql = "BEGIN TRANSACTION;
         CREATE TABLE IF NOT EXISTS tcn(
                         tcn text not null,
@@ -207,16 +217,20 @@ mod tests {
                     );
         INSERT INTO `preferences` (key,value) VALUES ('authorization_key','2c7b4db36907af8210e9b33291e258fe8807ea559bcb34a77e08a4456e1bb1b2');
         INSERT INTO `preferences` (key,value) VALUES ('tck','{\"tck_bytes\":[5,0,234,97,198,59,187,80,159,108,28,198,76,17,130,191,93,232,201,219,3,72,121,187,251,216,226,210,121,33,106,87,96,62,169,210,206,118,177,218,152,86,98,60,3,229,82,31,224,66,43,75,47,211,185,199,121,227,222,20,111,10,161,154,135,109]}');
-        COMMIT;"; 
+        COMMIT;";
 
         let res = database.execute_batch(exported_db_sql);
         expect_log!(res, "Couldn't recreate db for version 0.3");
-
     }
 
-    
-    fn core_table_info(table_name: &str, database: Arc<Database>) -> Vec<String>{
-        let columns = database.query("SELECT * FROM pragma_table_info(?)", params![table_name], |row: &Row|{to_table_information(row)}).unwrap();
+    fn core_table_info(table_name: &str, database: Arc<Database>) -> Vec<String> {
+        let columns = database
+            .query(
+                "SELECT * FROM pragma_table_info(?)",
+                params![table_name],
+                |row: &Row| to_table_information(row),
+            )
+            .unwrap();
         debug!("{} table columns: {:#?}", table_name, columns);
         columns
     }
@@ -230,5 +244,4 @@ mod tests {
         debug!("Column {}: {}", ord_value, column_name);
         column_name
     }
-
 }
