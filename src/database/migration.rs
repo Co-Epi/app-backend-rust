@@ -16,6 +16,7 @@ impl Migration {
     pub fn run_db_migrations(&self, required_db_version: i32) {
         let pragma_variable_name = "user_version";
         let db_version_before_migration = self.database.core_pragma_query(pragma_variable_name);
+        debug!("Running conditional DB migrations. Current/Required DB version: {}/{}", db_version_before_migration, required_db_version);
 
         let db_version_after_migration =
             self.migrate_db(db_version_before_migration, required_db_version);
@@ -53,6 +54,7 @@ impl Migration {
     }
 
     fn migration_0_drop_tcn_table(&self) {
+        warn!("Dropping tcn table");
         let exec_res = self
             .database
             .execute_sql("drop table if exists tcn;", params![]);
