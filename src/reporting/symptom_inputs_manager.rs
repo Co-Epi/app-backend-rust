@@ -93,7 +93,10 @@ where
             "none" => UserInput::None,
             "wet" => UserInput::Some(CoughType::Wet),
             "dry" => UserInput::Some(CoughType::Dry),
-            _ => Err(format!("Not supported: {}", cough_type))?,
+            _ => {
+                error!("Not supported cough type: {}", cough_type);
+                Err(format!("Not supported cough type: {}", cough_type))?
+            }
         };
 
         debug!("Setting cough type: {:?}", input);
@@ -120,7 +123,10 @@ where
             "better_and_worse" => UserInput::Some(CoughStatus::BetterAndWorseThroughDay),
             "same_steadily_worse" => UserInput::Some(CoughStatus::SameOrSteadilyWorse),
             "worse_outside" => UserInput::Some(CoughStatus::WorseWhenOutside),
-            _ => Err(format!("Not supported: {}", status))?,
+            _ => {
+                error!("Not supported cough status: {}", status);
+                Err(format!("Not supported cough status: {}", status))?
+            }
         };
 
         debug!("Setting cough status: {:?}", input);
@@ -141,7 +147,10 @@ where
             }
             "ground_own_pace" => UserInput::Some(BreathlessnessCause::GroundOwnPace),
             "hurry_or_hill" => UserInput::Some(BreathlessnessCause::HurryOrHill),
-            _ => Err(format!("Not supported: {}", cause))?,
+            _ => {
+                error!("Not supported breathlessness cause: {}", cause);
+                Err(format!("Not supported breathlessness cause: {}", cause))?
+            }
         };
 
         debug!("Setting breathlessness cause: {:?}", input);
@@ -185,7 +194,10 @@ where
             "ear" => UserInput::Some(TemperatureSpot::Ear),
             "mouth" => UserInput::Some(TemperatureSpot::Mouth),
             "other" => UserInput::Some(TemperatureSpot::Other),
-            _ => Err(format!("Not supported: {}", spot))?,
+            _ => {
+                error!("Not supported temperature spot: {}", spot);
+                Err(format!("Not supported temperature spot: {}", spot))?
+            }
         };
 
         debug!("Setting fever temperature spot: {:?}", input);
