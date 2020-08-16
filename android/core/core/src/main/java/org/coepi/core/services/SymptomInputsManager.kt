@@ -77,7 +77,7 @@ class SymptomInputsManagerImpl(private val api: JniApi, private val gson: Gson) 
         }.asResult()
 
     override fun setCoughStatus(input: UserInput<Cough.Status>): Result<Unit, Throwable> =
-        api.setCoughType(
+        api.setCoughStatus(
             input.toJniStringInput {
                 when (it) {
                     BETTER_AND_WORSE_THROUGH_DAY -> "better_and_worse"
@@ -113,7 +113,7 @@ class SymptomInputsManagerImpl(private val api: JniApi, private val gson: Gson) 
         }
 
     override fun setFeverTakenTemperatureSpot(input: UserInput<Fever.TemperatureSpot>): Result<Unit, Throwable> =
-        api.setCoughType(
+        api.setFeverTakenTemperatureSpot(
             input.toJniStringInput {
                 when (it) {
                     is Armpit -> "armpit"
