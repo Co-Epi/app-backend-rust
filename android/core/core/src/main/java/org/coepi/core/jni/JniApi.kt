@@ -73,8 +73,27 @@ class JniApi {
 
     external fun testReturnMultipleAlerts(): JniAlertsArrayResult
 
+    // Benchmarks
+
+    external fun noopForBenchmarks()
+
+    external fun sendReceiveIntForBenchmarks(i: Int): Int
+
+    external fun sendClassForBenchmarks(c: BenchmarksIntClass): Int
+
+    external fun returnClassForBenchmarks(): BenchmarksIntClass
+
+    external fun sendCreateStringForBenchmarks(string: String): String
+
+    // Doesn't do anything with the input string
+    external fun sendCreateStringDontUseInputForBenchmarks(string: String): String
+
     /////////////////////////////////////////////////////////////////////////////////
 }
+
+data class BenchmarksIntClass(
+    val myInt: Int
+)
 
 data class FFIParameterStruct(
     val myInt: Int,
